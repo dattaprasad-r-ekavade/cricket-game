@@ -24,6 +24,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 6 — Add fielding, running, wickets, and a complete over.
 - [x] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
 - [x] Step 8 — Make field formations editable assets and build a Field Lab coverage analyzer.
+- [x] Step 9 — Set up Blender MCP for local art iteration, detail the rigged batter kit, and export edited scenes repeatably.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -86,6 +87,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `validate-field` and `analyze-field` CLI commands. The analyzer samples the field on a configurable grid, estimates the fastest fielder from reaction time, movement speed, and pickup radius, and exports per-point CSV data with summary coverage counts.
 - The 2 m sample contains 1,373 in-boundary points: 19.2% are estimated reachable within 1 s, 57.1% within 2 s, and the 95th-percentile reach estimate is 3.623 s. Repeated runs produced the same CSV hash. A 9-player preset is rejected with a clean exit code 1.
 - Built the solution, validated the preset, ran the analyzer at both 2 m and 3 m spacing, launched the game with the data-driven formation, and reran the practice over. Reach times are straight-line estimates; they do not model other fielders' collisions, terrain, or a moving ball's interception window.
+
+### Step 9 notes
+
+- Installed Blender MCP 1.8 / protocol 13 into the active Blender 5.2 portable profile and enabled it in Blender preferences. Configured the Codex MCP server for loopback on `127.0.0.1:9876` with safe mode enabled, then verified the live handshake and used scene inspection, visual review, and Blender code execution tools.
+- Added 64 skinned batter-kit details through Blender MCP: helmet cage and hardware, face details, jersey collar and fictional crest, sleeve bands, pad ribs and straps, shoe soles and laces, glove details, and bat grain and grip wraps. Every part is marked for the game exporter and weighted to an existing rig bone.
+- Added `--from-scene` to the Blender export script so MCP or artist edits in the saved `.blend` can be exported without rebuilding the starter model. It preserves the five standard clips in the source file and validates the exported 13-bone, 85-mesh, five-clip player asset.
+- This is a more readable stylized kit, not the final fidelity target; it still uses simple geometry and per-mesh diffuse colors without production textures or polished animation.
 
 ## Technical foundation
 

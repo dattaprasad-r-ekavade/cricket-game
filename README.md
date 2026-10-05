@@ -42,11 +42,23 @@ dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/pr
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.
 
-Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the sample rig and game asset with:
+Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the starter rig and game asset with:
 
 ```powershell
 blender --background --factory-startup --python tools/blender/build_practice_batter.py -- `
   --blend-output assets/characters/practice-batter.blend `
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
+
+After editing the saved `.blend` in Blender or through Blender MCP, export that scene without rebuilding it:
+
+```powershell
+blender --background assets/characters/practice-batter.blend --python tools/blender/build_practice_batter.py -- `
+  --from-scene `
+  --blend-output assets/characters/practice-batter.blend `
+  --asset-output assets/characters/practice-batter.scplayer.json
+dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json
+```
+
+The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the Blender file and exports them with the meshes. For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
 

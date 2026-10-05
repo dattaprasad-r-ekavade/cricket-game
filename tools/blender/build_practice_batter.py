@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--blend-output", default="assets/characters/practice-batter.blend")
     parser.add_argument("--asset-output", default="assets/characters/practice-batter.scplayer.json")
+    parser.add_argument(
+        "--from-scene",
+        action="store_true",
+        help="Export the open Blender scene instead of rebuilding the starter batter.",
+    )
     return parser.parse_args(forwarded)
 
 
@@ -436,22 +441,51 @@ def main() -> None:
     blend_output.parent.mkdir(parents=True, exist_ok=True)
     asset_output.parent.mkdir(parents=True, exist_ok=True)
 
-    clear_scene()
     scene = bpy.context.scene
     scene.render.fps = FPS
     scene.frame_start = 1
-    scene.frame_end = 61
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.scale_length = 1.0
 
-    armature = create_armature()
-    parts = create_character(armature)
-    actions = create_animations(armature)
+    if args.from_scene:
+        armature = bpy.data.objects.get("Practice Batter")
+        mesh_collection = bpy.data.collections.get("Player Mesh")
+        if armature is None or armature.type != "ARMATURE" or mesh_collection is None:
+            raise RuntimeError("Open a Blender scene containing the Practice Batter rig and Player Mesh collection.")
+        parts = sorted(
+            (obj for obj in mesh_collection.objects if obj.type == "MESH" and obj.get("sc_player_part")),
+            key=lambda obj: obj.name,
+        )
+        if not parts:
+            raise RuntimeError("The Player Mesh collection contains no meshes marked sc_player_part.")
+        clip_names = ["practice-stance", "defensive-block", "front-foot-drive", "lofted-drive", "between-wickets"]
+        actions_by_name = {action.name: action for action in bpy.data.actions}
+        missing_clips = [name for name in clip_names if name not in actions_by_name]
+        if missing_clips:
+            print("Rebuilding starter animation actions missing from the Blender file:", ", ".join(missing_clips))
+            for action in list(bpy.data.actions):
+                bpy.data.actions.remove(action, do_unlink=True)
+            if armature.animation_data:
+                armature.animation_data_clear()
+            actions = create_animations(armature)
+        else:
+            actions = [actions_by_name[name] for name in clip_names]
+    else:
+        clear_scene()
+        armature = create_armature()
+        parts = create_character(armature)
+        actions = create_animations(armature)
+        scene.frame_end = 61
+
     asset = export_asset(armature, parts, actions)
 
     with asset_output.open("w", encoding="utf-8", newline="\n") as output:
         json.dump(asset, output, separators=(",", ":"), ensure_ascii=False)
         output.write("\n")
+    # Blender drops actions with no users when the .blend is saved. Keep every
+    # exported clip in the editable source, not just the last active action.
+    for action in actions:
+        action.use_fake_user = True
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_output))
     print(f"Exported {len(asset['bones'])} bones, {len(asset['meshes'])} meshes, {len(asset['animations'])} clips")
     print(f"  Blender source: {blend_output}")
