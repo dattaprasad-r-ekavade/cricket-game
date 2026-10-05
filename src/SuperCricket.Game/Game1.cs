@@ -18,6 +18,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
     private readonly float? _captureRunUpTimeSeconds;
+    private readonly float? _captureDeliveryTimeSeconds;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -82,8 +83,6 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private const float FarBatterZ = 8.72f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
-    private const float BowlerFollowThroughDistanceMeters = 0.45f;
-    private const float BowlerFollowThroughDurationSeconds = 0.35f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
@@ -101,10 +100,17 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private double _updateMilliseconds;
     private double _drawMilliseconds;
 
-    public Game1(string? capturePath = null, string? captureCameraPreset = null, float? captureRunUpTimeSeconds = null)
+    public Game1(
+        string? capturePath = null,
+        string? captureCameraPreset = null,
+        float? captureRunUpTimeSeconds = null,
+        float? captureDeliveryTimeSeconds = null)
     {
+        if (captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null)
+            throw new ArgumentException("Choose either a run-up capture time or a delivery capture time.");
         _capturePath = capturePath;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
+        _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
             throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
@@ -238,6 +244,14 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     throw new ArgumentOutOfRangeException("captureRunUpTimeSeconds", runUpTime,
                         $"Run-up capture time must be between 0 and {_bowlerRunUpDurationSeconds:0.###} seconds.");
                 SetBowlerRunUpCapturePose(runUpTime);
+            }
+            else if (_captureDeliveryTimeSeconds is { } deliveryTime)
+            {
+                var deliveryDuration = GetAnimationDuration(_bowlerAsset, "overarm-delivery");
+                if (deliveryTime > deliveryDuration)
+                    throw new ArgumentOutOfRangeException("captureDeliveryTimeSeconds", deliveryTime,
+                        $"Delivery capture time must be between 0 and {deliveryDuration:0.###} seconds.");
+                SetBowlerDeliveryCapturePose(deliveryTime);
             }
             else
             {
@@ -659,6 +673,20 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
             new Color(248, 181, 82)));
+    }
+
+    private void SetBowlerDeliveryCapturePose(float timeSeconds)
+    {
+        var deliveryDuration = GetAnimationDuration(_bowlerAsset, "overarm-delivery");
+        _bowlerRunUpElapsed = _bowlerRunUpDurationSeconds;
+        _bowlerActionElapsed = timeSeconds;
+        _bowlerActionStarted = true;
+        _bowlerActionFinished = false;
+        _bowlerReleased = false;
+        _bowlerAnimator.Play("overarm-delivery", 0.001f);
+        var previewTime = MathF.Min(MathF.Max(timeSeconds, 0.001f), MathF.Max(0f, deliveryDuration - 0.001f));
+        _bowlerAnimator.Update(previewTime);
+        _trajectoryVertices.Clear();
     }
 
     private void SetBowlerRunUpCapturePose(float timeSeconds)
@@ -1098,11 +1126,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var position = releasePosition;
         if (_bowlerActionStarted)
         {
-            var followThroughProgress = MathHelper.Clamp(
-                (_bowlerActionElapsed - _bowlerReleaseTimeSeconds) / BowlerFollowThroughDurationSeconds,
-                0f,
-                1f);
-            position.Z -= BowlerFollowThroughDistanceMeters * followThroughProgress;
+            var deliveryMotion = _bowlerActionFinished
+                ? _bowlerAnimator.GetRootMotionAtEnd("overarm-delivery")
+                : _bowlerAnimator.GetCurrentClipRootMotion();
+            position += Vector3.TransformNormal(deliveryMotion, facing);
         }
         else
         {

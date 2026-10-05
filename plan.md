@@ -32,6 +32,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 14 — Author a bowling run cycle, derive approach timing from the clip, and add deterministic run-up capture.
 - [x] Step 15 — Export validated animation events from Blender and use the bowler's authored release marker in gameplay.
 - [x] Step 16 — Export character-local root motion from Blender and drive the bowler's approach from its authored path.
+- [x] Step 17 — Author the bowler's delivery follow-through in Blender and preview the complete action deterministically.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -152,6 +153,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Replaced the game-space linear approach constant with sampled and interpolated motion from the bowler asset. The validator now prints net root displacement to make authored paths visible in the content workflow.
 - Captured and reviewed run-up frames at 0, 0.5, 1, 1.5, and 2 seconds from the bowler-end camera. The endpoint reaches the release position; both player assets validate, the release event remains 0.667 s, the solution builds cleanly, and the sample over still completes at 10/2.
 - Rejected a player export with a missing root-motion sample, confirmed consecutive Blender exports have matching SHA-256 `B392C45AEE9CCE386B16BBE501A846A2C05D78B6065CB2E2AE6A34E6798C57DC`, and repeated the 1.5 s game capture deterministically (`979C3D82AEDA0B60295C6BFF433D15E8B09D6A958AACA3D80FAD2E12D320D2FD`).
+
+### Step 17 notes
+
+- Added a Blender-authored 0.45 m forward root-motion arc to `overarm-delivery`, beginning at the exported `ball-release` event and easing into the follow-through. Runtime bowler placement now samples the delivery clip instead of applying a separate linear game-code offset.
+- Added `--delivery-time <seconds>` to the frame-capture tool so the delivery and follow-through can be inspected without a live simulation.
+- Reset each Blender pose to its rig basis before evaluating a different action. This prevents unkeyed root transforms from leaking between clips; both player exports were regenerated and all sampled horizontal root offsets are zero after extraction.
+- Both exports validated and repeated deterministically (bowler SHA-256 `5DE2922E344FFF76093B6F659E02F9008629B34E226C61C36751FED77C686FDF`; batter SHA-256 `02385B38E4F718FE5C6B20FD244B413F353A03DDDC43DAC1F57341009F5584C1`). The exported bowler path is 15 m for run-up and 0.45 m for delivery; the delivery path remains at zero through the 0.667 s release event.
+- Verified `--delivery-time` captures at release and 1.0 s, repeated the 1.0 s capture exactly (SHA-256 `5EC442F03331FF53AF8883AF03B1CD931F82BF67DF1BEC998332032BF391F83F`), and confirmed conflicting preview-time options are rejected. Release build succeeded with zero warnings, both player assets validated, and the sample over still completes at 10/2.
 
 ## Technical foundation
 

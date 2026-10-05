@@ -418,6 +418,8 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
     original_action = armature.animation_data.action if armature.animation_data else None
     original_action_slot = armature.animation_data.action_slot if armature.animation_data else None
     for action in actions:
+        for pose_bone in armature.pose.bones:
+            pose_bone.matrix_basis = Matrix.Identity(4)
         armature.animation_data.action = action
         if hasattr(action, "slots") and len(action.slots) > 0:
             armature.animation_data.action_slot = action.slots[0]

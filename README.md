@@ -84,10 +84,11 @@ Capture a deterministic, paused release frame for visual review with:
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/practice-ground.png
 ```
 
-The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view. Use `--run-up-time 0.5` to freeze and inspect a deterministic point in the bowler's run-up instead of the release pose; the value must be between zero and the authored clip duration.
+The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view. Use `--run-up-time 0.5` to freeze in the run-up or `--delivery-time 1.0` to inspect the authored delivery and follow-through; either value must be within its clip duration, and the two time options cannot be combined. Delivery-time previews hide the ball so the bowler's pose and movement are clear.
 
 ```powershell
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/bowler-run-up.png --camera bowler-end --run-up-time 0.5
+dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/bowler-follow-through.png --camera bowler-end --delivery-time 1.0
 ```
 
 Prepare an AI-generated or artist-authored square texture tile with Python and Pillow before adding it to `assets/textures`:

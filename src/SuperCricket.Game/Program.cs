@@ -5,6 +5,7 @@ using System.IO;
 string? capturePath = null;
 string? captureCamera = null;
 float? captureRunUpTimeSeconds = null;
+float? captureDeliveryTimeSeconds = null;
 if (args.Length > 0)
 {
     if (args[0] != "--capture-frame" || args.Length < 2 || args.Length % 2 != 0)
@@ -27,14 +28,19 @@ if (args.Length > 0)
                 float.IsFinite(parsedSeconds) && parsedSeconds >= 0f:
                 captureRunUpTimeSeconds = parsedSeconds;
                 break;
+            case "--delivery-time" when captureDeliveryTimeSeconds is null &&
+                float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDeliverySeconds) &&
+                float.IsFinite(parsedDeliverySeconds) && parsedDeliverySeconds >= 0f:
+                captureDeliveryTimeSeconds = parsedDeliverySeconds;
+                break;
             default:
                 throw new ArgumentException(GetCaptureUsage());
         }
     }
 }
 
-using var game = new SuperCricket.Game.Game1(capturePath, captureCamera, captureRunUpTimeSeconds);
+using var game = new SuperCricket.Game.Game1(capturePath, captureCamera, captureRunUpTimeSeconds, captureDeliveryTimeSeconds);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds>]";
+    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds>]";

@@ -105,13 +105,15 @@ public sealed class PlayerAnimator
 
     public XnaVector3 GetRootMotion()
     {
-        var currentMotion = SampleRootMotion(_currentClip, _currentTime);
+        var currentMotion = GetCurrentClipRootMotion();
         if (_previousClip is null)
             return currentMotion;
 
         var previousMotion = SampleRootMotion(_previousClip, _previousTime);
         return XnaVector3.Lerp(previousMotion, currentMotion, GetTransitionBlend());
     }
+
+    public XnaVector3 GetCurrentClipRootMotion() => SampleRootMotion(_currentClip, _currentTime);
 
     public XnaVector3 GetRootMotionAtEnd(string clipName)
     {
