@@ -41,12 +41,20 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private PlayerAsset _playerAsset = null!;
     private PlayerAnimator _playerAnimator = null!;
     private SkinnedPlayerRenderer _playerRenderer = null!;
+    private PlayerAsset _bowlerAsset = null!;
+    private PlayerAnimator _bowlerAnimator = null!;
+    private SkinnedPlayerRenderer _bowlerRenderer = null!;
     private FieldPreset _fieldPreset = null!;
     private OverScoreboard _scoreboard = new();
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
     private bool _simulationPaused;
+    private float _bowlerRunUpElapsed;
+    private float _bowlerActionElapsed;
+    private bool _bowlerActionStarted;
+    private bool _bowlerActionFinished;
+    private bool _bowlerReleased;
     private bool _showDebugOverlay;
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
@@ -69,6 +77,13 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _fielderThrowerIndex;
     private const float NearBatterZ = -8.72f;
     private const float FarBatterZ = 8.72f;
+    private const float BowlerRunUpDurationSeconds = 1.35f;
+    private const float BowlerRunUpDistanceMeters = 15f;
+    private const float BowlerReleaseHandOffsetXMeters = 0.197f;
+    private const float BowlerHandForwardMeters = 0.39f;
+    private const float BowlerReleaseTimeSeconds = 20f / 30f; // Frame 21 of the 30 Hz Blender action.
+    private const float BowlerFollowThroughDistanceMeters = 0.45f;
+    private const float BowlerFollowThroughDurationSeconds = 0.35f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
@@ -190,6 +205,13 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
         _playerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _playerAsset);
+        var bowlerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-bowler.scplayer.json");
+        _bowlerAsset = PlayerAsset.Load(bowlerPath);
+        _bowlerAnimator = new PlayerAnimator(_bowlerAsset);
+        _bowlerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _bowlerAsset);
+        RequireAnimation(_bowlerAsset, "between-wickets");
+        RequireAnimation(_bowlerAsset, "overarm-delivery");
+        RequireAnimation(_bowlerAsset, "practice-stance");
         var shotSetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "shots.json");
         _shotSet = BattingShotSet.Load(shotSetPath);
         foreach (var shot in _shotSet.Shots)
@@ -205,7 +227,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
         _fielderMarkerVertices = PracticeGround.CreateFielderMarker();
         StartNewOver();
-        _simulationPaused = _captureTarget is not null;
+        if (_captureTarget is not null)
+        {
+            SetBowlerCaptureReleasePose();
+            _simulationPaused = true;
+        }
     }
 
     protected override void Update(GameTime gameTime)
@@ -250,14 +276,15 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (_captureTarget is null)
             _playerAnimator.Update(elapsedSeconds);
+        var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (_isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
             UpdateRun(elapsedSeconds);
         if (_fielderThrowActive)
             UpdateFielderThrow(elapsedSeconds);
 
-        if (!_simulationPaused && !_deliveryComplete)
+        if (!_simulationPaused && !_deliveryComplete && _bowlerReleased)
         {
-            _simulationAccumulator += (float)Math.Min(gameTime.ElapsedGameTime.TotalSeconds, 0.25);
+            _simulationAccumulator += MathF.Min(flightElapsed, 0.25f);
             while (_simulationAccumulator >= _ballFlight.FixedTimeStepSeconds &&
                    _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled)
             {
@@ -381,19 +408,22 @@ public class Game1 : Microsoft.Xna.Framework.Game
         DrawCrowd();
         DrawShadows();
 
-        _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
-            * Matrix.CreateTranslation(ToXna(ballPosition));
-        foreach (var pass in _worldEffect.CurrentTechnique.Passes)
+        if (_bowlerReleased)
         {
-            pass.Apply();
-            GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, _ballVertices, 0, _ballVertices.Length / 3);
+            _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
+                * Matrix.CreateTranslation(ToXna(ballPosition));
+            foreach (var pass in _worldEffect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, _ballVertices, 0, _ballVertices.Length / 3);
+            }
+            _worldEffect.World = Matrix.Identity;
         }
-        _worldEffect.World = Matrix.Identity;
 
         _lineEffect.World = Matrix.Identity;
         _lineEffect.View = _worldEffect.View;
         _lineEffect.Projection = _worldEffect.Projection;
-        if (_trajectoryVertices.Count >= 2)
+        if (_bowlerReleased && _trajectoryVertices.Count >= 2)
         {
             var trajectory = _trajectoryVertices.ToArray();
             foreach (var pass in _lineEffect.CurrentTechnique.Passes)
@@ -410,6 +440,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var skinMatrices = _playerAnimator.GetSkinMatrices();
         _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
+        _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection, _bowlerAnimator.GetSkinMatrices());
         DrawDebugOverlay();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
@@ -429,6 +460,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     protected override void UnloadContent()
     {
         _playerRenderer?.Dispose();
+        _bowlerRenderer?.Dispose();
         _crowdVertexBuffer?.Dispose();
         _worldEffect?.Dispose();
         _crowdEffect?.Dispose();
@@ -469,16 +501,17 @@ public class Game1 : Microsoft.Xna.Framework.Game
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
             $"Over {_scoreboard.OversText}    {_scoreboard.Runs}/{_scoreboard.Wickets}    Striker {_scoreboard.Striker}    legal balls {_scoreboard.LegalBalls}/6",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
-            $"Ball {(_simulationPaused ? "Paused" : ball.Phase.ToString())}    speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m",
+            $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
+            $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
             $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
-            $"Scene vertices {_groundVertices.Length + _crowdPrimitiveCount * 3:N0} ({PracticeGround.CrowdSpectatorCount:N0} crowd)    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 2",
+            $"Scene vertices {_groundVertices.Length + _crowdPrimitiveCount * 3:N0} ({PracticeGround.CrowdSpectatorCount:N0} crowd)    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 3",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
             "A defend    S drive    D loft    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
         };
-        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 296);
+        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 320);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, panel, Color.White);
@@ -525,11 +558,106 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _fieldingSide.Reset();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
         _playerAnimator.Play("practice-stance", 0.12f);
+        _bowlerRunUpElapsed = 0f;
+        _bowlerActionElapsed = 0f;
+        _bowlerActionStarted = false;
+        _bowlerActionFinished = false;
+        _bowlerReleased = false;
+        _bowlerAnimator.Play("between-wickets", 0.08f);
+        _trajectoryVertices.Clear();
+    }
+
+    private float UpdateBowler(float elapsedSeconds)
+    {
+        if (_bowlerActionFinished)
+        {
+            _bowlerAnimator.Update(elapsedSeconds);
+            return _bowlerReleased ? elapsedSeconds : 0f;
+        }
+
+        var remaining = elapsedSeconds;
+        var flightElapsed = 0f;
+
+        if (!_bowlerActionStarted)
+        {
+            var runUpRemaining = MathF.Max(0f, BowlerRunUpDurationSeconds - _bowlerRunUpElapsed);
+            var runUpStep = MathF.Min(remaining, runUpRemaining);
+            _bowlerRunUpElapsed += runUpStep;
+            _bowlerAnimator.Update(runUpStep);
+            remaining -= runUpStep;
+            if (_bowlerRunUpElapsed >= BowlerRunUpDurationSeconds)
+            {
+                _bowlerActionStarted = true;
+                _bowlerActionElapsed = 0f;
+                _bowlerAnimator.Play("overarm-delivery", 0.08f);
+            }
+        }
+
+        if (remaining <= 0f)
+            return 0f;
+
+        var actionDuration = GetAnimationDuration(_bowlerAsset, "overarm-delivery");
+        if (_bowlerActionElapsed < actionDuration)
+        {
+            var actionStep = MathF.Min(remaining, actionDuration - _bowlerActionElapsed);
+            var previousActionTime = _bowlerActionElapsed;
+            _bowlerAnimator.Update(actionStep);
+            _bowlerActionElapsed += actionStep;
+            remaining -= actionStep;
+
+            if (!_bowlerReleased && _bowlerActionElapsed >= BowlerReleaseTimeSeconds)
+            {
+                _bowlerReleased = true;
+                _trajectoryVertices.Add(new VertexPositionColor(
+                    ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
+                    new Color(248, 181, 82)));
+            }
+
+            if (_bowlerReleased)
+                flightElapsed = previousActionTime >= BowlerReleaseTimeSeconds
+                    ? actionStep
+                    : MathF.Max(0f, _bowlerActionElapsed - BowlerReleaseTimeSeconds);
+        }
+
+        if (_bowlerActionElapsed >= actionDuration)
+        {
+            _bowlerActionFinished = true;
+            _bowlerAnimator.Play("practice-stance", 0.16f);
+            if (remaining > 0f)
+            {
+                _bowlerAnimator.Update(remaining);
+                flightElapsed += remaining;
+            }
+        }
+
+        return flightElapsed;
+    }
+
+    private void SetBowlerCaptureReleasePose()
+    {
+        _bowlerRunUpElapsed = BowlerRunUpDurationSeconds;
+        _bowlerActionStarted = true;
+        _bowlerActionFinished = false;
+        _bowlerActionElapsed = BowlerReleaseTimeSeconds;
+        _bowlerReleased = true;
+        _bowlerAnimator.Play("overarm-delivery", 0.001f);
+        _bowlerAnimator.Update(BowlerReleaseTimeSeconds);
         _trajectoryVertices.Clear();
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
             new Color(248, 181, 82)));
     }
+
+    private static float GetAnimationDuration(PlayerAsset asset, string clipName)
+    {
+        var animation = asset.Animations.Find(clip =>
+            string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase));
+        return animation?.DurationSeconds
+            ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing animation clip '{clipName}'.");
+    }
+
+    private static void RequireAnimation(PlayerAsset asset, string clipName) =>
+        _ = GetAnimationDuration(asset, clipName);
 
     private void SelectNextDelivery(int index)
     {
@@ -791,6 +919,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void BuildShadowVertices(Matrix strikerWorld, Matrix nonStrikerWorld, NumericsVector3 ballPosition)
     {
+        _shadowVertices.Clear();
         var striker = strikerWorld.Translation;
         var nonStriker = nonStrikerWorld.Translation;
         PracticeGround.AppendSoftShadow(
@@ -805,17 +934,27 @@ public class Game1 : Microsoft.Xna.Framework.Game
             0.52f,
             0.82f,
             74);
+        var bowler = GetBowlerWorld().Translation;
+        PracticeGround.AppendSoftShadow(
+            _shadowVertices,
+            new Vector3(bowler.X, -0.018f, bowler.Z),
+            0.48f,
+            0.82f,
+            74);
 
-        var ballOverPitch = MathF.Abs(ballPosition.X) <= PracticeGround.PitchWidth / 2f &&
-            MathF.Abs(ballPosition.Z) <= PracticeGround.WicketOffset;
-        var groundHeight = ballOverPitch ? -0.025f : -0.075f;
-        var ballHeight = MathF.Max(0f, ballPosition.Y - groundHeight);
-        var opacity = (byte)Math.Clamp(72f / (1f + ballHeight * 0.55f), 12f, 72f);
-        var ballRadiusX = Math.Clamp(0.09f + ballHeight * 0.11f, 0.09f, 1.2f);
-        var ballRadiusZ = Math.Clamp(0.12f + ballHeight * 0.13f, 0.12f, 1.5f);
-        var ballCenter = ToXna(ballPosition);
-        ballCenter.Y = groundHeight + 0.006f;
-        PracticeGround.AppendSoftShadow(_shadowVertices, ballCenter, ballRadiusX, ballRadiusZ, opacity);
+        if (_bowlerReleased)
+        {
+            var ballOverPitch = MathF.Abs(ballPosition.X) <= PracticeGround.PitchWidth / 2f &&
+                MathF.Abs(ballPosition.Z) <= PracticeGround.WicketOffset;
+            var groundHeight = ballOverPitch ? -0.025f : -0.075f;
+            var ballHeight = MathF.Max(0f, ballPosition.Y - groundHeight);
+            var opacity = (byte)Math.Clamp(72f / (1f + ballHeight * 0.55f), 12f, 72f);
+            var ballRadiusX = Math.Clamp(0.09f + ballHeight * 0.11f, 0.09f, 1.2f);
+            var ballRadiusZ = Math.Clamp(0.12f + ballHeight * 0.13f, 0.12f, 1.5f);
+            var ballCenter = ToXna(ballPosition);
+            ballCenter.Y = groundHeight + 0.006f;
+            PracticeGround.AppendSoftShadow(_shadowVertices, ballCenter, ballRadiusX, ballRadiusZ, opacity);
+        }
     }
 
     private void DrawShadows()
@@ -911,6 +1050,24 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private static Matrix BatterWorld(float z, bool atNearEnd) =>
         Matrix.CreateRotationY(atNearEnd ? 0f : MathHelper.Pi) *
         Matrix.CreateTranslation(new Vector3(-0.48f, -0.025f, z));
+
+    private Matrix GetBowlerWorld()
+    {
+        var release = _deliveryPreset.ReleasePosition;
+        var runUpProgress = MathHelper.Clamp(_bowlerRunUpElapsed / BowlerRunUpDurationSeconds, 0f, 1f);
+        var z = release.Z + BowlerHandForwardMeters + BowlerRunUpDistanceMeters * (1f - runUpProgress);
+        if (_bowlerActionStarted)
+        {
+            var followThroughProgress = MathHelper.Clamp(
+                (_bowlerActionElapsed - BowlerReleaseTimeSeconds) / BowlerFollowThroughDurationSeconds,
+                0f,
+                1f);
+            z -= BowlerFollowThroughDistanceMeters * followThroughProgress;
+        }
+
+        return Matrix.CreateRotationY(MathHelper.Pi) *
+            Matrix.CreateTranslation(new Vector3(release.X + BowlerReleaseHandOffsetXMeters, -0.025f, z));
+    }
 
     private bool TryBatContact(NumericsVector3 previousBall, NumericsVector3 currentBall, out Vector3 contactPoint, out float hitQuality)
     {

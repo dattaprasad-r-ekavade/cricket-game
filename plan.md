@@ -28,6 +28,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 10 — Add directional daylight, soft contact shadows, and deterministic game-frame capture.
 - [x] Step 11 — Generate and prepare seamless grass and pitch textures, then render them on measured oval and pitch meshes.
 - [x] Step 12 — Populate the stadium bowl with a restrained static crowd and keep the crowd mesh on a reusable GPU buffer.
+- [x] Step 13 — Create a Blender-authored bowler and synchronize his run-up, delivery animation, and ball release.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -119,9 +120,16 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Captured and reviewed 1440×900 broadcast and behind-striker views at `artifacts/step12-crowd-broadcast.png` and `artifacts/step12-crowd-unlit.png`. Two repeated behind-striker captures matched byte-for-byte (SHA-256 `2A3FC7F90DCDDC6CA0C554DB55D897CEEBBD217358AA2E32A6F4E26C02DDFB3F`).
 - Release build completed with zero warnings or errors. The crowd is a static distance treatment: it has no individual animation, gesture changes, or detailed facial meshes yet.
 
+### Step 13 notes
+
+- Used the connected Blender MCP workflow to save a separate `practice-bowler.blend` from the player scene, remove batter equipment, recolor the kit, and author an `overarm-delivery` action. The saved source exports a 13-bone, 36-mesh player with six clips; the exporter now supports extra named actions and takes the asset name from the armature.
+- Added a visible 1.35 s run-up and follow-through at the bowling end. The game starts the ball simulation and its trail on the clip's authored frame-21 release (20/30 s after the delivery action begins), hides the ball before release, and draws the bowler's shadow. Capture mode shows a repeatable release pose.
+- Captured and visually reviewed 1440×900 broadcast and behind-striker frames at `artifacts/step13-bowler-broadcast.png` and `artifacts/step13-bowler-behind.png`. The capture path loads the new player asset; repeated behind-striker captures matched byte-for-byte (SHA-256 `24626A527B4FA933FDA1FA290B694CA766E09A42B1D6D5AF7EDA2BFF6DACAC0B`).
+- Release build completed without warnings or errors; batter and bowler exports validate, and the sample over still completes at 10/2. This is an early stylized bowler: the run-up uses the existing between-wickets cycle plus linear root movement, and the release event time is currently configured in game code rather than exported as clip metadata.
+
 ## Technical foundation
 
-Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The runtime asset route still needs to be proven: custom MonoGame content pipeline processing or an external-format importer. If using glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
+Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
 
 Organize code around responsibilities as the implementation grows:
 

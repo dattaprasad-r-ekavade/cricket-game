@@ -16,7 +16,7 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
+The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. A teal-clad bowler runs in and plays an authored overarm delivery; the ball and its flight trail begin at the clip's release event. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles batter animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
 
 ## Repository layout
 
@@ -24,10 +24,10 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `src/SuperCricket.Simulation` — graphics-independent ball-flight, fielding, and over-scoring simulation
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
-- `assets` — editable delivery and field presets plus Blender-authored player source/export
+- `assets` — editable delivery and field presets plus Blender-authored batter and bowler source/export
 - `assets/textures` — seamless generated albedo tiles for the outfield and pitch
 - `assets/batting/shots.json` — editable shot intent and launch tuning
-- `tools/blender` — Blender scripts that generate and export the practice batter
+- `tools/blender` — Blender scripts that generate and export players and animation clips
 - `tools/prepare_texture.py` — resize and feather generated square texture tiles for repeat sampling
 - `plan.md` — milestone plan and progress record
 
@@ -62,7 +62,17 @@ blender --background assets/characters/practice-batter.blend --python tools/blen
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json
 ```
 
-The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the Blender file and exports them with the meshes. For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
+The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the batter file and exports additional named actions with `--include-clip`. The bowler source is an edited copy of the player scene with its own overarm-delivery action; re-export it with:
+
+```powershell
+blender --background assets/characters/practice-bowler.blend --python tools/blender/build_practice_batter.py -- `
+  --from-scene --include-clip overarm-delivery `
+  --blend-output assets/characters/practice-bowler.blend `
+  --asset-output assets/characters/practice-bowler.scplayer.json
+dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler.scplayer.json
+```
+
+For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
 
 Capture a deterministic, paused startup frame for visual review with:
 

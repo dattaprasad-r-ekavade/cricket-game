@@ -61,6 +61,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Export the open Blender scene instead of rebuilding the starter batter.",
     )
+    parser.add_argument(
+        "--include-clip",
+        action="append",
+        default=[],
+        help="Include an additional named Blender action when exporting an existing scene (repeatable).",
+    )
     return parser.parse_args(forwarded)
 
 
@@ -426,7 +432,7 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
 
     return {
         "version": 1,
-        "name": "Practice Batter",
+        "name": armature.name,
         "coordinateSystem": "right-handed-y-up-metres",
         "bones": bone_data,
         "meshes": [export_mesh(part, armature, bone_indices) for part in parts],
@@ -448,10 +454,10 @@ def main() -> None:
     scene.unit_settings.scale_length = 1.0
 
     if args.from_scene:
-        armature = bpy.data.objects.get("Practice Batter")
+        armature = next((obj for obj in scene.objects if obj.type == "ARMATURE"), None)
         mesh_collection = bpy.data.collections.get("Player Mesh")
-        if armature is None or armature.type != "ARMATURE" or mesh_collection is None:
-            raise RuntimeError("Open a Blender scene containing the Practice Batter rig and Player Mesh collection.")
+        if armature is None or mesh_collection is None:
+            raise RuntimeError("Open a Blender scene containing an armature and the Player Mesh collection.")
         parts = sorted(
             (obj for obj in mesh_collection.objects if obj.type == "MESH" and obj.get("sc_player_part")),
             key=lambda obj: obj.name,
@@ -468,8 +474,13 @@ def main() -> None:
             if armature.animation_data:
                 armature.animation_data_clear()
             actions = create_animations(armature)
-        else:
-            actions = [actions_by_name[name] for name in clip_names]
+            actions_by_name = {action.name: action for action in bpy.data.actions}
+
+        requested_clips = list(dict.fromkeys([*clip_names, *args.include_clip]))
+        missing_requested = [name for name in requested_clips if name not in actions_by_name]
+        if missing_requested:
+            raise RuntimeError("Requested Blender animation actions are missing: " + ", ".join(missing_requested))
+        actions = [actions_by_name[name] for name in requested_clips]
     else:
         clear_scene()
         armature = create_armature()
