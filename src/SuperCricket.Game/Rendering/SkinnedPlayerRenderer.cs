@@ -33,8 +33,16 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         _whiteTexture = new Texture2D(graphicsDevice, 1, 1);
         _whiteTexture.SetData([Color.White]);
         _effect.Texture = _whiteTexture;
-        _meshes = asset.Meshes.Select(mesh => new MeshBuffers(graphicsDevice, mesh)).ToList();
+        _meshes = asset.Meshes
+            .GroupBy(mesh => (mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z))
+            .Select(group => new MeshBuffers(
+                graphicsDevice,
+                group.ToList(),
+                new Vector3(group.Key.X, group.Key.Y, group.Key.Z)))
+            .ToList();
     }
+
+    public int MaterialBatchCount => _meshes.Count;
 
     public void Draw(Matrix world, Matrix view, Matrix projection, Matrix[] skinMatrices)
     {
@@ -94,31 +102,45 @@ public sealed class SkinnedPlayerRenderer : IDisposable
 
     private sealed class MeshBuffers : IDisposable
     {
-        public MeshBuffers(GraphicsDevice graphicsDevice, PlayerMeshData mesh)
+        public MeshBuffers(GraphicsDevice graphicsDevice, IReadOnlyList<PlayerMeshData> meshes, Vector3 diffuseColor)
         {
-            var vertexCount = mesh.Positions.Length / 3;
+            var vertexCount = meshes.Sum(mesh => mesh.Positions.Length / 3);
+            var indexCount = meshes.Sum(mesh => mesh.Indices.Length);
             var vertices = new SkinnedVertex[vertexCount];
-            for (var vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
+            var indices = new int[indexCount];
+            var vertexBase = 0;
+            var indexOffset = 0;
+            foreach (var mesh in meshes)
             {
-                var vectorOffset = vertexIndex * 3;
-                var uvOffset = vertexIndex * 2;
-                var influenceOffset = vertexIndex * 4;
-                vertices[vertexIndex] = new SkinnedVertex
+                var meshVertexCount = mesh.Positions.Length / 3;
+                for (var vertexIndex = 0; vertexIndex < meshVertexCount; vertexIndex++)
                 {
-                    Position = new Vector3(mesh.Positions[vectorOffset], mesh.Positions[vectorOffset + 1], mesh.Positions[vectorOffset + 2]),
-                    Normal = new Vector3(mesh.Normals[vectorOffset], mesh.Normals[vectorOffset + 1], mesh.Normals[vectorOffset + 2]),
-                    TextureCoordinate = new Vector2(mesh.TextureCoordinates[uvOffset], mesh.TextureCoordinates[uvOffset + 1]),
-                    BoneWeights = new Vector4(mesh.BoneWeights[influenceOffset], mesh.BoneWeights[influenceOffset + 1], mesh.BoneWeights[influenceOffset + 2], mesh.BoneWeights[influenceOffset + 3]),
-                    BoneIndices = new Byte4(mesh.BoneIndices[influenceOffset], mesh.BoneIndices[influenceOffset + 1], mesh.BoneIndices[influenceOffset + 2], mesh.BoneIndices[influenceOffset + 3])
-                };
+                    var vectorOffset = vertexIndex * 3;
+                    var uvOffset = vertexIndex * 2;
+                    var influenceOffset = vertexIndex * 4;
+                    vertices[vertexBase + vertexIndex] = new SkinnedVertex
+                    {
+                        Position = new Vector3(mesh.Positions[vectorOffset], mesh.Positions[vectorOffset + 1], mesh.Positions[vectorOffset + 2]),
+                        Normal = new Vector3(mesh.Normals[vectorOffset], mesh.Normals[vectorOffset + 1], mesh.Normals[vectorOffset + 2]),
+                        TextureCoordinate = new Vector2(mesh.TextureCoordinates[uvOffset], mesh.TextureCoordinates[uvOffset + 1]),
+                        BoneWeights = new Vector4(mesh.BoneWeights[influenceOffset], mesh.BoneWeights[influenceOffset + 1], mesh.BoneWeights[influenceOffset + 2], mesh.BoneWeights[influenceOffset + 3]),
+                        BoneIndices = new Byte4(mesh.BoneIndices[influenceOffset], mesh.BoneIndices[influenceOffset + 1], mesh.BoneIndices[influenceOffset + 2], mesh.BoneIndices[influenceOffset + 3])
+                    };
+                }
+
+                for (var meshIndex = 0; meshIndex < mesh.Indices.Length; meshIndex++)
+                    indices[indexOffset + meshIndex] = mesh.Indices[meshIndex] + vertexBase;
+
+                vertexBase += meshVertexCount;
+                indexOffset += mesh.Indices.Length;
             }
 
             VertexBuffer = new VertexBuffer(graphicsDevice, SkinnedVertex.Declaration, vertexCount, BufferUsage.WriteOnly);
             VertexBuffer.SetData(vertices);
-            IndexBuffer = new IndexBuffer(graphicsDevice, IndexElementSize.ThirtyTwoBits, mesh.Indices.Length, BufferUsage.WriteOnly);
-            IndexBuffer.SetData(mesh.Indices);
-            IndexCount = mesh.Indices.Length;
-            DiffuseColor = new Vector3(mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z);
+            IndexBuffer = new IndexBuffer(graphicsDevice, IndexElementSize.ThirtyTwoBits, indexCount, BufferUsage.WriteOnly);
+            IndexBuffer.SetData(indices);
+            IndexCount = indexCount;
+            DiffuseColor = diffuseColor;
         }
 
         public VertexBuffer VertexBuffer { get; }

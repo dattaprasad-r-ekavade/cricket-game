@@ -37,6 +37,7 @@ public sealed class FieldingSide
     private float _reactionRemaining;
 
     public IReadOnlyList<Vector3> Positions => _positions;
+    public int ActiveChaserIndex => _activeChaser;
 
     public void ConfigureStartingPositions(IReadOnlyList<Vector3> positions)
     {

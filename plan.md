@@ -33,6 +33,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 15 — Export validated animation events from Blender and use the bowler's authored release marker in gameplay.
 - [x] Step 16 — Export character-local root motion from Blender and drive the bowler's approach from its authored path.
 - [x] Step 17 — Author the bowler's delivery follow-through in Blender and preview the complete action deterministically.
+- [x] Step 18 — Replace fielder markers with rigged, animated 3D players and batch skinned meshes by material.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -161,6 +162,12 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Reset each Blender pose to its rig basis before evaluating a different action. This prevents unkeyed root transforms from leaking between clips; both player exports were regenerated and all sampled horizontal root offsets are zero after extraction.
 - Both exports validated and repeated deterministically (bowler SHA-256 `5DE2922E344FFF76093B6F659E02F9008629B34E226C61C36751FED77C686FDF`; batter SHA-256 `02385B38E4F718FE5C6B20FD244B413F353A03DDDC43DAC1F57341009F5584C1`). The exported bowler path is 15 m for run-up and 0.45 m for delivery; the delivery path remains at zero through the 0.667 s release event.
 - Verified `--delivery-time` captures at release and 1.0 s, repeated the 1.0 s capture exactly (SHA-256 `5EC442F03331FF53AF8883AF03B1CD931F82BF67DF1BEC998332032BF391F83F`), and confirmed conflicting preview-time options are rejected. Release build succeeded with zero warnings, both player assets validated, and the sample over still completes at 10/2.
+
+### Step 18 notes
+
+- Replaced the ten blocky fielder markers with rendered instances of the rigged bowler-team player. Each fielder faces into the field; idle players use `practice-stance`, while the active chaser transitions to the shared running cycle. Added soft ground shadows for the full fielding side.
+- Combined skinned mesh parts that share a diffuse material: the batter renderer batches 85 source parts into 19 draws per avatar, and the fielding/bowler renderer batches 36 parts into 12. The F1 developer overlay reports 13 rendered players and the two batch counts.
+- Captured and reviewed bowler-end and square-leg views with all ten avatars visible. Repeated square-leg capture matched exactly (SHA-256 `2B8A8074EC149B594D4E28B0BA6A91DB30C92D4D519A9DB44D715DC8D2B9B661`); the field preset and batting shots validate and the sample over completes at 10/2. All fielders currently share one team model and the same ready/run cycles.
 
 ## Technical foundation
 

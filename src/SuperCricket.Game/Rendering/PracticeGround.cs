@@ -420,21 +420,6 @@ public static class PracticeGround
         return mesh.ToArray();
     }
 
-    public static VertexPositionColorNormal[] CreateFielderMarker()
-    {
-        var mesh = new MeshBuilder();
-        var shirt = new Color(218, 190, 105);
-        var trousers = new Color(225, 224, 211);
-        var skin = new Color(116, 75, 49);
-        mesh.Cuboid(new Vector3(0f, 0.64f, 0f), new Vector3(0.28f, 0.46f, 0.17f), shirt);
-        mesh.Cuboid(new Vector3(-0.075f, 0.22f, 0f), new Vector3(0.11f, 0.39f, 0.13f), trousers);
-        mesh.Cuboid(new Vector3(0.075f, 0.22f, 0f), new Vector3(0.11f, 0.39f, 0.13f), trousers);
-        mesh.Cuboid(new Vector3(-0.205f, 0.62f, 0f), new Vector3(0.11f, 0.40f, 0.12f), shirt);
-        mesh.Cuboid(new Vector3(0.205f, 0.62f, 0f), new Vector3(0.11f, 0.40f, 0.12f), shirt);
-        mesh.Cuboid(new Vector3(0f, 1.02f, 0f), new Vector3(0.18f, 0.19f, 0.18f), skin);
-        return mesh.ToArray();
-    }
-
     private static Vector3 SpherePoint(float latitude, float longitude)
     {
         var sinLatitude = MathF.Sin(latitude);
