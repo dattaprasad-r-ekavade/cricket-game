@@ -30,6 +30,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 12 — Populate the stadium bowl with a restrained static crowd and keep the crowd mesh on a reusable GPU buffer.
 - [x] Step 13 — Create a Blender-authored bowler and synchronize his run-up, delivery animation, and ball release.
 - [x] Step 14 — Author a bowling run cycle, derive approach timing from the clip, and add deterministic run-up capture.
+- [x] Step 15 — Export validated animation events from Blender and use the bowler's authored release marker in gameplay.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -134,6 +135,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Replaced the borrowed between-wickets clip with the bowling-specific cycle. Runtime approach duration now comes from the exported clip duration, keeping the 15 m movement synchronized when the authored clip timing changes.
 - Extended deterministic game capture with `--run-up-time <seconds>` so an exact point in the bowler's approach can be inspected in the actual MonoGame renderer; the default capture remains the release pose. Captured and reviewed `artifacts/step14-bowler-run-up-bowler-end.png`; repeated captures matched byte-for-byte (SHA-256 `683F2BE0EBC4BD6ED452C91D0272DA3872A7C6662BBF3CC80E096D6A91667783`).
 - Release build completed without warnings or errors, the exported bowler validates, and the sample over still completes at 10/2. Root movement remains a straight game-space approach; the new authored cycle currently provides the body and limb motion.
+
+### Step 15 notes
+
+- Added an `sc_events` custom property to the Blender `overarm-delivery` action and authored `ball-release` at frame 21. The exporter converts event frames to clip-relative seconds and includes them in `.scplayer.json`; the bowler's exported event is 0.667 s.
+- Extended player-asset validation to reject missing or duplicate event names and event times outside the clip. `validate-player` now lists events, making animation timing visible to the local content workflow.
+- Removed the game-code release-time constant. Ball visibility, flight stepping, release-pose capture, and follow-through timing now read the `ball-release` event from the validated bowler asset.
+- Updated the Blender exporter to refresh the evaluated view layer while switching actions and frames. Two consecutive bowler re-exports matched (SHA-256 `F3BE5BC211D2ECD0A8D5EEB83C356BD338A0CAE7BA104124DF2B7D4603885F76`).
+- Verified export and player validation, tested rejection of an out-of-range event, rebuilt cleanly, reran the sample over at 10/2, and confirmed deterministic release captures (SHA-256 `AE16CF5F0ED5421E77EEB51872B287290DFB159DCFE5A1C87830F72CDDF98344`). Existing clips without events remain valid with an empty event list.
 
 ## Technical foundation
 

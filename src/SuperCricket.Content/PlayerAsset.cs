@@ -101,6 +101,27 @@ public sealed class PlayerAsset
                     errors.Add("Animation clip names must be unique and non-empty.");
                 if (!float.IsFinite(clip.DurationSeconds) || clip.DurationSeconds <= 0f)
                     errors.Add($"Clip '{clip.Name}' duration must be positive.");
+                if (clip.Events is null)
+                {
+                    errors.Add($"Clip '{clip.Name}' events must not be missing.");
+                }
+                else
+                {
+                    var eventNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var animationEvent in clip.Events)
+                    {
+                        if (animationEvent is null)
+                        {
+                            errors.Add($"Clip '{clip.Name}' contains a missing animation event.");
+                            continue;
+                        }
+                        if (string.IsNullOrWhiteSpace(animationEvent.Name) || !eventNames.Add(animationEvent.Name))
+                            errors.Add($"Clip '{clip.Name}' event names must be unique and non-empty.");
+                        if (!float.IsFinite(animationEvent.TimeSeconds) || animationEvent.TimeSeconds < 0f ||
+                            animationEvent.TimeSeconds > clip.DurationSeconds)
+                            errors.Add($"Clip '{clip.Name}' event '{animationEvent.Name}' time must be within the clip duration.");
+                    }
+                }
                 if (clip.Samples is null || clip.Samples.Count < 2)
                 {
                     errors.Add($"Clip '{clip.Name}' must contain at least two pose samples.");
@@ -207,7 +228,14 @@ public sealed class PlayerAnimationData
 {
     public string Name { get; set; } = string.Empty;
     public float DurationSeconds { get; set; }
+    public List<PlayerAnimationEventData> Events { get; set; } = [];
     public List<PlayerPoseSampleData> Samples { get; set; } = [];
+}
+
+public sealed class PlayerAnimationEventData
+{
+    public string Name { get; set; } = string.Empty;
+    public float TimeSeconds { get; set; }
 }
 
 public sealed class PlayerPoseSampleData

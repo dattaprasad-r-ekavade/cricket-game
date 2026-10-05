@@ -54,6 +54,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private float _bowlerRunUpDurationSeconds;
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
+    private float _bowlerReleaseTimeSeconds;
     private bool _bowlerActionStarted;
     private bool _bowlerActionFinished;
     private bool _bowlerReleased;
@@ -82,7 +83,6 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private const float BowlerRunUpDistanceMeters = 15f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
-    private const float BowlerReleaseTimeSeconds = 20f / 30f; // Frame 21 of the 30 Hz Blender action.
     private const float BowlerFollowThroughDistanceMeters = 0.45f;
     private const float BowlerFollowThroughDurationSeconds = 0.35f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
@@ -212,6 +212,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _bowlerAnimator = new PlayerAnimator(_bowlerAsset);
         _bowlerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _bowlerAsset);
         _bowlerRunUpDurationSeconds = GetAnimationDuration(_bowlerAsset, "bowling-run-up");
+        _bowlerReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "overarm-delivery", "ball-release");
         RequireAnimation(_bowlerAsset, "bowling-run-up");
         RequireAnimation(_bowlerAsset, "overarm-delivery");
         RequireAnimation(_bowlerAsset, "practice-stance");
@@ -618,7 +619,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             _bowlerActionElapsed += actionStep;
             remaining -= actionStep;
 
-            if (!_bowlerReleased && _bowlerActionElapsed >= BowlerReleaseTimeSeconds)
+            if (!_bowlerReleased && _bowlerActionElapsed >= _bowlerReleaseTimeSeconds)
             {
                 _bowlerReleased = true;
                 _trajectoryVertices.Add(new VertexPositionColor(
@@ -627,9 +628,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
             }
 
             if (_bowlerReleased)
-                flightElapsed = previousActionTime >= BowlerReleaseTimeSeconds
+                flightElapsed = previousActionTime >= _bowlerReleaseTimeSeconds
                     ? actionStep
-                    : MathF.Max(0f, _bowlerActionElapsed - BowlerReleaseTimeSeconds);
+                    : MathF.Max(0f, _bowlerActionElapsed - _bowlerReleaseTimeSeconds);
         }
 
         if (_bowlerActionElapsed >= actionDuration)
@@ -651,10 +652,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _bowlerRunUpElapsed = _bowlerRunUpDurationSeconds;
         _bowlerActionStarted = true;
         _bowlerActionFinished = false;
-        _bowlerActionElapsed = BowlerReleaseTimeSeconds;
+        _bowlerActionElapsed = _bowlerReleaseTimeSeconds;
         _bowlerReleased = true;
         _bowlerAnimator.Play("overarm-delivery", 0.001f);
-        _bowlerAnimator.Update(BowlerReleaseTimeSeconds);
+        _bowlerAnimator.Update(_bowlerReleaseTimeSeconds);
         _trajectoryVertices.Clear();
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
@@ -679,6 +680,17 @@ public class Game1 : Microsoft.Xna.Framework.Game
             string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase));
         return animation?.DurationSeconds
             ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing animation clip '{clipName}'.");
+    }
+
+    private static float GetAnimationEventTime(PlayerAsset asset, string clipName, string eventName)
+    {
+        var animation = asset.Animations.Find(clip =>
+            string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing animation clip '{clipName}'.");
+        var animationEvent = animation.Events.Find(candidate =>
+            string.Equals(candidate.Name, eventName, StringComparison.OrdinalIgnoreCase));
+        return animationEvent?.TimeSeconds
+            ?? throw new InvalidDataException($"Player clip '{clipName}' is missing required event '{eventName}'.");
     }
 
     private static void RequireAnimation(PlayerAsset asset, string clipName) =>
@@ -1084,7 +1096,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (_bowlerActionStarted)
         {
             var followThroughProgress = MathHelper.Clamp(
-                (_bowlerActionElapsed - BowlerReleaseTimeSeconds) / BowlerFollowThroughDurationSeconds,
+                (_bowlerActionElapsed - _bowlerReleaseTimeSeconds) / BowlerFollowThroughDurationSeconds,
                 0f,
                 1f);
             z -= BowlerFollowThroughDistanceMeters * followThroughProgress;

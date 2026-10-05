@@ -72,6 +72,8 @@ blender --background assets/characters/practice-bowler.blend --python tools/blen
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler.scplayer.json
 ```
 
+The Blender `overarm-delivery` action stores its release marker in the `sc_events` custom property (`ball-release` at frame 21). The exporter converts that frame to seconds; the game reads the event from the validated player asset to time ball visibility and flight.
+
 For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
 
 Capture a deterministic, paused release frame for visual review with:

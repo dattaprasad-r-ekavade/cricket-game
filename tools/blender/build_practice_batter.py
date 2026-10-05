@@ -416,19 +416,31 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
         armature.animation_data.action = action
         if hasattr(action, "slots") and len(action.slots) > 0:
             armature.animation_data.action_slot = action.slots[0]
+        bpy.context.view_layer.update()
         start_frame = int(round(action.frame_range[0]))
         end_frame = int(round(action.frame_range[1]))
         duration = (end_frame - start_frame) / FPS
         sample_count = int(round(duration * FPS))
+        event_frames = action.get("sc_events", {})
+        if not hasattr(event_frames, "items"):
+            raise RuntimeError(f"Action '{action.name}' sc_events must be a mapping of event names to Blender frames.")
+        events = []
+        for event_name, event_frame_value in event_frames.items():
+            event_frame = float(event_frame_value)
+            if not event_name or not math.isfinite(event_frame) or event_frame < start_frame or event_frame > end_frame:
+                raise RuntimeError(f"Action '{action.name}' has invalid event '{event_name}' at frame {event_frame_value}.")
+            events.append({"name": str(event_name), "timeSeconds": (event_frame - start_frame) / FPS})
+        events.sort(key=lambda animation_event: animation_event["timeSeconds"])
         samples = []
         for frame_offset in range(sample_count + 1):
             frame = start_frame + frame_offset
             scene.frame_set(frame)
+            bpy.context.view_layer.update()
             samples.append({
                 "timeSeconds": frame_offset / FPS,
                 "bones": [transform_data(armature.pose.bones[bone.name].matrix) for bone in bones],
             })
-        animations.append({"name": action.name, "durationSeconds": duration, "samples": samples})
+        animations.append({"name": action.name, "durationSeconds": duration, "events": events, "samples": samples})
 
     return {
         "version": 1,

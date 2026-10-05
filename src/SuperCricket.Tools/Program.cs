@@ -24,7 +24,11 @@ static int Run(string[] arguments)
             Console.WriteLine($"Valid player asset: {player.Name}");
             Console.WriteLine($"Rig: {player.Bones.Count} bones, {player.Meshes.Count} meshes, {player.Animations.Count} animation clips.");
             foreach (var animation in player.Animations)
+            {
                 Console.WriteLine($"  {animation.Name}: {animation.DurationSeconds:0.00} s, {animation.Samples.Count} sampled poses.");
+                foreach (var animationEvent in animation.Events)
+                    Console.WriteLine($"    event {animationEvent.Name} at {animationEvent.TimeSeconds:0.000} s");
+            }
             return 0;
         }
 
