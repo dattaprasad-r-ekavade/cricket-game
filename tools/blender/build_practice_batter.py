@@ -294,7 +294,41 @@ def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
             (61, neutral),
         ],
     )
-    return [stance, defence, drive, loft]
+
+    run_a = {
+        **neutral,
+        "spine": (-0.14, 0.0, 0.0),
+        "upper_arm.L": (-0.72, 0.0, -0.12),
+        "forearm.L": (0.24, 0.0, 0.0),
+        "upper_arm.R": (0.58, 0.0, 0.12),
+        "forearm.R": (-0.18, 0.0, 0.0),
+        "thigh.L": (0.55, 0.0, 0.0),
+        "shin.L": (-0.28, 0.0, 0.0),
+        "thigh.R": (-0.55, 0.0, 0.0),
+        "shin.R": (0.42, 0.0, 0.0),
+    }
+    run_b = {
+        **neutral,
+        "spine": (-0.14, 0.0, 0.0),
+        "upper_arm.L": (0.58, 0.0, -0.12),
+        "forearm.L": (-0.18, 0.0, 0.0),
+        "upper_arm.R": (-0.72, 0.0, 0.12),
+        "forearm.R": (0.24, 0.0, 0.0),
+        "thigh.L": (-0.55, 0.0, 0.0),
+        "shin.L": (0.42, 0.0, 0.0),
+        "thigh.R": (0.55, 0.0, 0.0),
+        "shin.R": (-0.28, 0.0, 0.0),
+    }
+    running = create_animation(
+        armature,
+        "between-wickets",
+        [
+            (1, neutral), (7, run_a), (13, neutral), (19, run_b),
+            (25, neutral), (31, run_a), (37, neutral), (43, run_b),
+            (49, neutral), (55, run_a), (61, neutral),
+        ],
+    )
+    return [stance, defence, drive, loft, running]
 
 
 def export_mesh(part: bpy.types.Object, armature: bpy.types.Object, bone_indices: dict[str, int]) -> dict:

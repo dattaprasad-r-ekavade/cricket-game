@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
 
@@ -36,6 +37,12 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "simulate-over")
+        {
+            SimulateOver(arguments[1]);
+            return 0;
+        }
+
         var preset = DeliveryPreset.Load(arguments[1]);
         switch (arguments[0])
         {
@@ -57,11 +64,45 @@ static int Run(string[] arguments)
                 return 2;
         }
     }
-    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or JsonException)
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException)
     {
         Console.Error.WriteLine(exception.Message);
         return 1;
     }
+}
+
+static void SimulateOver(string scenarioPath)
+{
+    var json = File.ReadAllText(scenarioPath);
+    var scenario = JsonSerializer.Deserialize<OverScenarioDocument>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        Converters = { new JsonStringEnumConverter() }
+    }) ?? throw new InvalidDataException($"Over scenario '{scenarioPath}' was empty.");
+    if (string.IsNullOrWhiteSpace(scenario.Name) || scenario.Deliveries.Count == 0)
+        throw new InvalidDataException("An over scenario needs a name and at least one delivery result.");
+
+    var score = new OverScoreboard();
+    Console.WriteLine($"Scenario: {scenario.Name}");
+    for (var index = 0; index < scenario.Deliveries.Count; index++)
+    {
+        if (score.IsOverComplete)
+            throw new InvalidDataException($"Scenario contains a result after the over completed at entry {index + 1}.");
+
+        var result = scenario.Deliveries[index];
+        score.RecordDelivery(result);
+        var delivery = result.Dismissal == DismissalKind.None
+            ? $"{result.BatterRuns} batter, {result.ExtraRuns} extra"
+            : $"{result.Dismissal} ({result.DismissedEnd.ToString().ToLowerInvariant()})";
+        var legality = result.IsLegal ? "legal" : result.Extra.ToString();
+        Console.WriteLine($"  {index + 1}. {legality}, {delivery}: {score.Runs}/{score.Wickets} after {score.OversText}");
+    }
+
+    if (!score.IsOverComplete)
+        throw new InvalidDataException($"Scenario ended at {score.OversText}; six legal deliveries are required to complete the over.");
+    Console.WriteLine($"Completed over: {score.Runs}/{score.Wickets} in {score.OversText} overs.");
+    Console.WriteLine($"Striker {score.Striker}, non-striker {score.NonStriker}.");
 }
 
 static void Simulate(DeliveryPreset preset, string outputPath)
@@ -114,4 +155,11 @@ static void PrintUsage()
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
+    Console.WriteLine("  simulate-over <over-scenario.json>");
+}
+
+internal sealed class OverScenarioDocument
+{
+    public string Name { get; set; } = string.Empty;
+    public List<DeliveryResult> Deliveries { get; set; } = [];
 }

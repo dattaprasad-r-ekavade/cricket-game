@@ -1,0 +1,13 @@
+{
+  "name": "Rules practice over",
+  "deliveries": [
+    { "batterRuns": 1, "extraRuns": 0, "completedRuns": 1, "isLegal": true },
+    { "batterRuns": 4, "extraRuns": 0, "completedRuns": 0, "isLegal": true },
+    { "batterRuns": 0, "extraRuns": 1, "completedRuns": 0, "isLegal": false, "extra": "Wide" },
+    { "batterRuns": 0, "extraRuns": 0, "completedRuns": 0, "isLegal": true, "dismissal": "Bowled" },
+    { "batterRuns": 0, "extraRuns": 1, "completedRuns": 1, "isLegal": true, "extra": "Bye" },
+    { "batterRuns": 0, "extraRuns": 1, "completedRuns": 0, "isLegal": false, "extra": "NoBall" },
+    { "batterRuns": 2, "extraRuns": 0, "completedRuns": 0, "isLegal": true },
+    { "batterRuns": 0, "extraRuns": 0, "completedRuns": 0, "isLegal": true, "dismissal": "RunOut", "dismissedEnd": "NonStriker" }
+  ]
+}

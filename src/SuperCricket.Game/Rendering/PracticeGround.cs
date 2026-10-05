@@ -14,7 +14,7 @@ public static class PracticeGround
     public const float BallRadius = 0.036f;
     public const float WicketOffset = PitchLength / 2f;
 
-    public static VertexPositionColor[] CreateField()
+    public static VertexPositionColor[] CreateField(bool nearWicketBroken = false)
     {
         var mesh = new MeshBuilder();
         const float fieldWidth = 110f;
@@ -49,8 +49,8 @@ public static class PracticeGround
             new Color(151, 116, 79));
 
         AddPitchMarkings(mesh);
-        AddWicket(mesh, -WicketOffset);
-        AddWicket(mesh, WicketOffset);
+        AddWicket(mesh, -WicketOffset, nearWicketBroken);
+        AddWicket(mesh, WicketOffset, false);
         return mesh.ToArray();
     }
 
@@ -80,6 +80,21 @@ public static class PracticeGround
             }
         }
 
+        return mesh.ToArray();
+    }
+
+    public static VertexPositionColor[] CreateFielderMarker()
+    {
+        var mesh = new MeshBuilder();
+        var shirt = new Color(218, 190, 105);
+        var trousers = new Color(225, 224, 211);
+        var skin = new Color(116, 75, 49);
+        mesh.Cuboid(new Vector3(0f, 0.64f, 0f), new Vector3(0.28f, 0.46f, 0.17f), shirt);
+        mesh.Cuboid(new Vector3(-0.075f, 0.22f, 0f), new Vector3(0.11f, 0.39f, 0.13f), trousers);
+        mesh.Cuboid(new Vector3(0.075f, 0.22f, 0f), new Vector3(0.11f, 0.39f, 0.13f), trousers);
+        mesh.Cuboid(new Vector3(-0.205f, 0.62f, 0f), new Vector3(0.11f, 0.40f, 0.12f), shirt);
+        mesh.Cuboid(new Vector3(0.205f, 0.62f, 0f), new Vector3(0.11f, 0.40f, 0.12f), shirt);
+        mesh.Cuboid(new Vector3(0f, 1.02f, 0f), new Vector3(0.18f, 0.19f, 0.18f), skin);
         return mesh.ToArray();
     }
 
@@ -118,7 +133,7 @@ public static class PracticeGround
         mesh.HorizontalLine(-halfWidth, halfWidth, 0f, 0.018f, 0.001f, new Color(188, 154, 118));
     }
 
-    private static void AddWicket(MeshBuilder mesh, float z)
+    private static void AddWicket(MeshBuilder mesh, float z, bool isBroken)
     {
         const float stumpWidth = 0.038f;
         const float stumpDepth = 0.022f;
@@ -128,6 +143,15 @@ public static class PracticeGround
         for (var index = -1; index <= 1; index++)
         {
             var x = index * (stumpWidth + stumpGap);
+            if (isBroken && index == 0)
+            {
+                mesh.Cuboid(
+                    new Vector3(x, 0.04f, z + 0.17f),
+                    new Vector3(stumpWidth, 0.05f, 0.38f),
+                    stumpColor);
+                continue;
+            }
+
             mesh.Cuboid(
                 new Vector3(x, WicketHeight / 2f, z),
                 new Vector3(stumpWidth, WicketHeight, stumpDepth),
@@ -136,6 +160,8 @@ public static class PracticeGround
 
         foreach (var offset in new[] { -0.018f, 0.018f })
         {
+            if (isBroken)
+                break;
             mesh.Cuboid(
                 new Vector3(offset, WicketHeight + 0.012f, z),
                 new Vector3(0.034f, 0.012f, stumpDepth * 1.2f),

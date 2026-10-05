@@ -16,6 +16,7 @@ public sealed class DeliveryPreset
     };
 
     public string Name { get; set; } = "Standard pace";
+    public bool IsNoBall { get; set; }
     public Vector3Data ReleasePosition { get; set; } = new();
     public Vector3Data ReleaseVelocity { get; set; } = new();
     public float GravityMetersPerSecondSquared { get; set; } = 9.81f;

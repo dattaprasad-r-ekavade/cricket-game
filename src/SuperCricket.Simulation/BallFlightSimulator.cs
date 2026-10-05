@@ -12,6 +12,7 @@ public sealed class BallFlightSimulator
     private float _elapsedSeconds;
     private int _bounceCount;
     private BallMotionPhase _phase;
+    private float? _battingRollingDeceleration;
 
     public BallFlightSimulator(DeliveryPreset preset)
     {
@@ -31,16 +32,28 @@ public sealed class BallFlightSimulator
     public float FixedTimeStepSeconds => _preset.FixedTimeStepSeconds;
     public BallFlightFrame CurrentFrame => new(_elapsedSeconds, _position, _velocity, _bounceCount, _phase);
 
-    public void ApplyBatContact(Vector3 contactPosition, Vector3 outgoingVelocity)
+    public void ApplyBatContact(Vector3 contactPosition, Vector3 outgoingVelocity, float rollingDecelerationMetersPerSecondSquared = 7f)
     {
         var speedSquared = outgoingVelocity.LengthSquared();
-        if (!IsFinite(contactPosition) || !IsFinite(outgoingVelocity) || !float.IsFinite(speedSquared) || speedSquared <= 0f)
-            throw new ArgumentException("Bat contact requires a finite position and a non-zero finite velocity.");
+        if (!IsFinite(contactPosition) || !IsFinite(outgoingVelocity) || !float.IsFinite(speedSquared) || speedSquared <= 0f ||
+            !float.IsFinite(rollingDecelerationMetersPerSecondSquared) || rollingDecelerationMetersPerSecondSquared <= 0f)
+            throw new ArgumentException("Bat contact requires finite positions, a non-zero finite velocity, and positive rolling deceleration.");
 
         _position = contactPosition;
         _velocity = outgoingVelocity;
+        _battingRollingDeceleration = rollingDecelerationMetersPerSecondSquared;
         _bounceCount = 0;
         _phase = BallMotionPhase.InFlight;
+    }
+
+    public void StopAtContact(Vector3 contactPosition)
+    {
+        if (!IsFinite(contactPosition))
+            throw new ArgumentException("A contact position must be finite.", nameof(contactPosition));
+
+        _position = contactPosition;
+        _velocity = Vector3.Zero;
+        _phase = BallMotionPhase.Settled;
     }
 
     public BallFlightFrame Step()
@@ -125,7 +138,8 @@ public sealed class BallFlightSimulator
 
         var horizontalVelocity = new Vector2(_velocity.X, _velocity.Z);
         var speed = horizontalVelocity.Length();
-        var remainingSpeed = MathF.Max(0f, speed - _preset.RollingDecelerationMetersPerSecondSquared * deltaTime);
+        var deceleration = _battingRollingDeceleration ?? _preset.RollingDecelerationMetersPerSecondSquared;
+        var remainingSpeed = MathF.Max(0f, speed - deceleration * deltaTime);
         if (speed > 0f)
         {
             horizontalVelocity *= remainingSpeed / speed;

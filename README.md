@@ -1,6 +1,6 @@
 # Super Cricket
 
-A 3D cricket game built with C# and MonoGame. The first milestone is a small, inspectable practice scene that can grow into a complete over.
+A 3D cricket game built with C# and MonoGame. The current playable slice covers a complete over, with inspectable simulation and asset-authoring tools.
 
 ## Requirements
 
@@ -16,12 +16,12 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The practice scene uses metres in world space. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. R replays the delivery, T cycles player animations, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, Space pauses/resumes the delivery, and Escape exits.
+The match scene uses metres in world space. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles animations, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, and Escape exits.
 
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application
-- `src/SuperCricket.Simulation` — graphics-independent ball-flight simulation
+- `src/SuperCricket.Simulation` — graphics-independent ball-flight, fielding, and over-scoring simulation
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
 - `assets` — editable delivery presets and Blender-authored player source/export
@@ -35,6 +35,7 @@ The practice scene uses metres in world space. A defends, S drives, and D plays 
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- validate-shots assets/batting/shots.json
+dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. Pass a different CSV path as the third argument to choose another location.

@@ -21,24 +21,49 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private BasicEffect _worldEffect = null!;
     private readonly OrbitCamera _camera = new();
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
+    private readonly List<VertexPositionColor> _fielderDrawVertices = [];
+    private DeliveryPreset[] _deliveryPresets = [];
+    private int _nextDeliveryPresetIndex;
+    private int _activeDeliveryPresetIndex;
     private DeliveryPreset _deliveryPreset = null!;
     private BattingShotSet _shotSet = null!;
     private BallFlightSimulator _ballFlight = null!;
     private PlayerAsset _playerAsset = null!;
     private PlayerAnimator _playerAnimator = null!;
     private SkinnedPlayerRenderer _playerRenderer = null!;
+    private OverScoreboard _scoreboard = new();
+    private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
     private bool _simulationPaused;
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
+    private bool _deliveryComplete;
+    private bool _battedBall;
+    private int _batterRuns;
+    private int _extraRuns;
+    private int _completedRuns;
+    private DeliveryExtra _extraType;
+    private DismissalKind _dismissal;
+    private bool _isRunning;
+    private bool _runRequestedPending;
+    private float _runElapsed;
+    private float _runDurationSeconds = 1.35f;
+    private bool _fielderThrowActive;
+    private float _fielderThrowElapsed;
+    private const float FielderThrowDurationSeconds = 0.3f;
+    private NumericsVector3 _fielderThrowStart;
+    private NumericsVector3 _fielderThrowTarget;
+    private int _fielderThrowerIndex;
+    private const float NearBatterZ = -8.72f;
+    private const float FarBatterZ = 8.72f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
     private Vector3 _batBladeMaximum;
-    private readonly Matrix _playerWorld = Matrix.CreateTranslation(new Vector3(-0.48f, -0.025f, -8.72f));
     private VertexPositionColor[] _groundVertices = [];
     private VertexPositionColor[] _ballVertices = [];
+    private VertexPositionColor[] _fielderMarkerVertices = [];
     private double _fpsElapsed;
     private int _frameCount;
     private int _framesPerSecond;
@@ -49,7 +74,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
-        Window.Title = "Super Cricket — Practice Ground";
+        Window.Title = "Super Cricket — One Over";
         _graphics.PreferredBackBufferWidth = 1440;
         _graphics.PreferredBackBufferHeight = 900;
         _graphics.SynchronizeWithVerticalRetrace = true;
@@ -77,9 +102,12 @@ public class Game1 : Microsoft.Xna.Framework.Game
             VertexColorEnabled = true,
             LightingEnabled = false
         };
-        var presetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "standard-pace.json");
-        _deliveryPreset = DeliveryPreset.Load(presetPath);
-        RestartDelivery();
+        _deliveryPresets =
+        [
+            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "standard-pace.json")),
+            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "wide-pace.json")),
+            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json"))
+        ];
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
@@ -97,6 +125,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (_batBoneIndex < 0)
             throw new InvalidDataException("Player asset is missing the forearm.R bat attachment bone.");
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
+        _fielderMarkerVertices = PracticeGround.CreateFielderMarker();
+        StartNewOver();
     }
 
     protected override void Update(GameTime gameTime)
@@ -110,10 +140,18 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
         if (keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R))
         {
-            RestartDelivery();
-            _playerAnimator.Play("practice-stance", 0.12f);
+            StartNewOver();
         }
-        if (keyboard.IsKeyDown(Keys.Space) && !_previousKeyboard.IsKeyDown(Keys.Space))
+        if (keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N) &&
+            _deliveryComplete && !_scoreboard.IsOverComplete)
+        {
+            BeginDelivery();
+        }
+        if (keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) SelectNextDelivery(0);
+        if (keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) SelectNextDelivery(1);
+        if (keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) SelectNextDelivery(2);
+        if (keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) CancelRun();
+        if (keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P))
         {
             _simulationPaused = !_simulationPaused;
         }
@@ -124,17 +162,26 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) StartShot("defence");
         if (keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) StartShot("drive");
         if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) StartShot("loft");
+        if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) StartRun();
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
-        _playerAnimator.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+        var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        _playerAnimator.Update(elapsedSeconds);
+        if (_isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
+            UpdateRun(elapsedSeconds);
+        if (_fielderThrowActive)
+            UpdateFielderThrow(elapsedSeconds);
 
-        if (!_simulationPaused)
+        if (!_simulationPaused && !_deliveryComplete)
         {
             _simulationAccumulator += (float)Math.Min(gameTime.ElapsedGameTime.TotalSeconds, 0.25);
             while (_simulationAccumulator >= _ballFlight.FixedTimeStepSeconds &&
                    _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled)
             {
                 var previousFrame = _ballFlight.CurrentFrame;
+                if (_battedBall)
+                    _fieldingSide.Step(_ballFlight.FixedTimeStepSeconds, previousFrame.Position);
+
                 var frame = _ballFlight.Step();
                 if (_chosenShot is not null && !_shotResolved &&
                     TryBatContact(previousFrame.Position, frame.Position, out var contactPoint, out var hitQuality))
@@ -143,13 +190,38 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     _ballFlight.ApplyBatContact(ToNumerics(contactPoint), ToNumerics(contactVelocity));
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
+                    _battedBall = true;
+                    _fieldingSide.Reset();
                     _shotOutcome = $"HIT: {_chosenShot.Name} at {contactVelocity.Length():0.0} m/s";
+                    if (_runRequestedPending)
+                        StartRun();
                 }
-                else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < _playerWorld.Translation.Z - 0.45f && frame.Velocity.Z < 0f)
+                else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < NearBatterZ - 0.45f && frame.Velocity.Z < 0f)
                 {
                     _shotResolved = true;
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
                 }
+
+                if (!_deliveryComplete && !_battedBall && TryCrossPlane(previousFrame.Position, frame.Position, -PracticeGround.WicketOffset, out var wicketLinePosition))
+                {
+                    ResolveIncomingDelivery(wicketLinePosition);
+                    frame = _ballFlight.CurrentFrame;
+                }
+
+                if (!_deliveryComplete && _battedBall &&
+                    _fieldingSide.TryFindContact(previousFrame, frame, out var fieldingContact))
+                {
+                    ResolveFieldingContact(fieldingContact);
+                    frame = _ballFlight.CurrentFrame;
+                }
+
+                if (!_deliveryComplete && !_fielderThrowActive && frame.Phase == BallMotionPhase.Settled)
+                {
+                    ResolveSettledBall(frame);
+                }
+
+                if (_isRunning)
+                    UpdateRun(_ballFlight.FixedTimeStepSeconds);
 
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
@@ -157,7 +229,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
                 _simulationAccumulator -= _ballFlight.FixedTimeStepSeconds;
             }
         }
-        if (_ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
+        if (_ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled || _deliveryComplete)
         {
             _simulationAccumulator = 0f;
         }
@@ -189,6 +261,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             GraphicsDevice.Viewport.AspectRatio,
             0.05f,
             250f);
+        BuildFielderDrawVertices();
 
         foreach (var pass in _worldEffect.CurrentTechnique.Passes)
         {
@@ -199,6 +272,16 @@ public class Game1 : Microsoft.Xna.Framework.Game
                 _groundVertices,
                 0,
                 _groundVertices.Length / 3);
+
+            if (_fielderDrawVertices.Count > 0)
+            {
+                pass.Apply();
+                GraphicsDevice.DrawUserPrimitives(
+                    PrimitiveType.TriangleList,
+                    _fielderDrawVertices.ToArray(),
+                    0,
+                    _fielderDrawVertices.Count / 3);
+            }
 
             if (_trajectoryVertices.Count >= 2)
             {
@@ -211,15 +294,21 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     trajectory.Length - 1);
             }
 
-            var ball = _ballFlight.CurrentFrame;
+            var ballPosition = _fielderThrowActive
+                ? NumericsVector3.Lerp(_fielderThrowStart, _fielderThrowTarget,
+                    Math.Clamp(_fielderThrowElapsed / FielderThrowDurationSeconds, 0f, 1f))
+                : _ballFlight.CurrentFrame.Position;
             _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
-                * Matrix.CreateTranslation(ToXna(ball.Position));
+                * Matrix.CreateTranslation(ToXna(ballPosition));
             pass.Apply();
             GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, _ballVertices, 0, _ballVertices.Length / 3);
             _worldEffect.World = Matrix.Identity;
         }
 
-        _playerRenderer.Draw(_playerWorld, _worldEffect.View, _worldEffect.Projection, _playerAnimator.GetSkinMatrices());
+        var skinMatrices = _playerAnimator.GetSkinMatrices();
+        var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
+        _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
+        _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         DrawDebugOverlay();
         base.Draw(gameTime);
     }
@@ -238,16 +327,19 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
-            "SUPER CRICKET  /  PRACTICE GROUND",
+            "SUPER CRICKET  /  ONE-OVER MATCH",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
-            $"Preset: {_deliveryPreset.Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
+            $"Over {_scoreboard.OversText}    {_scoreboard.Runs}/{_scoreboard.Wickets}    Striker {_scoreboard.Striker}    legal balls {_scoreboard.LegalBalls}/6",
+            $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_simulationPaused ? "Paused" : ball.Phase.ToString())}    speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
-            $"Shot: {_shotOutcome}",
+            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    fielders {_fieldingSide.Positions.Count}    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
+            $"Event: {_shotOutcome}",
             $"Camera distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    {_frameTimeMilliseconds:0.0} ms",
-            "A: defend    S: drive    D: loft    Arrows: orbit    PgUp/PgDn: elevation    wheel: zoom    Home: reset    Space: pause    R: replay    T: clips    Esc: quit"
+            "Arrows: orbit    PgUp/PgDn: height    wheel: zoom    Home: reset    T: animation cycle",
+            "A: defend    S: drive    D: loft    Enter: run    X: cancel    1/2/3: bowling    N: next ball    R: new over    P: pause    Esc: quit"
         };
-        var panel = new Rectangle(16, 16, 1100, 210);
+        var panel = new Rectangle(16, 16, 1120, 258);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, panel, Color.White);
@@ -259,18 +351,52 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _spriteBatch.End();
     }
 
-    private void RestartDelivery()
+    private void StartNewOver()
     {
+        _scoreboard.Reset();
+        _nextDeliveryPresetIndex = 0;
+        BeginDelivery();
+    }
+
+    private void BeginDelivery()
+    {
+        if (_scoreboard.IsOverComplete)
+            return;
+
+        _groundVertices = PracticeGround.CreateField();
+        _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
+        _deliveryPreset = _deliveryPresets[_activeDeliveryPresetIndex];
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;
         _shotResolved = false;
+        _deliveryComplete = false;
+        _battedBall = false;
+        _batterRuns = 0;
+        _extraRuns = 0;
+        _completedRuns = 0;
+        _extraType = DeliveryExtra.None;
+        _dismissal = DismissalKind.None;
+        _isRunning = false;
+        _runRequestedPending = false;
+        _runElapsed = 0f;
+        _fielderThrowActive = false;
+        _fielderThrowElapsed = 0f;
+        _fieldingSide.Reset();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
+        _playerAnimator.Play("practice-stance", 0.12f);
         _trajectoryVertices.Clear();
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
             new Color(248, 181, 82)));
+    }
+
+    private void SelectNextDelivery(int index)
+    {
+        if (_deliveryPresets.Length == 0)
+            return;
+        _nextDeliveryPresetIndex = Math.Clamp(index, 0, _deliveryPresets.Length - 1);
     }
 
     private void StartShot(string name)
@@ -284,12 +410,257 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
     }
 
+    private void StartRun()
+    {
+        if (_deliveryComplete || _isRunning)
+            return;
+        if (!_battedBall)
+        {
+            _runRequestedPending = _chosenShot is not null && !_shotResolved;
+            return;
+        }
+
+        _runRequestedPending = false;
+        _isRunning = true;
+        _runElapsed = 0f;
+        _playerAnimator.Play("between-wickets", 0.12f);
+    }
+
+    private void CancelRun()
+    {
+        if (_runRequestedPending)
+        {
+            _runRequestedPending = false;
+            return;
+        }
+        if (!_isRunning)
+            return;
+        _isRunning = false;
+        _runElapsed = 0f;
+        _playerAnimator.Play("practice-stance", 0.12f);
+    }
+
+    private void UpdateRun(float deltaTime)
+    {
+        _runElapsed += deltaTime;
+        if (_runElapsed < _runDurationSeconds)
+            return;
+
+        CompleteRun();
+    }
+
+    private void UpdateFielderThrow(float deltaTime)
+    {
+        _fielderThrowElapsed += deltaTime;
+        if (_fielderThrowElapsed < FielderThrowDurationSeconds)
+            return;
+
+        _fielderThrowActive = false;
+        if (_isRunning)
+        {
+            _dismissal = DismissalKind.RunOut;
+            _shotOutcome = $"OUT: fielder {_fielderThrowerIndex + 1} threw to the wicketkeeper";
+        }
+        else
+        {
+            _shotOutcome = $"Wicketkeeper received fielder {_fielderThrowerIndex + 1}'s throw";
+        }
+        FinishDelivery();
+    }
+
+    private void CompleteRun()
+    {
+        _batterRuns++;
+        _completedRuns++;
+        _isRunning = false;
+        _runElapsed = 0f;
+        _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
+        _playerAnimator.Play("practice-stance", 0.12f);
+    }
+
+    private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
+    {
+        var contact = ToXna(wicketLinePosition);
+        if (_deliveryPreset.IsNoBall)
+        {
+            _extraRuns = 1;
+            _extraType = DeliveryExtra.NoBall;
+            _shotOutcome = "NO-BALL: one penalty run, delivery not counted";
+            FinishDelivery();
+        }
+        else if (MathF.Abs(contact.X) > _deliveryPreset.PitchWidthMeters / 2f + 0.55f)
+        {
+            _extraRuns = 1;
+            _extraType = DeliveryExtra.Wide;
+            _shotOutcome = "WIDE: one extra run, delivery not counted";
+            FinishDelivery();
+        }
+        else if (MathF.Abs(contact.X) <= 0.12f + _deliveryPreset.BallRadiusMeters &&
+                 contact.Y >= 0f && contact.Y <= PracticeGround.WicketHeight + _deliveryPreset.BallRadiusMeters)
+        {
+            _dismissal = DismissalKind.Bowled;
+            _shotOutcome = "OUT: bowled";
+            FinishDelivery();
+        }
+        else
+        {
+            if (_chosenShot is null)
+                _shotOutcome = "DOT: missed the stumps";
+            FinishDelivery();
+        }
+
+        _ballFlight.StopAtContact(wicketLinePosition);
+    }
+
+    private void ResolveFieldingContact(FieldingContact contact)
+    {
+        if (contact.Kind == FieldingContactKind.Catch)
+        {
+            if (_deliveryPreset.IsNoBall)
+            {
+                _extraRuns = 1;
+                _extraType = DeliveryExtra.NoBall;
+                _shotOutcome = $"NO-BALL: fielder {contact.FielderIndex + 1} caught it; one penalty run";
+            }
+            else
+            {
+                _dismissal = DismissalKind.Caught;
+                _shotOutcome = $"OUT: caught by fielder {contact.FielderIndex + 1}";
+            }
+        }
+        else if (_isRunning)
+        {
+            _fielderThrowActive = true;
+            _fielderThrowElapsed = 0f;
+            _fielderThrowerIndex = contact.FielderIndex;
+            _fielderThrowStart = ToNumerics(contact.Position);
+            _fielderThrowTarget = new NumericsVector3(0f, 0.4f, -PracticeGround.WicketOffset);
+            _shotOutcome = $"Fielder {contact.FielderIndex + 1} picked up; throw to wicketkeeper";
+        }
+        else
+        {
+            _shotOutcome = $"Fielder {contact.FielderIndex + 1} collected the ball";
+        }
+
+        if (_deliveryPreset.IsNoBall && _extraType == DeliveryExtra.None)
+        {
+            _extraRuns = 1;
+            _extraType = DeliveryExtra.NoBall;
+        }
+        _ballFlight.StopAtContact(ToNumerics(contact.Position));
+        if (!_fielderThrowActive)
+            FinishDelivery();
+    }
+
+    private void ResolveSettledBall(BallFlightFrame frame)
+    {
+        var horizontalDistance = MathF.Sqrt(frame.Position.X * frame.Position.X + frame.Position.Z * frame.Position.Z);
+        if (_battedBall && horizontalDistance >= _deliveryPreset.FieldBoundaryRadiusMeters - 0.001f)
+        {
+            var isSix = frame.BounceCount == 0 && frame.Position.Y > _deliveryPreset.FieldSurfaceHeightMeters + 1f;
+            _batterRuns += isSix ? 6 : 4;
+            _shotOutcome = isSix ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
+            _isRunning = false;
+        }
+        else if (_isRunning)
+        {
+            if (_runElapsed / _runDurationSeconds >= 0.72f)
+                CompleteRun();
+            else if (!_deliveryPreset.IsNoBall)
+            {
+                _dismissal = DismissalKind.RunOut;
+                _shotOutcome = "OUT: run out while attempting a run";
+            }
+            else
+            {
+                _isRunning = false;
+            }
+        }
+
+        if (_deliveryPreset.IsNoBall && _extraType == DeliveryExtra.None)
+        {
+            _extraRuns = 1;
+            _extraType = DeliveryExtra.NoBall;
+        }
+        if (_shotOutcome.StartsWith("Choose", StringComparison.Ordinal))
+            _shotOutcome = _battedBall ? "DOT: field held the shot" : "DOT ball";
+        FinishDelivery();
+    }
+
+    private void FinishDelivery()
+    {
+        if (_deliveryComplete)
+            return;
+
+        var isLegal = _extraType is not (DeliveryExtra.Wide or DeliveryExtra.NoBall);
+        var result = new DeliveryResult(
+            _batterRuns,
+            _extraRuns,
+            _completedRuns,
+            isLegal,
+            _extraType,
+            _dismissal,
+            DismissedEnd.Striker);
+        _scoreboard.RecordDelivery(result);
+        _deliveryComplete = true;
+        _isRunning = false;
+        _runRequestedPending = false;
+        _fielderThrowActive = false;
+        if (_dismissal != DismissalKind.None)
+        {
+            if (_dismissal is DismissalKind.Bowled or DismissalKind.RunOut)
+                _groundVertices = PracticeGround.CreateField(nearWicketBroken: true);
+            _playerAnimator.Play("practice-stance", 0.12f);
+        }
+    }
+
+    private static bool TryCrossPlane(NumericsVector3 previous, NumericsVector3 current, float planeZ, out NumericsVector3 crossing)
+    {
+        if (previous.Z < planeZ || current.Z > planeZ || MathF.Abs(current.Z - previous.Z) < 0.000001f)
+        {
+            crossing = default;
+            return false;
+        }
+
+        var amount = (planeZ - previous.Z) / (current.Z - previous.Z);
+        crossing = NumericsVector3.Lerp(previous, current, Math.Clamp(amount, 0f, 1f));
+        return true;
+    }
+
+    private void BuildFielderDrawVertices()
+    {
+        _fielderDrawVertices.Clear();
+        foreach (var position in _fieldingSide.Positions)
+        {
+            var offset = ToXna(position);
+            foreach (var marker in _fielderMarkerVertices)
+                _fielderDrawVertices.Add(new VertexPositionColor(marker.Position + offset, marker.Color));
+        }
+    }
+
+    private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()
+    {
+        if (_isRunning)
+        {
+            var progress = MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f);
+            return (
+                BatterWorld(MathHelper.Lerp(NearBatterZ, FarBatterZ, progress), true),
+                BatterWorld(MathHelper.Lerp(FarBatterZ, NearBatterZ, progress), false));
+        }
+
+        return (BatterWorld(NearBatterZ, true), BatterWorld(FarBatterZ, false));
+    }
+
+    private static Matrix BatterWorld(float z, bool atNearEnd) =>
+        Matrix.CreateRotationY(atNearEnd ? 0f : MathHelper.Pi) *
+        Matrix.CreateTranslation(new Vector3(-0.48f, -0.025f, z));
+
     private bool TryBatContact(NumericsVector3 previousBall, NumericsVector3 currentBall, out Vector3 contactPoint, out float hitQuality)
     {
         contactPoint = default;
         hitQuality = 0f;
         var skinMatrices = _playerAnimator.GetSkinMatrices();
-        var batWorld = skinMatrices[_batBoneIndex] * _playerWorld;
+        var batWorld = skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true);
         var worldToBat = Matrix.Invert(batWorld);
         var localStart = Vector3.Transform(ToXna(previousBall), worldToBat);
         var localEnd = Vector3.Transform(ToXna(currentBall), worldToBat);
