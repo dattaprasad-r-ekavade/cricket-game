@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Xna.Framework;
@@ -36,6 +37,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
     private bool _simulationPaused;
+    private bool _showDebugOverlay;
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
     private bool _deliveryComplete;
@@ -68,6 +70,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _frameCount;
     private int _framesPerSecond;
     private double _frameTimeMilliseconds;
+    private double _updateMilliseconds;
+    private double _drawMilliseconds;
 
     public Game1()
     {
@@ -131,6 +135,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     protected override void Update(GameTime gameTime)
     {
+        var updateStart = Stopwatch.GetTimestamp();
         var keyboard = Keyboard.GetState();
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
             keyboard.IsKeyDown(Keys.Escape))
@@ -150,6 +155,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) SelectNextDelivery(0);
         if (keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) SelectNextDelivery(1);
         if (keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) SelectNextDelivery(2);
+        if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
+        if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
         if (keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) CancelRun();
         if (keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P))
         {
@@ -245,17 +252,19 @@ public class Game1 : Microsoft.Xna.Framework.Game
         }
 
         base.Update(gameTime);
+        _updateMilliseconds = Stopwatch.GetElapsedTime(updateStart).TotalMilliseconds;
     }
 
     protected override void Draw(GameTime gameTime)
     {
+        var drawStart = Stopwatch.GetTimestamp();
         GraphicsDevice.Clear(new Color(116, 161, 195));
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         GraphicsDevice.BlendState = BlendState.Opaque;
 
         _worldEffect.World = Matrix.Identity;
-        _worldEffect.View = Matrix.CreateLookAt(_camera.Position, new Vector3(0f, 0f, 0f), Vector3.Up);
+        _worldEffect.View = Matrix.CreateLookAt(_camera.Position, _camera.Target, Vector3.Up);
         _worldEffect.Projection = Matrix.CreatePerspectiveFieldOfView(
             MathHelper.ToRadians(48f),
             GraphicsDevice.Viewport.AspectRatio,
@@ -311,6 +320,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         DrawDebugOverlay();
         base.Draw(gameTime);
+        _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
     }
 
     protected override void UnloadContent()
@@ -324,6 +334,27 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void DrawDebugOverlay()
     {
+        if (!_showDebugOverlay)
+        {
+            var eventText = _shotOutcome.Length > 72 ? _shotOutcome[..69] + "..." : _shotOutcome;
+            var matchLines = new[]
+            {
+                "SUPER CRICKET  /  ONE-OVER MATCH",
+                $"{_scoreboard.Runs}/{_scoreboard.Wickets}    {_scoreboard.OversText} overs    legal balls {_scoreboard.LegalBalls}/6",
+                eventText,
+                "F1: debug    V: camera view    N: next ball"
+            };
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 116), Color.White);
+            for (var index = 0; index < matchLines.Length; index++)
+            {
+                var color = index == 0 ? new Color(242, 206, 116) : Color.White;
+                _spriteBatch.DrawString(_debugFont, matchLines[index], new Vector2(34, 24 + index * 25), color);
+            }
+            _spriteBatch.End();
+            return;
+        }
+
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
@@ -335,11 +366,12 @@ public class Game1 : Microsoft.Xna.Framework.Game
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
             $"Delivery: {(_deliveryComplete ? "complete" : "live")}    fielders {_fieldingSide.Positions.Count}    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
-            $"Camera distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    {_frameTimeMilliseconds:0.0} ms",
-            "Arrows: orbit    PgUp/PgDn: height    wheel: zoom    Home: reset    T: animation cycle",
-            "A: defend    S: drive    D: loft    Enter: run    X: cancel    1/2/3: bowling    N: next ball    R: new over    P: pause    Esc: quit"
+            $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
+            $"Scene vertices {_groundVertices.Length:N0}    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 2",
+            "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
+            "A defend    S drive    D loft    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
         };
-        var panel = new Rectangle(16, 16, 1120, 258);
+        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 296);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, panel, Color.White);

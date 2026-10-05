@@ -8,21 +8,33 @@ namespace SuperCricket.Game.Rendering;
 public sealed class OrbitCamera
 {
     private const float MinDistance = 12f;
-    private const float MaxDistance = 60f;
+    private const float MaxDistance = 100f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
+    private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target)[] _presets =
+    [
+        ("Broadcast", 0.18f, 0.48f, 54f, Vector3.Zero),
+        ("Behind striker", 0f, 0.23f, 29f, new Vector3(0f, 0f, -5f)),
+        ("Bowler end", MathHelper.Pi, 0.28f, 31f, Vector3.Zero),
+        ("Square leg", MathHelper.PiOver2, 0.38f, 52f, Vector3.Zero)
+    ];
+    private int _presetIndex;
     private int _previousWheel;
 
-    public float Yaw { get; private set; } = 0.22f;
-    public float Elevation { get; private set; } = 0.38f;
-    public float Distance { get; private set; } = 27f;
+    public float Yaw { get; private set; }
+    public float Elevation { get; private set; }
+    public float Distance { get; private set; }
+    public Vector3 Target { get; private set; }
+    public string PresetName => _presets[_presetIndex].Name;
+
+    public OrbitCamera() => ApplyPreset(0);
 
     public Vector3 Position
     {
         get
         {
             var horizontalDistance = MathF.Cos(Elevation) * Distance;
-            return new Vector3(
+            return Target + new Vector3(
                 MathF.Sin(Yaw) * horizontalDistance,
                 MathF.Sin(Elevation) * Distance + 0.5f,
                 MathF.Cos(Yaw) * horizontalDistance);
@@ -31,9 +43,22 @@ public sealed class OrbitCamera
 
     public void Reset()
     {
-        Yaw = 0.22f;
-        Elevation = 0.38f;
-        Distance = 27f;
+        ApplyPreset(0);
+    }
+
+    public void CyclePreset()
+    {
+        ApplyPreset((_presetIndex + 1) % _presets.Length);
+    }
+
+    private void ApplyPreset(int index)
+    {
+        _presetIndex = index;
+        var preset = _presets[index];
+        Yaw = preset.Yaw;
+        Elevation = preset.Elevation;
+        Distance = preset.Distance;
+        Target = preset.Target;
     }
 
     public void Update(GameTime gameTime)
@@ -50,6 +75,7 @@ public sealed class OrbitCamera
         if (keyboard.IsKeyDown(Keys.Home)) Reset();
 
         Elevation = MathHelper.Clamp(Elevation, MinElevation, MaxElevation);
+        Distance = MathHelper.Clamp(Distance, MinDistance, MaxDistance);
 
         var mouse = Mouse.GetState();
         if (!_hasReadWheel)

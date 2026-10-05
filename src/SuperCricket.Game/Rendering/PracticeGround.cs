@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace SuperCricket.Game.Rendering;
 
-/// <summary>Geometry for a simple practice scene, authored in metres.</summary>
+/// <summary>Measured pitch, outfield, and first procedural stadium presentation, authored in metres.</summary>
 public static class PracticeGround
 {
     public const float PitchLength = 20.12f;
@@ -17,8 +17,8 @@ public static class PracticeGround
     public static VertexPositionColor[] CreateField(bool nearWicketBroken = false)
     {
         var mesh = new MeshBuilder();
-        const float fieldWidth = 110f;
-        const float fieldLength = 84f;
+        const float fieldWidth = 120f;
+        const float fieldLength = 110f;
 
         mesh.Quad(
             new Vector3(-fieldWidth / 2f, -0.08f, -fieldLength / 2f),
@@ -28,7 +28,7 @@ public static class PracticeGround
             new Color(48, 112, 60));
 
         // Broad mowing bands make camera scale and field orientation easier to read.
-        for (var i = 0; i < 11; i++)
+        for (var i = 0; i < 12; i++)
         {
             var left = -fieldWidth / 2f + i * 10f;
             var right = MathF.Min(left + 10f, fieldWidth / 2f);
@@ -51,8 +51,188 @@ public static class PracticeGround
         AddPitchMarkings(mesh);
         AddWicket(mesh, -WicketOffset, nearWicketBroken);
         AddWicket(mesh, WicketOffset, false);
+        AddBoundaryRope(mesh);
+        AddAdvertisingBoards(mesh);
+        AddSeatingBowl(mesh);
+        AddScoreScreen(mesh);
+        AddFloodlights(mesh);
         return mesh.ToArray();
     }
+
+    private static void AddBoundaryRope(MeshBuilder mesh)
+    {
+        AddOvalBand(mesh, 42.05f, 42.05f, 0.14f, -0.035f, new Color(233, 224, 196), 256);
+    }
+
+    private static void AddAdvertisingBoards(MeshBuilder mesh)
+    {
+        const int segments = 256;
+        const float innerRadius = 42.8f;
+        const float outerRadius = 43.0f;
+        var colors = new[]
+        {
+            new Color(24, 51, 72), new Color(191, 137, 57),
+            new Color(37, 101, 81), new Color(158, 55, 50)
+        };
+
+        for (var index = 0; index < segments; index++)
+        {
+            var angle0 = MathHelper.TwoPi * index / segments;
+            var angle1 = MathHelper.TwoPi * (index + 1) / segments;
+            var color = colors[(index / 16) % colors.Length];
+            mesh.Quad(
+                OvalPoint(innerRadius, innerRadius, angle0, 0.05f),
+                OvalPoint(outerRadius, outerRadius, angle0, 0.05f),
+                OvalPoint(outerRadius, outerRadius, angle1, 0.05f),
+                OvalPoint(innerRadius, innerRadius, angle1, 0.05f),
+                color);
+            mesh.Quad(
+                OvalPoint(innerRadius, innerRadius, angle0, 1.05f),
+                OvalPoint(innerRadius, innerRadius, angle1, 1.05f),
+                OvalPoint(outerRadius, outerRadius, angle1, 1.05f),
+                OvalPoint(outerRadius, outerRadius, angle0, 1.05f),
+                color * 0.75f);
+        }
+    }
+
+    private static void AddSeatingBowl(MeshBuilder mesh)
+    {
+        const int segments = 192;
+        const int rows = 15;
+        const float startX = 44.0f;
+        const float startZ = 44.0f;
+        const float rowWidth = 0.67f;
+        const float rowRise = 0.43f;
+        const float seatDepth = 0.60f;
+        var palette = new[]
+        {
+            new Color(25, 66, 91), new Color(31, 80, 105), new Color(135, 50, 49),
+            new Color(178, 128, 65), new Color(56, 101, 75), new Color(185, 185, 168)
+        };
+
+        for (var row = 0; row < rows; row++)
+        {
+            var innerX = startX + row * rowWidth;
+            var innerZ = startZ + row * rowWidth * 0.91f;
+            var outerX = innerX + rowWidth;
+            var outerZ = innerZ + rowWidth * 0.91f;
+            var floorY = 0.22f + row * rowRise;
+            var seatY = floorY + 0.18f;
+
+            for (var index = 0; index < segments; index++)
+            {
+                var angle0 = MathHelper.TwoPi * index / segments;
+                var angle1 = MathHelper.TwoPi * (index + 1) / segments;
+                var seatColor = palette[((index / 8) + row / 3 + ((index + row * 5) % 17 == 0 ? 2 : 0)) % palette.Length];
+                mesh.Quad(
+                    OvalPoint(innerX, innerZ, angle0, seatY),
+                    OvalPoint(outerX, outerZ, angle0, seatY),
+                    OvalPoint(outerX, outerZ, angle1, seatY),
+                    OvalPoint(innerX, innerZ, angle1, seatY),
+                    seatColor);
+
+                if (row > 0)
+                {
+                    mesh.Quad(
+                        OvalPoint(innerX, innerZ, angle0, floorY - rowRise),
+                        OvalPoint(innerX, innerZ, angle1, floorY - rowRise),
+                        OvalPoint(innerX, innerZ, angle1, floorY),
+                        OvalPoint(innerX, innerZ, angle0, floorY),
+                        new Color(39, 49, 57));
+                }
+
+                // Short colored seat backs break up the broad tier bands into readable crowd blocks.
+                var backColor = palette[(Array.IndexOf(palette, seatColor) + 1) % palette.Length];
+                var backInnerX = outerX - seatDepth;
+                var backInnerZ = outerZ - seatDepth * 0.91f;
+                mesh.Quad(
+                    OvalPoint(backInnerX, backInnerZ, angle0, floorY + 0.20f),
+                    OvalPoint(outerX, outerZ, angle0, floorY + 0.20f),
+                    OvalPoint(outerX, outerZ, angle1, floorY + 0.20f),
+                    OvalPoint(backInnerX, backInnerZ, angle1, floorY + 0.20f),
+                    backColor);
+            }
+        }
+
+        AddOvalBand(mesh, 54.2f, 53.1f, 6.85f, 0.9f, new Color(47, 58, 66), 256);
+        AddOvalWall(mesh, 55.0f, 53.9f, 0.05f, 7.6f, new Color(35, 46, 56), 256);
+        AddOvalBand(mesh, 54.5f, 53.6f, 7.5f, 0.9f, new Color(82, 94, 98), 256);
+    }
+
+    private static void AddScoreScreen(MeshBuilder mesh)
+    {
+        // The in-world board supplies stadium scale; the live score remains in the readable HUD.
+        mesh.Cuboid(new Vector3(0f, 10.0f, -47.0f), new Vector3(15.0f, 5.4f, 0.75f), new Color(24, 39, 54));
+        mesh.Cuboid(new Vector3(0f, 10.2f, -46.58f), new Vector3(13.7f, 4.25f, 0.08f), new Color(18, 63, 65));
+        mesh.Cuboid(new Vector3(0f, 11.55f, -46.50f), new Vector3(11.5f, 0.16f, 0.04f), new Color(238, 196, 99));
+        mesh.Cuboid(new Vector3(0f, 9.98f, -46.50f), new Vector3(9.2f, 0.12f, 0.04f), new Color(190, 206, 191));
+        mesh.Cuboid(new Vector3(-4.4f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(-3.1f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(3.7f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(5.0f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+    }
+
+    private static void AddFloodlights(MeshBuilder mesh)
+    {
+        const float towerHeight = 29f;
+        for (var tower = 0; tower < 4; tower++)
+        {
+            var angle = MathHelper.PiOver4 + tower * MathHelper.PiOver2;
+            var x = 58.5f * MathF.Cos(angle);
+            var z = 53.2f * MathF.Sin(angle);
+            var mastColor = new Color(118, 130, 136);
+            mesh.Cuboid(new Vector3(x, towerHeight / 2f, z), new Vector3(0.58f, towerHeight, 0.58f), mastColor);
+            mesh.Cuboid(new Vector3(x, towerHeight - 0.2f, z), new Vector3(5.8f, 0.46f, 0.72f), new Color(73, 87, 94));
+            mesh.Cuboid(new Vector3(x, towerHeight - 0.44f, z + 0.23f), new Vector3(5.3f, 0.20f, 0.16f), new Color(246, 233, 190));
+            for (var lamp = 0; lamp < 7; lamp++)
+            {
+                var lampX = x - 2.3f + lamp * 0.76f;
+                mesh.Cuboid(new Vector3(lampX, towerHeight - 0.42f, z + 0.34f), new Vector3(0.34f, 0.14f, 0.08f), Color.White);
+            }
+        }
+    }
+
+    private static void AddOvalBand(MeshBuilder mesh, float radiusX, float radiusZ, float y, float width, Color color, int segments)
+    {
+        var innerX = radiusX - width / 2f;
+        var innerZ = radiusZ - width / 2f;
+        var outerX = radiusX + width / 2f;
+        var outerZ = radiusZ + width / 2f;
+        for (var index = 0; index < segments; index++)
+        {
+            var angle0 = MathHelper.TwoPi * index / segments;
+            var angle1 = MathHelper.TwoPi * (index + 1) / segments;
+            mesh.Quad(
+                OvalPoint(innerX, innerZ, angle0, y),
+                OvalPoint(outerX, outerZ, angle0, y),
+                OvalPoint(outerX, outerZ, angle1, y),
+                OvalPoint(innerX, innerZ, angle1, y),
+                color);
+        }
+    }
+
+    private static void AddOvalWall(MeshBuilder mesh, float innerX, float innerZ, float bottom, float top, Color color, int segments)
+    {
+        const float thickness = 0.9f;
+        for (var index = 0; index < segments; index++)
+        {
+            var angle0 = MathHelper.TwoPi * index / segments;
+            var angle1 = MathHelper.TwoPi * (index + 1) / segments;
+            mesh.Quad(
+                OvalPoint(innerX, innerZ, angle0, bottom),
+                OvalPoint(innerX + thickness, innerZ + thickness, angle0, bottom),
+                OvalPoint(innerX + thickness, innerZ + thickness, angle1, bottom),
+                OvalPoint(innerX, innerZ, angle1, bottom), color);
+            mesh.Quad(
+                OvalPoint(innerX, innerZ, angle0, top),
+                OvalPoint(innerX, innerZ, angle1, top),
+                OvalPoint(innerX + thickness, innerZ + thickness, angle1, top),
+                OvalPoint(innerX + thickness, innerZ + thickness, angle0, top), color * 0.75f);
+        }
+    }
+
+    private static Vector3 OvalPoint(float radiusX, float radiusZ, float angle, float y) =>
+        new(radiusX * MathF.Cos(angle), y, radiusZ * MathF.Sin(angle));
 
     public static VertexPositionColor[] CreateBall()
     {

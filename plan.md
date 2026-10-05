@@ -22,7 +22,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
 - [x] Step 5 — Add player-controlled batting, contact timing, and an inspectable first shot set.
 - [x] Step 6 — Add fielding, running, wickets, and a complete over.
-- [ ] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
+- [x] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -71,6 +71,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added running between wickets, cancellation, and a visible fielder-to-wicketkeeper throw. A runner still short when the ball is received is dismissed run out; bowled and caught dismissals also update the over and stump presentation.
 - Added playable standard, wide, and no-ball presets. The CLI `simulate-over` tool replays a JSON scenario containing dot balls, batter runs, a wide, a no-ball, a bye, a bowled dismissal, and a run-out.
 - Verified the sample scenario completes six legal balls at 10/2 in 1.0 overs, validated the player, shot, and extra-delivery assets, built the full solution with zero warnings, and reviewed an in-game run-out capture. This is a functional prototype; fielders, throws, and wicket breaks use simple game-ready approximations pending the stadium/animation pass.
+
+### Step 7 notes
+
+- Replaced the open practice horizon with an original procedural oval stadium: a 15-row colored seating bowl, concourse and outer facade, boundary rope and board ring, in-world score screen, and four floodlight towers. Added a compact match HUD and made the full developer overlay optional with F1.
+- Added broadcast, behind-striker, bowler-end, and square-leg camera presets. V cycles views, Home returns to broadcast, and the existing orbit/zoom controls remain available.
+- Added elapsed frame, FPS, CPU Update/Draw timing, and submitted scene-vertex counters to the developer overlay. On the current Windows machine, one settled-scene sample at the square-leg view reported 140 FPS, 6.7 ms elapsed frame time, 0.01/0.61 ms Update/Draw, 63,594 stadium vertices, and 2,160 fielder vertices.
+- Rebuilt with zero warnings, reran the one-over scenario, launched and visually checked broadcast and behind-wicket views, and captured the profiling overlay. This is still a low-detail vertex-colored prototype: it has no crowd animation, textured materials, shadows, or separately measured GPU time; those remain part of the art and target-hardware pass.
 
 ## Technical foundation
 
