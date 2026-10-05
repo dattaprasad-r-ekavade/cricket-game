@@ -39,6 +39,8 @@ dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standa
 dotnet run --project src/SuperCricket.Tools -- validate-shots assets/batting/shots.json
 dotnet run --project src/SuperCricket.Tools -- analyze-batting assets/batting/shots.json
 dotnet run --project src/SuperCricket.Tools -- verify-batting assets/batting/shots.json
+dotnet run --project src/SuperCricket.Tools -- analyze-batting-practice assets/characters/practice-batter.scplayer.json assets/characters/practice-bowler.scplayer.json assets/batting/shots.json assets/deliveries/standard-pace.json artifacts/standard-batting-practice.csv
+dotnet run --project src/SuperCricket.Tools -- verify-batting-practice assets/characters/practice-batter.scplayer.json assets/characters/practice-bowler.scplayer.json assets/batting/shots.json assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
@@ -47,6 +49,8 @@ dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/pr
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.
 
 `analyze-batting` writes a CSV of shot speed, launch angle, and contact quality across the nine normalized blade contact points and three sample swing speeds. `verify-batting` checks moving-bat and moving-ball collision, outside-blade misses, sweet-spot quality, blade-height launch response, and swing-speed response using the same simulation code as the game.
+
+`analyze-batting-practice` samples the exported batter clips against a real delivery preset and the bowler's run-up/release timing. It sweeps input time from 0.5 s before release until the ball reaches the batter, then writes the contact window, sweet-spot quality, bat-point speed, outgoing speed, and in-play/four/six result for every shot. Pass an optional final step size in seconds to refine the timing grid; `verify-batting-practice` requires all three shots to find contact against the supplied delivery.
 
 Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the starter rig and game asset with:
 

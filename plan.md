@@ -36,6 +36,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 18 — Replace fielder markers with rigged, animated 3D players and batch skinned meshes by material.
 - [x] Step 19 — Author catch, pickup, and throw actions for fielders; sync run-out throws to the exported release event.
 - [x] Step 20 — Sweep the moving bat against the ball and derive shot outcomes from swing velocity and sweet-spot contact; add a local batting analyzer.
+- [x] Step 21 — Calibrate shot timing from exported batter/bowler clips against full delivery presets with a repeatable batting-practice sweep.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -185,6 +186,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `BattingImpactModel`: contact across the blade now has a normalized sweet-spot offset and quality, vertical blade position adjusts launch angle, lateral position adjusts aim, and velocity of the actual contact point contributes to the outgoing ball velocity. The existing per-shot angle, aim, and speed-transfer values remain the tuning inputs.
 - Added `analyze-batting` to emit a repeatable CSV grid across all three shots, nine blade contact points, and three sample swing speeds. Added `verify-batting` checks for stationary-ball/moving-bat hits, moving-ball/stationary-bat hits, outside-blade misses, centered-versus-edge quality, vertical launch response, and swing-speed response.
 - Release build completed with zero warnings or errors. `verify-batting`, shot validation, and the sample-over scenario pass; the existing over still finishes at 10/2. The impact model is a controllable prototype rather than a rigid-body bat simulation; the next pass should tune its response from observed in-game contacts and expanded batting scenarios.
+
+### Step 21 notes
+
+- Added `BattingPracticeAnalyzer` and the `analyze-batting-practice` command. It uses the exported practice-stance and shot clip samples, the bowler's run-up duration and Blender release event, the bat blade bounds, the same swept-contact/impact code as gameplay, and the actual ball-flight simulator. It sweeps shot input timing in 25 ms increments from 0.5 s before release through the batter's contact plane.
+- Added `verify-batting-practice` as a real-asset regression gate. Against standard pace, all three exported shots find contact: defence 26/45 tested input timings, drive 19/45, and loft 18/45. Best-quality results occurred at +0.200 s for defence (quality 0.91, 14.3 m/s in-play), and +0.250 s for drive (0.90, four at 22.9 m/s) and loft (0.90, six at 27.1 m/s).
+- Repeated standard-pace analysis produced identical CSV hashes. The wide preset currently produces no contact timings for any of the three shots, identifying the need for batter footwork/reach before wide-ball shot coverage improves; the analyzer can now quantify that change.
+- Release build and real-asset batting verification passed; the sample over remains 10/2. The sweep assumes the batter remains at the crease and reports the ball's boundary outcome without fielder interception or running, so those remain separate match outcomes.
 
 ## Technical foundation
 

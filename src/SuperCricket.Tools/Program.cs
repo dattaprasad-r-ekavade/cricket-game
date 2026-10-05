@@ -55,6 +55,29 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "analyze-batting-practice")
+        {
+            if (arguments.Length is < 5 or > 7)
+                throw new ArgumentException("Usage: analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+            var outputPath = arguments.Length > 5
+                ? arguments[5]
+                : Path.Combine("artifacts", "batting-practice.csv");
+            var delayStep = 0.025f;
+            if (arguments.Length > 6 &&
+                (!float.TryParse(arguments[6], NumberStyles.Float, CultureInfo.InvariantCulture, out delayStep) || !float.IsFinite(delayStep)))
+                throw new ArgumentException("Input-step-seconds must be a finite number between 0.01 and 0.25.");
+            AnalyzeBattingPractice(arguments[1], arguments[2], arguments[3], arguments[4], outputPath, delayStep);
+            return 0;
+        }
+
+        if (arguments[0] == "verify-batting-practice")
+        {
+            if (arguments.Length != 5)
+                throw new ArgumentException("Usage: verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
+            VerifyBattingPractice(arguments[1], arguments[2], arguments[3], arguments[4]);
+            return 0;
+        }
+
         if (arguments[0] == "verify-batting")
         {
             VerifyBatting(arguments[1]);
@@ -347,7 +370,87 @@ static void VerifyBatting(string shotSetPath)
     Console.WriteLine("Swept collision and batting impact checks passed.");
 }
 
+static void AnalyzeBattingPractice(
+    string batterPath,
+    string bowlerPath,
+    string shotSetPath,
+    string deliveryPath,
+    string outputPath,
+    float delayStepSeconds)
+{
+    var batter = PlayerAsset.Load(batterPath);
+    var bowler = PlayerAsset.Load(bowlerPath);
+    var shotSet = BattingShotSet.Load(shotSetPath);
+    var delivery = DeliveryPreset.Load(deliveryPath);
+    var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery, delayStepSeconds);
+    var csv = new StringBuilder();
+    csv.AppendLine("shot,delivery,input_delay_s,outcome,contact_time_s,contact_quality,launch_angle_degrees,outgoing_speed_mps,bat_point_speed_mps,sweet_spot_x,sweet_spot_y");
+    foreach (var sample in results)
+    {
+        csv.Append(CsvValue(sample.ShotName)).Append(',')
+            .Append(CsvValue(sample.DeliveryName)).Append(',')
+            .Append(F(sample.InputDelaySeconds)).Append(',')
+            .Append(sample.Outcome).Append(',')
+            .Append(Optional(sample.ContactTimeSeconds)).Append(',')
+            .Append(Optional(sample.ContactQuality)).Append(',')
+            .Append(Optional(sample.LaunchAngleDegrees)).Append(',')
+            .Append(Optional(sample.OutgoingSpeedMetersPerSecond)).Append(',')
+            .Append(Optional(sample.BatPointSpeedMetersPerSecond)).Append(',')
+            .Append(Optional(sample.SweetSpotOffsetX)).Append(',')
+            .AppendLine(Optional(sample.SweetSpotOffsetY));
+    }
+
+    var fullOutputPath = Path.GetFullPath(outputPath);
+    var outputDirectory = Path.GetDirectoryName(fullOutputPath);
+    if (!string.IsNullOrEmpty(outputDirectory))
+        Directory.CreateDirectory(outputDirectory);
+    File.WriteAllText(fullOutputPath, csv.ToString());
+
+    Console.WriteLine($"Analyzed {results.Count} input timings for {delivery.Name} with the exported batter and bowler clips.");
+    foreach (var shotGroup in results.GroupBy(result => result.ShotName))
+    {
+        var contacts = shotGroup.Where(result => result.ContactQuality.HasValue).ToArray();
+        if (contacts.Length == 0)
+        {
+            Console.WriteLine($"  {shotGroup.Key}: no contacts in the tested input window.");
+            continue;
+        }
+
+        var best = contacts.OrderByDescending(result => result.ContactQuality).First();
+        Console.WriteLine($"  {shotGroup.Key}: {contacts.Length}/{shotGroup.Count()} timings contact; best {best.ContactQuality:0.00} at {best.InputDelaySeconds:+0.000;-0.000;0.000} s, result {best.Outcome}.");
+    }
+    Console.WriteLine($"Batting-practice results written to {fullOutputPath}");
+}
+
+static void VerifyBattingPractice(string batterPath, string bowlerPath, string shotSetPath, string deliveryPath)
+{
+    var batter = PlayerAsset.Load(batterPath);
+    var bowler = PlayerAsset.Load(bowlerPath);
+    var shotSet = BattingShotSet.Load(shotSetPath);
+    var delivery = DeliveryPreset.Load(deliveryPath);
+    var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery);
+
+    foreach (var shot in shotSet.Shots)
+    {
+        var contacts = results
+            .Where(result => string.Equals(result.ShotName, shot.Name, StringComparison.OrdinalIgnoreCase) && result.ContactQuality.HasValue)
+            .ToArray();
+        if (contacts.Length == 0)
+            throw new InvalidDataException($"Shot '{shot.Name}' has no contact timing against '{delivery.Name}'.");
+
+        var best = contacts.OrderByDescending(result => result.ContactQuality).First();
+        if (!float.IsFinite(best.ContactQuality!.Value) || best.ContactQuality.Value is < 0.48f or > 1f ||
+            !float.IsFinite(best.OutgoingSpeedMetersPerSecond!.Value) || best.OutgoingSpeedMetersPerSecond.Value <= 0f)
+            throw new InvalidDataException($"Shot '{shot.Name}' produced an invalid best impact against '{delivery.Name}'.");
+
+        Console.WriteLine($"{shot.Name}: best quality {best.ContactQuality:0.00} at {best.InputDelaySeconds:+0.000;-0.000;0.000} s; {best.Outcome}, {best.OutgoingSpeedMetersPerSecond:0.0} m/s");
+    }
+
+    Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
+}
+
 static string F(float value) => value.ToString("0.000000", CultureInfo.InvariantCulture);
+static string Optional(float? value) => value is { } number ? F(number) : string.Empty;
 
 static void PrintUsage()
 {
@@ -355,6 +458,8 @@ static void PrintUsage()
     Console.WriteLine("  validate-player <player.scplayer.json>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
+    Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+    Console.WriteLine("  verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
