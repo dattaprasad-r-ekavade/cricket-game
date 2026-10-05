@@ -7,7 +7,7 @@ namespace SuperCricket.Game.Rendering;
 /// <summary>A metre-scaled orbit camera for inspecting the practice ground.</summary>
 public sealed class OrbitCamera
 {
-    private const float MinDistance = 12f;
+    private const float MinDistance = 4f;
     private const float MaxDistance = 100f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
@@ -20,12 +20,13 @@ public sealed class OrbitCamera
     ];
     private int _presetIndex;
     private int _previousWheel;
+    private string? _focusName;
 
     public float Yaw { get; private set; }
     public float Elevation { get; private set; }
     public float Distance { get; private set; }
     public Vector3 Target { get; private set; }
-    public string PresetName => _presets[_presetIndex].Name;
+    public string PresetName => _focusName ?? _presets[_presetIndex].Name;
 
     public OrbitCamera() => ApplyPreset(0);
 
@@ -51,6 +52,15 @@ public sealed class OrbitCamera
         ApplyPreset((_presetIndex + 1) % _presets.Length);
     }
 
+    public void Focus(Vector3 target, float distance, float yaw, float elevation, string name = "Focus")
+    {
+        Target = target;
+        Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
+        Yaw = yaw;
+        Elevation = MathHelper.Clamp(elevation, MinElevation, MaxElevation);
+        _focusName = name;
+    }
+
     public bool SelectPreset(string name)
     {
         var normalizedName = name.Replace('-', ' ').Trim();
@@ -68,6 +78,7 @@ public sealed class OrbitCamera
     private void ApplyPreset(int index)
     {
         _presetIndex = index;
+        _focusName = null;
         var preset = _presets[index];
         Yaw = preset.Yaw;
         Elevation = preset.Elevation;

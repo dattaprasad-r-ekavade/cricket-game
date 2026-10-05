@@ -19,6 +19,8 @@ public sealed class PlayerAnimator
     private float _previousTime;
     private float _transitionElapsed;
     private float _transitionDuration;
+    private bool _currentClipLoops = true;
+    private bool _previousClipLoops = true;
 
     public PlayerAnimator(PlayerAsset asset)
     {
@@ -38,17 +40,23 @@ public sealed class PlayerAnimator
 
     public string CurrentClipName => _currentClip.Name;
     public bool IsTransitioning => _previousClip is not null;
+    public float CurrentTimeSeconds => _currentTime;
+    public bool IsOneShotComplete => !_currentClipLoops && _currentTime >= _currentClip.DurationSeconds && _previousClip is null;
 
     public void Update(float elapsedSeconds)
     {
         if (!float.IsFinite(elapsedSeconds) || elapsedSeconds < 0f)
             throw new ArgumentOutOfRangeException(nameof(elapsedSeconds));
 
-        _currentTime = (_currentTime + elapsedSeconds) % _currentClip.DurationSeconds;
+        _currentTime = _currentClipLoops
+            ? (_currentTime + elapsedSeconds) % _currentClip.DurationSeconds
+            : MathF.Min(_currentTime + elapsedSeconds, _currentClip.DurationSeconds);
         if (_previousClip is null)
             return;
 
-        _previousTime = (_previousTime + elapsedSeconds) % _previousClip.DurationSeconds;
+        _previousTime = _previousClipLoops
+            ? (_previousTime + elapsedSeconds) % _previousClip.DurationSeconds
+            : MathF.Min(_previousTime + elapsedSeconds, _previousClip.DurationSeconds);
         _transitionElapsed += elapsedSeconds;
         if (_transitionElapsed >= _transitionDuration)
             _previousClip = null;
@@ -62,6 +70,16 @@ public sealed class PlayerAnimator
     }
 
     public void Play(string clipName, float transitionSeconds = 0.35f)
+    {
+        Play(clipName, transitionSeconds, loops: true);
+    }
+
+    public void PlayOnce(string clipName, float transitionSeconds = 0.35f)
+    {
+        Play(clipName, transitionSeconds, loops: false);
+    }
+
+    private void Play(string clipName, float transitionSeconds, bool loops)
     {
         PlayerAnimationData? nextClip = null;
         foreach (var animation in _asset.Animations)
@@ -77,8 +95,10 @@ public sealed class PlayerAnimator
 
         _previousClip = _currentClip;
         _previousTime = _currentTime;
+        _previousClipLoops = _currentClipLoops;
         _currentClip = nextClip;
         _currentTime = 0f;
+        _currentClipLoops = loops;
         _transitionDuration = MathF.Max(0.001f, transitionSeconds);
         _transitionElapsed = 0f;
     }
@@ -131,7 +151,7 @@ public sealed class PlayerAnimator
     private static XnaVector3 SampleRootMotion(PlayerAnimationData clip, float timeSeconds)
     {
         var samples = clip.Samples;
-        var time = timeSeconds % clip.DurationSeconds;
+        var time = Math.Clamp(timeSeconds, 0f, clip.DurationSeconds);
         for (var nextIndex = 1; nextIndex < samples.Count; nextIndex++)
         {
             var next = samples[nextIndex];
@@ -155,7 +175,7 @@ public sealed class PlayerAnimator
     private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)
     {
         var samples = clip.Samples;
-        var time = timeSeconds % clip.DurationSeconds;
+        var time = Math.Clamp(timeSeconds, 0f, clip.DurationSeconds);
         for (var nextIndex = 1; nextIndex < samples.Count; nextIndex++)
         {
             var next = samples[nextIndex];

@@ -15,10 +15,19 @@ namespace SuperCricket.Game;
 
 public class Game1 : Microsoft.Xna.Framework.Game
 {
+    private enum FielderSequencePhase
+    {
+        None,
+        Pickup,
+        Throw
+    }
+
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
     private readonly float? _captureRunUpTimeSeconds;
     private readonly float? _captureDeliveryTimeSeconds;
+    private readonly string? _captureFielderActionClip;
+    private readonly float? _captureFielderActionTimeSeconds;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -46,6 +55,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private PlayerAnimator _bowlerAnimator = null!;
     private SkinnedPlayerRenderer _bowlerRenderer = null!;
     private PlayerAnimator[] _fielderAnimators = [];
+    private readonly string?[] _fielderActionClips = new string?[FieldingSide.FielderCount];
+    private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
     private OverScoreboard _scoreboard = new();
     private readonly FieldingSide _fieldingSide = new();
@@ -74,8 +85,14 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private float _runElapsed;
     private float _runDurationSeconds = 1.35f;
     private bool _fielderThrowActive;
-    private float _fielderThrowElapsed;
-    private const float FielderThrowDurationSeconds = 0.3f;
+    private bool _fielderThrowBallReleased;
+    private bool _fielderBallSecured;
+    private FielderSequencePhase _fielderSequencePhase;
+    private NumericsVector3 _fielderHeldBallPosition;
+    private float _fielderPickupBallSecuredTimeSeconds;
+    private float _fielderCatchBallSecuredTimeSeconds;
+    private float _fielderThrowReleaseTimeSeconds;
+    private float _fielderThrowDurationSeconds;
     private NumericsVector3 _fielderThrowStart;
     private NumericsVector3 _fielderThrowTarget;
     private int _fielderThrowerIndex;
@@ -103,13 +120,19 @@ public class Game1 : Microsoft.Xna.Framework.Game
         string? capturePath = null,
         string? captureCameraPreset = null,
         float? captureRunUpTimeSeconds = null,
-        float? captureDeliveryTimeSeconds = null)
+        float? captureDeliveryTimeSeconds = null,
+        string? captureFielderActionClip = null,
+        float? captureFielderActionTimeSeconds = null)
     {
-        if (captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null)
-            throw new ArgumentException("Choose either a run-up capture time or a delivery capture time.");
+        if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
+            (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
+            captureFielderActionClip is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null))
+            throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
         _capturePath = capturePath;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
+        _captureFielderActionClip = captureFielderActionClip;
+        _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
             throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
@@ -220,8 +243,16 @@ public class Game1 : Microsoft.Xna.Framework.Game
             _fielderAnimators[fielderIndex] = new PlayerAnimator(_bowlerAsset);
         _bowlerRunUpDurationSeconds = GetAnimationDuration(_bowlerAsset, "bowling-run-up");
         _bowlerReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "overarm-delivery", "ball-release");
+        _fielderThrowDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-throw");
+        _fielderThrowReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-throw", "ball-release");
+        _fielderPickupBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-pickup", "ball-secured");
+        _fielderCatchBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-catch", "catch-secured");
         RequireAnimation(_bowlerAsset, "bowling-run-up");
         RequireAnimation(_bowlerAsset, "overarm-delivery");
+        RequireAnimation(_bowlerAsset, "fielder-catch");
+        RequireAnimation(_bowlerAsset, "fielder-pickup");
+        if (_fielderThrowReleaseTimeSeconds >= _fielderThrowDurationSeconds)
+            throw new InvalidDataException("Fielder throw release event must occur before the end of its animation.");
         RequireAnimation(_bowlerAsset, "practice-stance");
         var shotSetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "shots.json");
         _shotSet = BattingShotSet.Load(shotSetPath);
@@ -239,7 +270,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
         StartNewOver();
         if (_captureTarget is not null)
         {
-            if (_captureRunUpTimeSeconds is { } runUpTime)
+            if (_captureFielderActionClip is { } fielderActionClip && _captureFielderActionTimeSeconds is { } actionTime)
+            {
+                SetFielderActionCapturePose(fielderActionClip, actionTime);
+            }
+            else if (_captureRunUpTimeSeconds is { } runUpTime)
             {
                 if (runUpTime > _bowlerRunUpDurationSeconds)
                     throw new ArgumentOutOfRangeException("captureRunUpTimeSeconds", runUpTime,
@@ -311,7 +346,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (_isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
             UpdateRun(elapsedSeconds);
         if (_fielderThrowActive)
-            UpdateFielderThrow(elapsedSeconds);
+            UpdateFielderThrow();
 
         if (!_simulationPaused && !_deliveryComplete && _bowlerReleased)
         {
@@ -409,8 +444,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         DrawTexturedSurfaces();
         var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
         var ballPosition = _fielderThrowActive
-            ? NumericsVector3.Lerp(_fielderThrowStart, _fielderThrowTarget,
-                Math.Clamp(_fielderThrowElapsed / FielderThrowDurationSeconds, 0f, 1f))
+            ? GetFielderThrowBallPosition()
             : _ballFlight.CurrentFrame.Position;
         BuildShadowVertices(strikerWorld, nonStrikerWorld, ballPosition);
 
@@ -584,7 +618,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _runRequestedPending = false;
         _runElapsed = 0f;
         _fielderThrowActive = false;
-        _fielderThrowElapsed = 0f;
+        _fielderThrowBallReleased = false;
+        _fielderBallSecured = false;
+        _fielderSequencePhase = FielderSequencePhase.None;
+        Array.Clear(_fielderActionClips);
+        Array.Clear(_fielderActionHoldAtEnd);
         _fieldingSide.Reset();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
         _playerAnimator.Play("practice-stance", 0.12f);
@@ -676,6 +714,25 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
             new Color(248, 181, 82)));
+    }
+
+    private void SetFielderActionCapturePose(string clipName, float timeSeconds)
+    {
+        if (clipName is not ("fielder-catch" or "fielder-pickup" or "fielder-throw"))
+            throw new ArgumentException("Fielder action capture must name fielder-catch, fielder-pickup, or fielder-throw.", nameof(clipName));
+
+        var duration = GetAnimationDuration(_bowlerAsset, clipName);
+        if (timeSeconds > duration)
+            throw new ArgumentOutOfRangeException(nameof(timeSeconds), timeSeconds,
+                $"Fielder action capture time must be between 0 and {duration:0.###} seconds.");
+
+        var fielderIndex = 0;
+        _fielderActionClips[fielderIndex] = clipName;
+        _fielderActionHoldAtEnd[fielderIndex] = true;
+        _fielderAnimators[fielderIndex].PlayOnce(clipName, 0.001f);
+        _fielderAnimators[fielderIndex].Update(MathF.Max(0.001f, timeSeconds));
+        var fielderWorld = ToXna(_fieldingSide.Positions[fielderIndex]);
+        _camera.Focus(fielderWorld + new Vector3(0f, 0.85f, 0f), 4.5f, 0f, 0.22f, "Fielder action");
     }
 
     private void SetBowlerDeliveryCapturePose(float timeSeconds)
@@ -791,6 +848,39 @@ public class Game1 : Microsoft.Xna.Framework.Game
         for (var fielderIndex = 0; fielderIndex < _fielderAnimators.Length; fielderIndex++)
         {
             var animation = _fielderAnimators[fielderIndex];
+            var actionClip = _fielderActionClips[fielderIndex];
+            if (actionClip is not null)
+            {
+                if (!string.Equals(animation.CurrentClipName, actionClip, StringComparison.OrdinalIgnoreCase))
+                    animation.PlayOnce(actionClip, 0.12f);
+                if (!animation.IsOneShotComplete)
+                    animation.Update(deltaTime);
+
+                var ballSecuredTime = actionClip switch
+                {
+                    "fielder-catch" => _fielderCatchBallSecuredTimeSeconds,
+                    "fielder-pickup" => _fielderPickupBallSecuredTimeSeconds,
+                    _ => float.PositiveInfinity
+                };
+                if (!_fielderBallSecured && animation.CurrentTimeSeconds >= ballSecuredTime)
+                {
+                    _fielderBallSecured = true;
+                    _ballFlight.StopAtContact(_fielderHeldBallPosition);
+                }
+
+                if (_fielderSequencePhase == FielderSequencePhase.Pickup &&
+                    fielderIndex == _fielderThrowerIndex && animation.IsOneShotComplete)
+                {
+                    _fielderSequencePhase = FielderSequencePhase.Throw;
+                    StartFielderAction(fielderIndex, "fielder-throw", holdAtEnd: true);
+                }
+                else if (animation.IsOneShotComplete && !_fielderActionHoldAtEnd[fielderIndex])
+                {
+                    _fielderActionClips[fielderIndex] = null;
+                }
+                continue;
+            }
+
             var clipName = fielderIndex == chaserIndex ? "between-wickets" : "practice-stance";
             if (!string.Equals(animation.CurrentClipName, clipName, StringComparison.OrdinalIgnoreCase))
                 animation.Play(clipName, 0.16f);
@@ -798,13 +888,22 @@ public class Game1 : Microsoft.Xna.Framework.Game
         }
     }
 
-    private void UpdateFielderThrow(float deltaTime)
+    private void UpdateFielderThrow()
     {
-        _fielderThrowElapsed += deltaTime;
-        if (_fielderThrowElapsed < FielderThrowDurationSeconds)
+        if (_fielderSequencePhase != FielderSequencePhase.Throw)
             return;
 
+        var animation = _fielderAnimators[_fielderThrowerIndex];
+        _fielderThrowBallReleased = animation.CurrentTimeSeconds >= _fielderThrowReleaseTimeSeconds;
+        if (!animation.IsOneShotComplete)
+            return;
+
+        _ballFlight.StopAtContact(_fielderThrowTarget);
         _fielderThrowActive = false;
+        _fielderThrowBallReleased = false;
+        _fielderSequencePhase = FielderSequencePhase.None;
+        _fielderActionClips[_fielderThrowerIndex] = null;
+        _fielderActionHoldAtEnd[_fielderThrowerIndex] = false;
         if (_isRunning)
         {
             _dismissal = DismissalKind.RunOut;
@@ -863,8 +962,16 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void ResolveFieldingContact(FieldingContact contact)
     {
+        var fielderPosition = _fieldingSide.Positions[contact.FielderIndex];
+        _fielderHeldBallPosition = new NumericsVector3(
+            fielderPosition.X,
+            fielderPosition.Y + 1.02f,
+            fielderPosition.Z);
+        _fielderBallSecured = false;
+
         if (contact.Kind == FieldingContactKind.Catch)
         {
+            StartFielderAction(contact.FielderIndex, "fielder-catch", holdAtEnd: true);
             if (_deliveryPreset.IsNoBall)
             {
                 _extraRuns = 1;
@@ -880,14 +987,17 @@ public class Game1 : Microsoft.Xna.Framework.Game
         else if (_isRunning)
         {
             _fielderThrowActive = true;
-            _fielderThrowElapsed = 0f;
+            _fielderThrowBallReleased = false;
+            _fielderSequencePhase = FielderSequencePhase.Pickup;
             _fielderThrowerIndex = contact.FielderIndex;
             _fielderThrowStart = ToNumerics(contact.Position);
-            _fielderThrowTarget = new NumericsVector3(0f, 0.4f, -PracticeGround.WicketOffset);
+            _fielderThrowTarget = new NumericsVector3(0f, 0.55f, -PracticeGround.WicketOffset);
+            StartFielderAction(contact.FielderIndex, "fielder-pickup", holdAtEnd: false);
             _shotOutcome = $"Fielder {contact.FielderIndex + 1} picked up; throw to wicketkeeper";
         }
         else
         {
+            StartFielderAction(contact.FielderIndex, "fielder-pickup", holdAtEnd: false);
             _shotOutcome = $"Fielder {contact.FielderIndex + 1} collected the ball";
         }
 
@@ -955,6 +1065,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _isRunning = false;
         _runRequestedPending = false;
         _fielderThrowActive = false;
+        _fielderSequencePhase = FielderSequencePhase.None;
         if (_dismissal != DismissalKind.None)
         {
             if (_dismissal is DismissalKind.Bowled or DismissalKind.RunOut)
@@ -1127,12 +1238,46 @@ public class Game1 : Microsoft.Xna.Framework.Game
     {
         var position = _fieldingSide.Positions[fielderIndex];
         var isChasing = fielderIndex == _fieldingSide.ActiveChaserIndex && _battedBall && !_deliveryComplete;
-        var targetX = isChasing ? ballPosition.X : 0f;
-        var targetZ = isChasing ? ballPosition.Z : 0f;
+        var isThrowing = fielderIndex == _fielderThrowerIndex && _fielderSequencePhase == FielderSequencePhase.Throw;
+        var targetX = isThrowing ? _fielderThrowTarget.X : isChasing ? ballPosition.X : 0f;
+        var targetZ = isThrowing ? _fielderThrowTarget.Z : isChasing ? ballPosition.Z : 0f;
         var yaw = MathF.Atan2(targetX - position.X, targetZ - position.Z);
         return Matrix.CreateRotationY(yaw) *
             Matrix.CreateScale(0.94f) *
             Matrix.CreateTranslation(ToXna(position));
+    }
+
+    private void StartFielderAction(int fielderIndex, string clipName, bool holdAtEnd)
+    {
+        _fielderActionClips[fielderIndex] = clipName;
+        _fielderActionHoldAtEnd[fielderIndex] = holdAtEnd;
+        _fielderAnimators[fielderIndex].PlayOnce(clipName, 0.12f);
+    }
+
+    private NumericsVector3 GetFielderThrowBallPosition()
+    {
+        if (_fielderSequencePhase == FielderSequencePhase.Pickup)
+        {
+            var pickupTime = _fielderAnimators[_fielderThrowerIndex].CurrentTimeSeconds;
+            var securedAmount = Math.Clamp(
+                pickupTime / MathF.Max(0.001f, _fielderPickupBallSecuredTimeSeconds),
+                0f,
+                1f);
+            return NumericsVector3.Lerp(_fielderThrowStart, _fielderHeldBallPosition, securedAmount);
+        }
+
+        if (_fielderSequencePhase != FielderSequencePhase.Throw || !_fielderThrowBallReleased)
+            return _fielderHeldBallPosition;
+
+        if (_fielderThrowDurationSeconds <= _fielderThrowReleaseTimeSeconds)
+            return _fielderThrowStart;
+
+        var animationTime = _fielderAnimators[_fielderThrowerIndex].CurrentTimeSeconds;
+        var flightDuration = MathF.Max(0.001f, _fielderThrowDurationSeconds - _fielderThrowReleaseTimeSeconds);
+        var flightAmount = Math.Clamp((animationTime - _fielderThrowReleaseTimeSeconds) / flightDuration, 0f, 1f);
+        var position = NumericsVector3.Lerp(_fielderHeldBallPosition, _fielderThrowTarget, flightAmount);
+        position.Y += 3.6f * flightAmount * (1f - flightAmount);
+        return position;
     }
 
     private Matrix GetBowlerWorld()

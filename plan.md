@@ -34,6 +34,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 16 — Export character-local root motion from Blender and drive the bowler's approach from its authored path.
 - [x] Step 17 — Author the bowler's delivery follow-through in Blender and preview the complete action deterministically.
 - [x] Step 18 — Replace fielder markers with rigged, animated 3D players and batch skinned meshes by material.
+- [x] Step 19 — Author catch, pickup, and throw actions for fielders; sync run-out throws to the exported release event.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -168,6 +169,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Replaced the ten blocky fielder markers with rendered instances of the rigged bowler-team player. Each fielder faces into the field; idle players use `practice-stance`, while the active chaser transitions to the shared running cycle. Added soft ground shadows for the full fielding side.
 - Combined skinned mesh parts that share a diffuse material: the batter renderer batches 85 source parts into 19 draws per avatar, and the fielding/bowler renderer batches 36 parts into 12. The F1 developer overlay reports 13 rendered players and the two batch counts.
 - Captured and reviewed bowler-end and square-leg views with all ten avatars visible. Repeated square-leg capture matched exactly (SHA-256 `2B8A8074EC149B594D4E28B0BA6A91DB30C92D4D519A9DB44D715DC8D2B9B661`); the field preset and batting shots validate and the sample over completes at 10/2. All fielders currently share one team model and the same ready/run cycles.
+
+### Step 19 notes
+
+- Added `tools/blender/author_fielding_animations.py` to author repeatable `fielder-catch`, `fielder-pickup`, and `fielder-throw` actions on the existing 13-bone Blender player rig. The exported bowler/fielder asset now has ten clips; the three new actions are 1.0 s, 0.5 s, and 0.6 s, with ball-secured/release events exported from Blender frames.
+- Close-up capture exposed a trouser-to-shoe gap in the shared player model. Added idempotent `tools/blender/add_fielder_lower_legs.py` with two `shin.L`/`shin.R`-weighted meshes; the exported bowler/fielder asset now has 38 mesh parts and the lower-leg silhouette connects to the shoes.
+- Added non-looping playback to `PlayerAnimator`. Catches hold their final secure pose, pickups return to ready, and a run-out collection transitions from pickup to throw. The ball moves from the ground to the player's hand on the pickup/catch marker; the visible throw arc starts at the exported `ball-release` time (0.300 s into the throw), and delivery resolution occurs when the throw clip completes at the wicketkeeper.
+- Added `--fielder-action` and `--action-time` to deterministic game capture. Reviewed Blender action strips and MonoGame captures for catch, pickup, and throw so clip timing and the skinned renderer can be checked through the same toolchain.
+- Release build completed with zero warnings or errors, the bowler/fielder asset validates with 10 clips, and the sample over remains 10/2. The current throw path is a presentation arc; pickup/catch outcomes and fielder travel rules remain the existing simplified simulation, and every fielder still shares one rig and team appearance.
 
 ## Technical foundation
 
