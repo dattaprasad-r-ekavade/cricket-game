@@ -1,0 +1,18 @@
+# .NET build output
+**/bin/
+**/obj/
+.vs/
+.idea/
+
+# MonoGame generated content and editor state
+**/Content/bin/
+**/Content/obj
+**/Content/.mgstats
+
+# Local captures and machine-specific files
+artifacts/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
