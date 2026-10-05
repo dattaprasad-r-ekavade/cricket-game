@@ -13,6 +13,9 @@ public static class PracticeGround
     public const float WicketHeight = 0.71f;
     public const float BallRadius = 0.036f;
     public const float WicketOffset = PitchLength / 2f;
+    public const int CrowdRows = 15;
+    public const int CrowdSpectatorsPerRow = 320;
+    public const int CrowdSpectatorCount = CrowdRows * CrowdSpectatorsPerRow;
 
     public static VertexPositionColorNormalTexture[] CreateOutfieldSurface()
     {
@@ -86,6 +89,13 @@ public static class PracticeGround
         AddSeatingBowl(mesh);
         AddScoreScreen(mesh);
         AddFloodlights(mesh);
+        return mesh.ToArray();
+    }
+
+    public static VertexPositionColorNormal[] CreateCrowd()
+    {
+        var mesh = new MeshBuilder();
+        AddCrowd(mesh);
         return mesh.ToArray();
     }
 
@@ -221,6 +231,90 @@ public static class PracticeGround
         AddOvalWall(mesh, 55.0f, 53.9f, 0.05f, 7.6f, new Color(35, 46, 56), 256);
         AddOvalBand(mesh, 54.5f, 53.6f, 7.5f, 0.9f, new Color(82, 94, 98), 256);
     }
+
+    private static void AddCrowd(MeshBuilder mesh)
+    {
+        const float firstRowRadius = 44.0f;
+        const float rowWidth = 0.67f;
+        const float rowRise = 0.43f;
+        const float ellipseRatio = 0.91f;
+        const float torsoHalfWidth = 0.195f;
+        var shirts = new[]
+        {
+            new Color(30, 53, 76), new Color(54, 80, 93), new Color(104, 43, 47),
+            new Color(151, 111, 68), new Color(51, 72, 55), new Color(139, 143, 137),
+            new Color(71, 55, 77), new Color(156, 153, 139), new Color(35, 38, 46)
+        };
+        var skinTones = new[]
+        {
+            new Color(153, 106, 79), new Color(124, 80, 59),
+            new Color(94, 60, 48), new Color(175, 131, 99)
+        };
+        var hairColors = new[]
+        {
+            new Color(35, 34, 33), new Color(72, 54, 42), new Color(126, 111, 91)
+        };
+
+        for (var row = 0; row < CrowdRows; row++)
+        {
+            var floorY = 0.22f + row * rowRise;
+            var seatY = floorY + 0.18f;
+            var rowRadius = firstRowRadius + row * rowWidth + rowWidth * 0.5f;
+            var radiusZ = rowRadius * ellipseRatio;
+
+            for (var spectator = 0; spectator < CrowdSpectatorsPerRow; spectator++)
+            {
+                // Offset alternating rows so people sit between the backs in the row ahead.
+                var stagger = row % 2 == 0 ? 0f : 0.5f;
+                var angle = MathHelper.TwoPi * (spectator + stagger) / CrowdSpectatorsPerRow;
+                var cosine = MathF.Cos(angle);
+                var sine = MathF.Sin(angle);
+                var center = new Vector3(rowRadius * cosine, seatY + 0.015f, radiusZ * sine);
+                var tangent = Vector3.Normalize(new Vector3(-rowRadius * sine, 0f, radiusZ * cosine));
+                var shirtIndex = PositiveModulo(row * 71 + spectator * 37 + spectator / 11, shirts.Length);
+                var skinIndex = PositiveModulo(row * 3 + spectator * 13, skinTones.Length);
+                var hairIndex = PositiveModulo(row * 5 + spectator * 7, hairColors.Length);
+                var shirt = shirts[shirtIndex];
+                var skin = skinTones[skinIndex];
+                var hair = hairColors[hairIndex];
+
+                Vector3 Point(float x, float y) => center + tangent * x + Vector3.Up * y;
+
+                var leftBottom = Point(-torsoHalfWidth, 0.06f);
+                var rightBottom = Point(torsoHalfWidth, 0.06f);
+                var rightShoulder = Point(torsoHalfWidth * 0.88f, 0.39f);
+                var leftShoulder = Point(-torsoHalfWidth * 0.88f, 0.39f);
+                mesh.Triangle(leftBottom, rightBottom, rightShoulder, shirt);
+                mesh.Triangle(leftBottom, rightShoulder, leftShoulder, shirt);
+
+                // Small bare arms break the shirt mass into a readable seated silhouette.
+                mesh.Triangle(Point(-0.17f, 0.34f), Point(-0.22f, 0.13f), Point(-0.30f, 0.105f), skin);
+                mesh.Triangle(Point(0.17f, 0.34f), Point(0.30f, 0.105f), Point(0.22f, 0.13f), skin);
+
+                // A low-poly head and hair cap are enough to read as spectators at broadcast scale.
+                var headCenter = Point(0f, 0.485f);
+                const int headSegments = 8;
+                for (var segment = 0; segment < headSegments; segment++)
+                {
+                    var angle0 = MathHelper.TwoPi * segment / headSegments;
+                    var angle1 = MathHelper.TwoPi * (segment + 1) / headSegments;
+                    var edge0 = headCenter + tangent * (MathF.Cos(angle0) * 0.103f)
+                        + Vector3.Up * (MathF.Sin(angle0) * 0.103f);
+                    var edge1 = headCenter + tangent * (MathF.Cos(angle1) * 0.103f)
+                        + Vector3.Up * (MathF.Sin(angle1) * 0.103f);
+                    mesh.Triangle(headCenter, edge0, edge1, skin);
+                }
+
+                var hairLeft = Point(-0.09f, 0.50f);
+                var hairPeak = Point(0f, 0.585f);
+                var hairRight = Point(0.09f, 0.50f);
+                mesh.Triangle(hairLeft, hairPeak, hairRight, hair);
+                mesh.Triangle(hairLeft, hairRight, Point(0f, 0.535f), hair);
+            }
+        }
+    }
+
+    private static int PositiveModulo(int value, int divisor) => (value % divisor + divisor) % divisor;
 
     private static void AddScoreScreen(MeshBuilder mesh)
     {

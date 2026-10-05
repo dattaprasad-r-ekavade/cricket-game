@@ -21,10 +21,12 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
     private BasicEffect _worldEffect = null!;
+    private BasicEffect _crowdEffect = null!;
     private BasicEffect _surfaceEffect = null!;
     private BasicEffect _lineEffect = null!;
     private Texture2D _outfieldTexture = null!;
     private Texture2D _pitchTexture = null!;
+    private VertexBuffer? _crowdVertexBuffer;
     private RenderTarget2D? _captureTarget;
     private readonly OrbitCamera _camera = new();
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
@@ -75,6 +77,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private VertexPositionColorNormalTexture[] _outfieldVertices = [];
     private VertexPositionColorNormalTexture[] _pitchVertices = [];
     private VertexPositionColorNormal[] _ballVertices = [];
+    private int _crowdPrimitiveCount;
     private VertexPositionColorNormal[] _fielderMarkerVertices = [];
     private double _fpsElapsed;
     private int _frameCount;
@@ -107,6 +110,14 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _outfieldVertices = PracticeGround.CreateOutfieldSurface();
         _pitchVertices = PracticeGround.CreatePitchSurface();
         _ballVertices = PracticeGround.CreateBall();
+        var crowdVertices = PracticeGround.CreateCrowd();
+        _crowdPrimitiveCount = crowdVertices.Length / 3;
+        _crowdVertexBuffer = new VertexBuffer(
+            GraphicsDevice,
+            VertexPositionColorNormal.VertexDeclaration,
+            crowdVertices.Length,
+            BufferUsage.WriteOnly);
+        _crowdVertexBuffer.SetData(crowdVertices);
         base.Initialize();
     }
 
@@ -128,6 +139,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _worldEffect.DirectionalLight0.SpecularColor = new Vector3(0.20f, 0.19f, 0.16f);
         _worldEffect.DirectionalLight1.Enabled = false;
         _worldEffect.DirectionalLight2.Enabled = false;
+        _crowdEffect = new BasicEffect(GraphicsDevice)
+        {
+            VertexColorEnabled = true,
+            LightingEnabled = false
+        };
         _surfaceEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = true,
@@ -362,6 +378,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             }
         }
 
+        DrawCrowd();
         DrawShadows();
 
         _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
@@ -412,7 +429,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
     protected override void UnloadContent()
     {
         _playerRenderer?.Dispose();
+        _crowdVertexBuffer?.Dispose();
         _worldEffect?.Dispose();
+        _crowdEffect?.Dispose();
         _lineEffect?.Dispose();
         _captureTarget?.Dispose();
         _debugPanel?.Dispose();
@@ -455,7 +474,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
-            $"Scene vertices {_groundVertices.Length:N0}    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 2",
+            $"Scene vertices {_groundVertices.Length + _crowdPrimitiveCount * 3:N0} ({PracticeGround.CrowdSpectatorCount:N0} crowd)    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 2",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
             "A defend    S drive    D loft    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
         };
@@ -850,6 +869,23 @@ public class Game1 : Microsoft.Xna.Framework.Game
                 _pitchVertices,
                 0,
                 _pitchVertices.Length / 3);
+        }
+    }
+
+    private void DrawCrowd()
+    {
+        if (_crowdVertexBuffer is null || _crowdPrimitiveCount == 0)
+            return;
+
+        _crowdEffect.World = Matrix.Identity;
+        _crowdEffect.View = _worldEffect.View;
+        _crowdEffect.Projection = _worldEffect.Projection;
+        foreach (var pass in _crowdEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.SetVertexBuffer(_crowdVertexBuffer);
+            GraphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, 0, _crowdPrimitiveCount);
+            GraphicsDevice.SetVertexBuffer(null);
         }
     }
 

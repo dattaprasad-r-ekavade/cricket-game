@@ -27,6 +27,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 9 — Set up Blender MCP for local art iteration, detail the rigged batter kit, and export edited scenes repeatably.
 - [x] Step 10 — Add directional daylight, soft contact shadows, and deterministic game-frame capture.
 - [x] Step 11 — Generate and prepare seamless grass and pitch textures, then render them on measured oval and pitch meshes.
+- [x] Step 12 — Populate the stadium bowl with a restrained static crowd and keep the crowd mesh on a reusable GPU buffer.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -109,7 +110,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Generated original repeatable green turf and compacted cricket-clay textures, then added `tools/prepare_texture.py` to resize square source images, feather opposite edges, and report the maximum wrapped RGB difference. Both shipped 256×256 tiles have matching opposite edges.
 - Replaced the rectangular vertex-colored lawn and plain pitch quad with UV-mapped textured surfaces: an oval 42 m-radius outfield with restrained mowing bands and the regulation-size pitch. The meshes use wrap sampling and share the warm directional lighting; crease lines and soft ground decals still render above them.
 - Added both textures to the game output and captured a paused 1440×900 behind-striker frame at `artifacts/step11-textured-surfaces.png`. Visual review confirms the oval surface, turf texture, clay pitch, wickets, and crease markings render together without a rectangular lawn or surface z-fighting.
-- Release build completed with zero warnings or errors. The next visual pass still needs higher-detail stadium geometry and crowd, authored lighting/shadow treatment, and camera-dependent texture filtering or mipmaps for close views.
+- Release build completed with zero warnings or errors. The next visual pass still needs higher-detail stadium architecture, cast-shadow treatment, and camera-dependent texture filtering or mipmaps for close views.
+
+### Step 12 notes
+
+- Added 4,800 low-poly spectator silhouettes across the existing 15-tier oval bowl, with staggered rows and deterministic muted shirt, skin, and hair colors. The static crowd totals 201,600 vertices (67,200 triangles) and sits in front of the authored seat tiers.
+- Uploaded the crowd once to a write-only vertex buffer and draw it with a flat vertex-color effect. This removes per-frame crowd geometry uploads and avoids specular glare on the small silhouettes. The developer overlay reports spectator and scene vertex counts.
+- Captured and reviewed 1440×900 broadcast and behind-striker views at `artifacts/step12-crowd-broadcast.png` and `artifacts/step12-crowd-unlit.png`. Two repeated behind-striker captures matched byte-for-byte (SHA-256 `2A3FC7F90DCDDC6CA0C554DB55D897CEEBBD217358AA2E32A6F4E26C02DDFB3F`).
+- Release build completed with zero warnings or errors. The crowd is a static distance treatment: it has no individual animation, gesture changes, or detailed facial meshes yet.
 
 ## Technical foundation
 

@@ -16,7 +16,7 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The match scene uses metres in world space and includes a procedural stadium preview. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
+The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
 
 ## Repository layout
 
