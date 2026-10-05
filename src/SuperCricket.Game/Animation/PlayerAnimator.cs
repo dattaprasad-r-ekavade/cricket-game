@@ -58,9 +58,26 @@ public sealed class PlayerAnimator
     {
         var currentIndex = _asset.Animations.IndexOf(_currentClip);
         var nextIndex = (currentIndex + 1) % _asset.Animations.Count;
+        Play(_asset.Animations[nextIndex].Name, transitionSeconds);
+    }
+
+    public void Play(string clipName, float transitionSeconds = 0.35f)
+    {
+        PlayerAnimationData? nextClip = null;
+        foreach (var animation in _asset.Animations)
+        {
+            if (string.Equals(animation.Name, clipName, StringComparison.OrdinalIgnoreCase))
+            {
+                nextClip = animation;
+                break;
+            }
+        }
+        if (nextClip is null)
+            throw new ArgumentException($"Player asset has no animation clip named '{clipName}'.", nameof(clipName));
+
         _previousClip = _currentClip;
         _previousTime = _currentTime;
-        _currentClip = _asset.Animations[nextIndex];
+        _currentClip = nextClip;
         _currentTime = 0f;
         _transitionDuration = MathF.Max(0.001f, transitionSeconds);
         _transitionElapsed = 0f;

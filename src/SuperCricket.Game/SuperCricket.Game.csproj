@@ -24,5 +24,6 @@
   <ItemGroup>
     <None Include="..\..\assets\deliveries\standard-pace.json" Link="Assets\Deliveries\standard-pace.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\characters\practice-batter.scplayer.json" Link="Assets\Characters\practice-batter.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

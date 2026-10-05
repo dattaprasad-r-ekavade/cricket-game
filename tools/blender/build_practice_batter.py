@@ -189,8 +189,8 @@ def create_character(armature: bpy.types.Object) -> list[bpy.types.Object]:
         add_sphere_part(armature, "Pad R", "pad", "shin.R", (0.14, -0.105, 0.30), (0.095, 0.07, 0.23)),
         add_sphere_part(armature, "Shoe L", "shoe", "foot.L", (-0.14, -0.09, 0.06), (0.09, 0.16, 0.065)),
         add_sphere_part(armature, "Shoe R", "shoe", "foot.R", (0.14, -0.09, 0.06), (0.09, 0.16, 0.065)),
-        add_box_part(armature, "Bat Blade", "bat", "forearm.R", (0.49, -0.25, 1.16), (0.115, 0.055, 0.54)),
-        add_box_part(armature, "Bat Handle", "shoe", "forearm.R", (0.48, -0.25, 1.50), (0.048, 0.045, 0.18)),
+        add_box_part(armature, "Bat Blade", "bat", "forearm.R", (0.49, -0.25, 0.48), (0.115, 0.055, 0.76)),
+        add_box_part(armature, "Bat Handle", "shoe", "forearm.R", (0.48, -0.25, 1.03), (0.048, 0.045, 0.40)),
     ]
 
     # Keep the generated asset organized for artists opening the source scene.
@@ -255,19 +255,46 @@ def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
         ],
     )
 
+    defence = create_animation(
+        armature,
+        "defensive-block",
+        [
+            (1, neutral),
+            (13, {**neutral, "spine": (0.07, -0.035, 0.0), "upper_arm.L": (-0.10, 0.0, -0.09), "upper_arm.R": (0.06, 0.0, 0.09)}),
+            (19, {**neutral, "spine": (0.12, -0.055, 0.0), "upper_arm.L": (-0.16, 0.0, -0.12), "forearm.L": (-0.22, 0.0, 0.0), "upper_arm.R": (-0.08, 0.0, 0.16), "forearm.R": (-0.38, 0.0, 0.0)}),
+            (30, {**neutral, "spine": (0.055, -0.025, 0.0), "upper_arm.L": (-0.08, 0.0, -0.06), "upper_arm.R": (0.0, 0.0, 0.08), "forearm.R": (-0.14, 0.0, 0.0)}),
+            (46, neutral),
+            (61, neutral),
+        ],
+    )
+
     drive = create_animation(
         armature,
         "front-foot-drive",
         [
             (1, neutral),
             (13, {**neutral, "spine": (0.03, -0.10, 0.0), "thigh.L": (0.0, 0.0, 0.11), "upper_arm.R": (0.08, 0.0, 0.12)}),
-            (25, {**neutral, "spine": (-0.05, 0.30, 0.0), "head": (0.04, 0.0, 0.0), "upper_arm.L": (-0.35, 0.0, -0.16), "forearm.L": (-0.42, 0.0, 0.0), "upper_arm.R": (-0.55, 0.0, 0.38), "forearm.R": (-0.82, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.18)}),
-            (34, {**neutral, "spine": (-0.10, 0.16, 0.0), "upper_arm.L": (-0.18, 0.0, -0.10), "upper_arm.R": (-0.36, 0.0, 0.22), "forearm.R": (-0.40, 0.0, 0.0)}),
+            (19, {**neutral, "spine": (-0.05, 0.30, 0.0), "head": (0.04, 0.0, 0.0), "upper_arm.L": (-0.35, 0.0, -0.16), "forearm.L": (-0.42, 0.0, 0.0), "upper_arm.R": (-0.55, 0.0, 0.38), "forearm.R": (-0.82, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.18)}),
+            (28, {**neutral, "spine": (-0.10, 0.16, 0.0), "upper_arm.L": (-0.18, 0.0, -0.10), "upper_arm.R": (-0.36, 0.0, 0.22), "forearm.R": (-0.40, 0.0, 0.0)}),
+            (40, {**neutral, "spine": (0.04, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.04)}),
             (46, {**neutral, "spine": (0.04, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.04)}),
             (61, neutral),
         ],
     )
-    return [stance, drive]
+
+    loft = create_animation(
+        armature,
+        "lofted-drive",
+        [
+            (1, neutral),
+            (13, {**neutral, "spine": (0.025, -0.12, 0.0), "thigh.L": (0.0, 0.0, 0.10), "upper_arm.R": (0.10, 0.0, 0.15)}),
+            (19, {**neutral, "spine": (-0.13, 0.36, 0.0), "head": (0.06, 0.0, 0.0), "upper_arm.L": (-0.42, 0.0, -0.18), "forearm.L": (-0.48, 0.0, 0.0), "upper_arm.R": (-0.70, 0.0, 0.48), "forearm.R": (-1.05, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.20)}),
+            (29, {**neutral, "spine": (-0.16, 0.22, 0.0), "upper_arm.L": (-0.23, 0.0, -0.12), "upper_arm.R": (-0.46, 0.0, 0.28), "forearm.R": (-0.55, 0.0, 0.0)}),
+            (42, {**neutral, "spine": (0.04, 0.0, 0.0), "thigh.L": (0.0, 0.0, 0.04)}),
+            (61, neutral),
+        ],
+    )
+    return [stance, defence, drive, loft]
 
 
 def export_mesh(part: bpy.types.Object, armature: bpy.types.Object, bone_indices: dict[str, int]) -> dict:

@@ -16,15 +16,16 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The practice scene uses metres in world space. Arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, Space pauses/resumes the delivery, R restarts it, T blends to the next player animation, and Escape exits.
+The practice scene uses metres in world space. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. R replays the delivery, T cycles player animations, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, Space pauses/resumes the delivery, and Escape exits.
 
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application
 - `src/SuperCricket.Simulation` — graphics-independent ball-flight simulation
-- `src/SuperCricket.Content` — validated delivery and player asset formats
-- `src/SuperCricket.Tools` — local commands for validating presets, players, and trajectories
+- `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
+- `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
 - `assets` — editable delivery presets and Blender-authored player source/export
+- `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export the practice batter
 - `plan.md` — milestone plan and progress record
 
@@ -33,6 +34,7 @@ The practice scene uses metres in world space. Arrow keys orbit the camera, Page
 ```powershell
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json
+dotnet run --project src/SuperCricket.Tools -- validate-shots assets/batting/shots.json
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. Pass a different CSV path as the third argument to choose another location.

@@ -27,6 +27,15 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "validate-shots")
+        {
+            var shotSet = BattingShotSet.Load(arguments[1]);
+            Console.WriteLine($"Valid batting shot set: {shotSet.Shots.Count} shots.");
+            foreach (var shot in shotSet.Shots)
+                Console.WriteLine($"  {shot.Name}: {shot.AnimationClip}, {shot.LaunchAngleDegrees:0.#}° launch, {shot.SpeedTransfer:0.##} speed transfer");
+            return 0;
+        }
+
         var preset = DeliveryPreset.Load(arguments[1]);
         switch (arguments[0])
         {
@@ -102,6 +111,7 @@ static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
     Console.WriteLine("  validate-player <player.scplayer.json>");
+    Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
 }

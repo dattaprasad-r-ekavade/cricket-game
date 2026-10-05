@@ -31,6 +31,18 @@ public sealed class BallFlightSimulator
     public float FixedTimeStepSeconds => _preset.FixedTimeStepSeconds;
     public BallFlightFrame CurrentFrame => new(_elapsedSeconds, _position, _velocity, _bounceCount, _phase);
 
+    public void ApplyBatContact(Vector3 contactPosition, Vector3 outgoingVelocity)
+    {
+        var speedSquared = outgoingVelocity.LengthSquared();
+        if (!IsFinite(contactPosition) || !IsFinite(outgoingVelocity) || !float.IsFinite(speedSquared) || speedSquared <= 0f)
+            throw new ArgumentException("Bat contact requires a finite position and a non-zero finite velocity.");
+
+        _position = contactPosition;
+        _velocity = outgoingVelocity;
+        _bounceCount = 0;
+        _phase = BallMotionPhase.InFlight;
+    }
+
     public BallFlightFrame Step()
     {
         if (_phase == BallMotionPhase.Settled)
@@ -134,4 +146,7 @@ public sealed class BallFlightSimulator
             MathF.Abs(z) <= _preset.PitchLengthMeters / 2f;
         return withinPitch ? _preset.PitchSurfaceHeightMeters : _preset.FieldSurfaceHeightMeters;
     }
+
+    private static bool IsFinite(Vector3 value) =>
+        float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
 }

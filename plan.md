@@ -20,7 +20,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 2 — Render a measured practice ground, marked pitch, stumps, ball placeholder, orbit camera, and debug overlay.
 - [x] Step 3 — Add a fixed-step ball flight, pitch bounce, trajectory display, and a saved delivery preset.
 - [x] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
-- [ ] Step 5 — Add player-controlled batting, contact timing, and an inspectable first shot set.
+- [x] Step 5 — Add player-controlled batting, contact timing, and an inspectable first shot set.
 - [ ] Step 6 — Add fielding, running, wickets, and a complete over.
 - [ ] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
 
@@ -56,6 +56,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added the exported practice batter to the game assets: 21 material-separated mesh parts, `practice-stance`, and `front-foot-drive`.
 - Added animation sampling and a 0.35 s pose crossfade using MonoGame's GPU `SkinnedEffect`; T advances to the next clip.
 - Regenerated and validated the player asset, built the solution without warnings, launched the game, zoomed in on the player, and confirmed the second clip displays.
+
+### Step 5 notes
+
+- Added a validated, editable shot set for defence, drive, and loft; `validate-shots` checks the authoring data from the command line.
+- Added shot input, animation selection, a swept ball segment against the animated bat blade, and a first outgoing-velocity model driven by shot angle and speed transfer.
+- Corrected the authored bat so the blade extends below the grip and can meet the post-bounce ball. Pose/path analysis showed a usable timing window; in the running game all three shot types produced contact, while an immediate drive produced a miss.
+- Rebuilt the Blender asset and verified the player export, shot configuration, delivery preset, and solution build. The current contact model is a first playable approximation; edges, contact-offset response, fielding, and innings rules remain future work.
 
 ## Technical foundation
 
