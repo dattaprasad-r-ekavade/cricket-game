@@ -31,6 +31,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 13 — Create a Blender-authored bowler and synchronize his run-up, delivery animation, and ball release.
 - [x] Step 14 — Author a bowling run cycle, derive approach timing from the clip, and add deterministic run-up capture.
 - [x] Step 15 — Export validated animation events from Blender and use the bowler's authored release marker in gameplay.
+- [x] Step 16 — Export character-local root motion from Blender and drive the bowler's approach from its authored path.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -143,6 +144,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Removed the game-code release-time constant. Ball visibility, flight stepping, release-pose capture, and follow-through timing now read the `ball-release` event from the validated bowler asset.
 - Updated the Blender exporter to refresh the evaluated view layer while switching actions and frames. Two consecutive bowler re-exports matched (SHA-256 `F3BE5BC211D2ECD0A8D5EEB83C356BD338A0CAE7BA104124DF2B7D4603885F76`).
 - Verified export and player validation, tested rejection of an out-of-range event, rebuilt cleanly, reran the sample over at 10/2, and confirmed deterministic release captures (SHA-256 `AE16CF5F0ED5421E77EEB51872B287290DFB159DCFE5A1C87830F72CDDF98344`). Existing clips without events remain valid with an empty event list.
+
+### Step 16 notes
+
+- Used Blender MCP to author 15 m of forward root travel across the two-second `bowling-run-up` action. The curve follows the root bone's rest orientation, retains its vertical bounce, and reaches the delivery crease at the final sample.
+- Extended the Blender exporter with per-pose `rootMotion` in player-local metres. It subtracts horizontal root displacement from each exported bone transform so the game can apply the path once, without double-transforming the skin. The exporter restores the scene's active action and frame after sampling.
+- Replaced the game-space linear approach constant with sampled and interpolated motion from the bowler asset. The validator now prints net root displacement to make authored paths visible in the content workflow.
+- Captured and reviewed run-up frames at 0, 0.5, 1, 1.5, and 2 seconds from the bowler-end camera. The endpoint reaches the release position; both player assets validate, the release event remains 0.667 s, the solution builds cleanly, and the sample over still completes at 10/2.
+- Rejected a player export with a missing root-motion sample, confirmed consecutive Blender exports have matching SHA-256 `B392C45AEE9CCE386B16BBE501A846A2C05D78B6065CB2E2AE6A34E6798C57DC`, and repeated the 1.5 s game capture deterministically (`979C3D82AEDA0B60295C6BFF433D15E8B09D6A958AACA3D80FAD2E12D320D2FD`).
 
 ## Technical foundation
 

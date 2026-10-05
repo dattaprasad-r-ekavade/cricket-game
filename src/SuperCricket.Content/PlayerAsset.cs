@@ -137,6 +137,11 @@ public sealed class PlayerAsset
                         errors.Add($"Clip '{clip.Name}' pose sample times must increase within the clip duration.");
                         break;
                     }
+                    if (sample.RootMotion is null || !sample.RootMotion.IsFinite())
+                    {
+                        errors.Add($"Clip '{clip.Name}' sample at {sample.TimeSeconds:0.###} s must have finite root motion.");
+                        break;
+                    }
                     if (sample.Bones is null || sample.Bones.Count != Bones.Count || sample.Bones.Any(pose => pose is null || !pose.IsFinite()))
                     {
                         errors.Add($"Clip '{clip.Name}' sample at {sample.TimeSeconds:0.###} s must contain one valid pose per bone.");
@@ -241,5 +246,6 @@ public sealed class PlayerAnimationEventData
 public sealed class PlayerPoseSampleData
 {
     public float TimeSeconds { get; set; }
+    public Vector3Data RootMotion { get; set; } = new();
     public List<TransformData> Bones { get; set; } = [];
 }

@@ -85,9 +85,7 @@ public sealed class PlayerAnimator
 
     public XnaMatrix[] GetSkinMatrices()
     {
-        var blend = _previousClip is null
-            ? 1f
-            : MathHelper.Clamp(_transitionElapsed / _transitionDuration, 0f, 1f);
+        var blend = GetTransitionBlend();
 
         for (var boneIndex = 0; boneIndex < _skinMatrices.Length; boneIndex++)
         {
@@ -103,6 +101,53 @@ public sealed class PlayerAnimator
         }
 
         return _skinMatrices;
+    }
+
+    public XnaVector3 GetRootMotion()
+    {
+        var currentMotion = SampleRootMotion(_currentClip, _currentTime);
+        if (_previousClip is null)
+            return currentMotion;
+
+        var previousMotion = SampleRootMotion(_previousClip, _previousTime);
+        return XnaVector3.Lerp(previousMotion, currentMotion, GetTransitionBlend());
+    }
+
+    public XnaVector3 GetRootMotionAtEnd(string clipName)
+    {
+        var clip = _asset.Animations.Find(animation =>
+            string.Equals(animation.Name, clipName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new ArgumentException($"Player asset has no animation clip named '{clipName}'.", nameof(clipName));
+        var motion = clip.Samples[^1].RootMotion.ToVector3();
+        return new XnaVector3(motion.X, motion.Y, motion.Z);
+    }
+
+    private float GetTransitionBlend() => _previousClip is null
+        ? 1f
+        : MathHelper.Clamp(_transitionElapsed / _transitionDuration, 0f, 1f);
+
+    private static XnaVector3 SampleRootMotion(PlayerAnimationData clip, float timeSeconds)
+    {
+        var samples = clip.Samples;
+        var time = timeSeconds % clip.DurationSeconds;
+        for (var nextIndex = 1; nextIndex < samples.Count; nextIndex++)
+        {
+            var next = samples[nextIndex];
+            if (time > next.TimeSeconds)
+                continue;
+
+            var previous = samples[nextIndex - 1];
+            var span = next.TimeSeconds - previous.TimeSeconds;
+            var amount = span <= 0f ? 0f : (time - previous.TimeSeconds) / span;
+            var motion = System.Numerics.Vector3.Lerp(
+                previous.RootMotion.ToVector3(),
+                next.RootMotion.ToVector3(),
+                amount);
+            return new XnaVector3(motion.X, motion.Y, motion.Z);
+        }
+
+        var finalMotion = samples[^1].RootMotion.ToVector3();
+        return new XnaVector3(finalMotion.X, finalMotion.Y, finalMotion.Z);
     }
 
     private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)

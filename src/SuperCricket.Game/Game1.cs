@@ -80,7 +80,6 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _fielderThrowerIndex;
     private const float NearBatterZ = -8.72f;
     private const float FarBatterZ = 8.72f;
-    private const float BowlerRunUpDistanceMeters = 15f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
     private const float BowlerFollowThroughDistanceMeters = 0.45f;
@@ -1091,19 +1090,31 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private Matrix GetBowlerWorld()
     {
         var release = _deliveryPreset.ReleasePosition;
-        var runUpProgress = MathHelper.Clamp(_bowlerRunUpElapsed / _bowlerRunUpDurationSeconds, 0f, 1f);
-        var z = release.Z + BowlerHandForwardMeters + BowlerRunUpDistanceMeters * (1f - runUpProgress);
+        var facing = Matrix.CreateRotationY(MathHelper.Pi);
+        var releasePosition = new Vector3(
+            release.X + BowlerReleaseHandOffsetXMeters,
+            -0.025f,
+            release.Z + BowlerHandForwardMeters);
+        var position = releasePosition;
         if (_bowlerActionStarted)
         {
             var followThroughProgress = MathHelper.Clamp(
                 (_bowlerActionElapsed - _bowlerReleaseTimeSeconds) / BowlerFollowThroughDurationSeconds,
                 0f,
                 1f);
-            z -= BowlerFollowThroughDistanceMeters * followThroughProgress;
+            position.Z -= BowlerFollowThroughDistanceMeters * followThroughProgress;
+        }
+        else
+        {
+            var finalRootMotion = _bowlerAnimator.GetRootMotionAtEnd("bowling-run-up");
+            var currentRootMotion = _bowlerRunUpElapsed >= _bowlerRunUpDurationSeconds
+                ? finalRootMotion
+                : _bowlerAnimator.GetRootMotion();
+            var startPosition = releasePosition - Vector3.TransformNormal(finalRootMotion, facing);
+            position = startPosition + Vector3.TransformNormal(currentRootMotion, facing);
         }
 
-        return Matrix.CreateRotationY(MathHelper.Pi) *
-            Matrix.CreateTranslation(new Vector3(release.X + BowlerReleaseHandOffsetXMeters, -0.025f, z));
+        return facing * Matrix.CreateTranslation(position);
     }
 
     private bool TryBatContact(NumericsVector3 previousBall, NumericsVector3 currentBall, out Vector3 contactPoint, out float hitQuality)

@@ -26,6 +26,11 @@ static int Run(string[] arguments)
             foreach (var animation in player.Animations)
             {
                 Console.WriteLine($"  {animation.Name}: {animation.DurationSeconds:0.00} s, {animation.Samples.Count} sampled poses.");
+                var rootMotionStart = animation.Samples[0].RootMotion.ToVector3();
+                var rootMotionEnd = animation.Samples[^1].RootMotion.ToVector3();
+                var rootMotionDelta = rootMotionEnd - rootMotionStart;
+                if (rootMotionDelta.LengthSquared() > 0.000001f)
+                    Console.WriteLine($"    root motion {rootMotionDelta.Length():0.00} m ({rootMotionDelta.X:0.00}, {rootMotionDelta.Y:0.00}, {rootMotionDelta.Z:0.00})");
                 foreach (var animationEvent in animation.Events)
                     Console.WriteLine($"    event {animationEvent.Name} at {animationEvent.TimeSeconds:0.000} s");
             }

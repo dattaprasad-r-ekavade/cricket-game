@@ -74,8 +74,10 @@ def convert_vector(value: Vector) -> list[float]:
     return [float(value.x), float(value.z), float(-value.y)]
 
 
-def transform_data(matrix: Matrix) -> dict:
+def transform_data(matrix: Matrix, translation_offset: Vector | None = None) -> dict:
     translation, rotation, scale = matrix.decompose()
+    if translation_offset is not None:
+        translation -= translation_offset
     converted_rotation = (BASIS_4 @ rotation.to_matrix().to_4x4() @ BASIS_4.inverted()).to_quaternion()
     translation_game = convert_vector(translation)
     scale_game = [float(scale.x), float(scale.z), float(scale.y)]
@@ -412,6 +414,9 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
 
     animations = []
     scene = bpy.context.scene
+    original_frame = scene.frame_current
+    original_action = armature.animation_data.action if armature.animation_data else None
+    original_action_slot = armature.animation_data.action_slot if armature.animation_data else None
     for action in actions:
         armature.animation_data.action = action
         if hasattr(action, "slots") and len(action.slots) > 0:
@@ -421,6 +426,9 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
         end_frame = int(round(action.frame_range[1]))
         duration = (end_frame - start_frame) / FPS
         sample_count = int(round(duration * FPS))
+        scene.frame_set(start_frame)
+        bpy.context.view_layer.update()
+        root_start = armature.pose.bones["root"].matrix.translation.copy()
         event_frames = action.get("sc_events", {})
         if not hasattr(event_frames, "items"):
             raise RuntimeError(f"Action '{action.name}' sc_events must be a mapping of event names to Blender frames.")
@@ -436,11 +444,29 @@ def export_asset(armature: bpy.types.Object, parts: list[bpy.types.Object], acti
             frame = start_frame + frame_offset
             scene.frame_set(frame)
             bpy.context.view_layer.update()
+            root_translation = armature.pose.bones["root"].matrix.translation
+            root_delta = root_translation - root_start
+            horizontal_root_delta = Vector((root_delta.x, root_delta.y, 0.0))
             samples.append({
                 "timeSeconds": frame_offset / FPS,
-                "bones": [transform_data(armature.pose.bones[bone.name].matrix) for bone in bones],
+                "rootMotion": {
+                    "x": float(root_delta.x),
+                    "y": 0.0,
+                    "z": float(-root_delta.y),
+                },
+                "bones": [
+                    transform_data(armature.pose.bones[bone.name].matrix, horizontal_root_delta)
+                    for bone in bones
+                ],
             })
         animations.append({"name": action.name, "durationSeconds": duration, "events": events, "samples": samples})
+
+    if armature.animation_data:
+        armature.animation_data.action = original_action
+        if original_action is not None and original_action_slot is not None:
+            armature.animation_data.action_slot = original_action_slot
+    scene.frame_set(original_frame)
+    bpy.context.view_layer.update()
 
     return {
         "version": 1,
