@@ -16,14 +16,14 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. Ten fielders use the shared skinned player rig; the active chaser switches to a running clip while the rest hold a ready stance. Catches and pickups play authored one-shot clips; run-out throws sequence pickup and overarm actions, with the ball leaving on the throw clip's release marker. Skinned parts are batched by material so the full 13-player scene avoids a draw call for every mesh part. A teal-clad bowler runs in and plays an authored overarm delivery; the ball and its flight trail begin at the clip's release event. A defends, S drives, and D plays a lofted shot; choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles batter animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
+The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. Ten fielders use the shared skinned player rig; the active chaser switches to a running clip while the rest hold a ready stance. Catches and pickups play authored one-shot clips; run-out throws sequence pickup and overarm actions, with the ball leaving on the throw clip's release marker. Skinned parts are batched by material so the full 13-player scene avoids a draw call for every mesh part. A teal-clad bowler runs in and plays an authored overarm delivery; the ball and its flight trail begin at the clip's release event. A defends, S drives, and D plays a lofted shot; the game sweeps the animated bat against the incoming ball, then uses bat-point velocity and sweet-spot offset to shape the outgoing shot. Choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball, and R resets the over. P pauses/resumes the delivery, T cycles batter animations, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay, and Escape exits.
 
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application
-- `src/SuperCricket.Simulation` — graphics-independent ball-flight, fielding, and over-scoring simulation
+- `src/SuperCricket.Simulation` — graphics-independent ball-flight, batting-impact, fielding, and over-scoring simulation
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
-- `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
+- `src/SuperCricket.Tools` — local commands for validating content, analyzing batting and field coverage, and replaying scenarios
 - `assets` — editable delivery and field presets plus Blender-authored batter and bowler source/export
 - `assets/textures` — seamless generated albedo tiles for the outfield and pitch
 - `assets/batting/shots.json` — editable shot intent and launch tuning
@@ -37,12 +37,16 @@ The match scene uses metres in world space and includes a procedural stadium pre
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- validate-shots assets/batting/shots.json
+dotnet run --project src/SuperCricket.Tools -- analyze-batting assets/batting/shots.json
+dotnet run --project src/SuperCricket.Tools -- verify-batting assets/batting/shots.json
 dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.
+
+`analyze-batting` writes a CSV of shot speed, launch angle, and contact quality across the nine normalized blade contact points and three sample swing speeds. `verify-batting` checks moving-bat and moving-ball collision, outside-blade misses, sweet-spot quality, blade-height launch response, and swing-speed response using the same simulation code as the game.
 
 Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the starter rig and game asset with:
 

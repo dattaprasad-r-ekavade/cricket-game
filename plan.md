@@ -35,6 +35,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 17 — Author the bowler's delivery follow-through in Blender and preview the complete action deterministically.
 - [x] Step 18 — Replace fielder markers with rigged, animated 3D players and batch skinned meshes by material.
 - [x] Step 19 — Author catch, pickup, and throw actions for fielders; sync run-out throws to the exported release event.
+- [x] Step 20 — Sweep the moving bat against the ball and derive shot outcomes from swing velocity and sweet-spot contact; add a local batting analyzer.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -177,6 +178,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added non-looping playback to `PlayerAnimator`. Catches hold their final secure pose, pickups return to ready, and a run-out collection transitions from pickup to throw. The ball moves from the ground to the player's hand on the pickup/catch marker; the visible throw arc starts at the exported `ball-release` time (0.300 s into the throw), and delivery resolution occurs when the throw clip completes at the wicketkeeper.
 - Added `--fielder-action` and `--action-time` to deterministic game capture. Reviewed Blender action strips and MonoGame captures for catch, pickup, and throw so clip timing and the skinned renderer can be checked through the same toolchain.
 - Release build completed with zero warnings or errors, the bowler/fielder asset validates with 10 clips, and the sample over remains 10/2. The current throw path is a presentation arc; pickup/catch outcomes and fielder travel rules remain the existing simplified simulation, and every fielder still shares one rig and team appearance.
+
+### Step 20 notes
+
+- Extracted `SweptBattingContactResolver` into the graphics-independent simulation layer. It transforms each end of the ball segment into the corresponding start/end bat pose, so a swinging bat can contact the ball even when the ball barely moves during that tick. The game interpolates bat transforms across render frames while the ball simulation advances at 120 Hz.
+- Added `BattingImpactModel`: contact across the blade now has a normalized sweet-spot offset and quality, vertical blade position adjusts launch angle, lateral position adjusts aim, and velocity of the actual contact point contributes to the outgoing ball velocity. The existing per-shot angle, aim, and speed-transfer values remain the tuning inputs.
+- Added `analyze-batting` to emit a repeatable CSV grid across all three shots, nine blade contact points, and three sample swing speeds. Added `verify-batting` checks for stationary-ball/moving-bat hits, moving-ball/stationary-bat hits, outside-blade misses, centered-versus-edge quality, vertical launch response, and swing-speed response.
+- Release build completed with zero warnings or errors. `verify-batting`, shot validation, and the sample-over scenario pass; the existing over still finishes at 10/2. The impact model is a controllable prototype rather than a rigid-body bat simulation; the next pass should tune its response from observed in-game contacts and expanded batting scenarios.
 
 ## Technical foundation
 

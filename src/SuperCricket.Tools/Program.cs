@@ -46,6 +46,21 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "analyze-batting")
+        {
+            var outputPath = arguments.Length > 2
+                ? arguments[2]
+                : Path.Combine("artifacts", "batting-impact-grid.csv");
+            AnalyzeBatting(arguments[1], outputPath);
+            return 0;
+        }
+
+        if (arguments[0] == "verify-batting")
+        {
+            VerifyBatting(arguments[1]);
+            return 0;
+        }
+
         if (arguments[0] == "validate-field")
         {
             var field = FieldPreset.Load(arguments[1]);
@@ -245,6 +260,93 @@ static void AppendFrame(StringBuilder csv, BallFlightFrame frame)
         frame.Phase.ToString().ToLowerInvariant()));
 }
 
+static void AnalyzeBatting(string shotSetPath, string outputPath)
+{
+    var shotSet = BattingShotSet.Load(shotSetPath);
+    var offsets = new[]
+    {
+        new Vector2(-1f, -1f), new Vector2(0f, -1f), new Vector2(1f, -1f),
+        new Vector2(-1f, 0f), new Vector2(0f, 0f), new Vector2(1f, 0f),
+        new Vector2(-1f, 1f), new Vector2(0f, 1f), new Vector2(1f, 1f)
+    };
+    var swingSpeeds = new[] { 0f, 4f, 8f };
+    var incomingVelocity = new Vector3(0f, 0f, -30f);
+    var csv = new StringBuilder();
+    csv.AppendLine("shot,offset_x,offset_y,swing_speed_mps,incoming_speed_mps,quality,launch_angle_degrees,out_x_mps,out_y_mps,out_z_mps,out_speed_mps");
+
+    foreach (var shot in shotSet.Shots)
+    {
+        foreach (var offset in offsets)
+        {
+            foreach (var swingSpeed in swingSpeeds)
+            {
+                var swingVelocity = new Vector3(0f, 0f, -swingSpeed);
+                var impact = BattingImpactModel.Calculate(incomingVelocity, swingVelocity, offset, shot);
+                var outgoing = impact.OutgoingVelocity;
+                csv.Append(CsvValue(shot.Name)).Append(',')
+                    .Append(F(offset.X)).Append(',').Append(F(offset.Y)).Append(',')
+                    .Append(F(swingSpeed)).Append(',').Append(F(incomingVelocity.Length())).Append(',')
+                    .Append(F(impact.ContactQuality)).Append(',').Append(F(impact.LaunchAngleDegrees)).Append(',')
+                    .Append(F(outgoing.X)).Append(',').Append(F(outgoing.Y)).Append(',').Append(F(outgoing.Z)).Append(',')
+                    .AppendLine(F(outgoing.Length()));
+            }
+        }
+    }
+
+    var fullOutputPath = Path.GetFullPath(outputPath);
+    var outputDirectory = Path.GetDirectoryName(fullOutputPath);
+    if (!string.IsNullOrEmpty(outputDirectory))
+        Directory.CreateDirectory(outputDirectory);
+    File.WriteAllText(fullOutputPath, csv.ToString());
+    Console.WriteLine($"Analyzed {shotSet.Shots.Count} batting intents across {offsets.Length} contact points and {swingSpeeds.Length} swing speeds.");
+    Console.WriteLine($"Impact grid written to {fullOutputPath}");
+}
+
+static void VerifyBatting(string shotSetPath)
+{
+    var shotSet = BattingShotSet.Load(shotSetPath);
+    var incomingVelocity = new Vector3(0f, 0f, -30f);
+    var bladeMinimum = new Vector3(-0.2f, -0.5f, -0.05f);
+    var bladeMaximum = new Vector3(0.2f, 0.5f, 0.05f);
+    if (!SweptBattingContactResolver.TryResolve(
+            new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f),
+            Matrix4x4.Identity, Matrix4x4.Identity,
+            bladeMinimum, bladeMaximum, 0.03f, 1f / 120f, out var stationaryContact) ||
+        stationaryContact.NormalizedSweetSpotOffset.Length() > 0.001f)
+        throw new InvalidDataException("The swept bat resolver missed a centered ball against a stationary bat.");
+
+    if (SweptBattingContactResolver.TryResolve(
+            new Vector3(0f, 1f, -1f), new Vector3(0f, 1f, 1f),
+            Matrix4x4.Identity, Matrix4x4.Identity,
+            bladeMinimum, bladeMaximum, 0.03f, 1f / 120f, out _))
+        throw new InvalidDataException("The swept bat resolver accepted a ball outside the blade bounds.");
+
+    if (!SweptBattingContactResolver.TryResolve(
+            Vector3.Zero, Vector3.Zero,
+            Matrix4x4.CreateTranslation(-1f, 0f, 0f), Matrix4x4.CreateTranslation(1f, 0f, 0f),
+            bladeMinimum, bladeMaximum, 0.03f, 0.1f, out var movingBatContact) ||
+        movingBatContact.BatPointVelocity.X < 19.9f)
+        throw new InvalidDataException("The swept bat resolver missed a moving bat or failed to report its point velocity.");
+
+    foreach (var shot in shotSet.Shots)
+    {
+        var center = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, Vector2.Zero, shot);
+        var edge = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, Vector2.One, shot);
+        var highContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, 1f), shot);
+        var lowContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, -1f), shot);
+        var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, -8f), Vector2.Zero, shot);
+
+        if (center.ContactQuality <= edge.ContactQuality ||
+            highContact.LaunchAngleDegrees <= lowContact.LaunchAngleDegrees ||
+            forwardSwing.OutgoingVelocity.Length() <= center.OutgoingVelocity.Length())
+            throw new InvalidDataException($"Batting impact response failed a sweet-spot, vertical-offset, or swing-speed check for '{shot.Name}'.");
+
+        Console.WriteLine($"{shot.Name}: sweet spot {center.ContactQuality:0.00}, edge {edge.ContactQuality:0.00}, swing gain {forwardSwing.OutgoingVelocity.Length() - center.OutgoingVelocity.Length():0.00} m/s");
+    }
+
+    Console.WriteLine("Swept collision and batting impact checks passed.");
+}
+
 static string F(float value) => value.ToString("0.000000", CultureInfo.InvariantCulture);
 
 static void PrintUsage()
@@ -252,6 +354,8 @@ static void PrintUsage()
     Console.WriteLine("Super Cricket tools");
     Console.WriteLine("  validate-player <player.scplayer.json>");
     Console.WriteLine("  validate-shots <shots.json>");
+    Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
+    Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
     Console.WriteLine("  validate <preset.json>");

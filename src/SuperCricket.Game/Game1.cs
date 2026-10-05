@@ -22,6 +22,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
         Throw
     }
 
+    private readonly record struct BattingContact(
+        Vector3 Position,
+        Vector2 NormalizedSweetSpotOffset,
+        Vector3 BatPointVelocity);
+
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
     private readonly float? _captureRunUpTimeSeconds;
@@ -104,6 +109,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
     private Vector3 _batBladeMaximum;
+    private Matrix _previousBatWorld = Matrix.Identity;
+    private Matrix _currentBatWorld = Matrix.Identity;
     private VertexPositionColorNormal[] _groundVertices = [];
     private VertexPositionColorNormalTexture[] _outfieldVertices = [];
     private VertexPositionColorNormalTexture[] _pitchVertices = [];
@@ -267,6 +274,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (_batBoneIndex < 0)
             throw new InvalidDataException("Player asset is missing the forearm.R bat attachment bone.");
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
+        _currentBatWorld = GetBatWorldTransform();
+        _previousBatWorld = _currentBatWorld;
         StartNewOver();
         if (_captureTarget is not null)
         {
@@ -339,7 +348,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (_captureTarget is null)
         {
+            _previousBatWorld = _currentBatWorld;
             _playerAnimator.Update(elapsedSeconds);
+            _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);
         }
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
@@ -350,6 +361,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
         if (!_simulationPaused && !_deliveryComplete && _bowlerReleased)
         {
+            var accumulatorBeforeFrame = _simulationAccumulator;
+            var physicsElapsedThisFrame = 0f;
             _simulationAccumulator += MathF.Min(flightElapsed, 0.25f);
             while (_simulationAccumulator >= _ballFlight.FixedTimeStepSeconds &&
                    _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled)
@@ -360,15 +373,25 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
                 var frame = _ballFlight.Step();
                 if (_chosenShot is not null && !_shotResolved &&
-                    TryBatContact(previousFrame.Position, frame.Position, out var contactPoint, out var hitQuality))
+                    TryBatContact(
+                        previousFrame.Position,
+                        frame.Position,
+                        InterpolateBatWorld(GetBatPoseFraction(physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed)),
+                        InterpolateBatWorld(GetBatPoseFraction(physicsElapsedThisFrame + _ballFlight.FixedTimeStepSeconds, accumulatorBeforeFrame, elapsedSeconds, flightElapsed)),
+                        GetBatPoseDeltaSeconds(physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed),
+                        out var battingContact))
                 {
-                    var contactVelocity = CreateShotVelocity(frame.Velocity, _chosenShot, hitQuality);
-                    _ballFlight.ApplyBatContact(ToNumerics(contactPoint), ToNumerics(contactVelocity));
+                    var impact = BattingImpactModel.Calculate(
+                        ToNumerics(frame.Velocity),
+                        ToNumerics(battingContact.BatPointVelocity),
+                        new System.Numerics.Vector2(battingContact.NormalizedSweetSpotOffset.X, battingContact.NormalizedSweetSpotOffset.Y),
+                        _chosenShot);
+                    _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
                     _battedBall = true;
                     _fieldingSide.Reset();
-                    _shotOutcome = $"HIT: {_chosenShot.Name} at {contactVelocity.Length():0.0} m/s";
+                    _shotOutcome = $"HIT: {_chosenShot.Name}, {impact.ContactQuality:0.00} quality at {impact.OutgoingVelocity.Length():0.0} m/s";
                     if (_runRequestedPending)
                         StartRun();
                 }
@@ -403,6 +426,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
                     new Color(248, 181, 82)));
                 _simulationAccumulator -= _ballFlight.FixedTimeStepSeconds;
+                physicsElapsedThisFrame += _ballFlight.FixedTimeStepSeconds;
             }
         }
         if (_ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled || _deliveryComplete)
@@ -1309,74 +1333,75 @@ public class Game1 : Microsoft.Xna.Framework.Game
         return facing * Matrix.CreateTranslation(position);
     }
 
-    private bool TryBatContact(NumericsVector3 previousBall, NumericsVector3 currentBall, out Vector3 contactPoint, out float hitQuality)
+    private bool TryBatContact(
+        NumericsVector3 previousBall,
+        NumericsVector3 currentBall,
+        Matrix batStartWorld,
+        Matrix batEndWorld,
+        float batPoseDeltaSeconds,
+        out BattingContact contact)
     {
-        contactPoint = default;
-        hitQuality = 0f;
-        var skinMatrices = _playerAnimator.GetSkinMatrices();
-        var batWorld = skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true);
-        var worldToBat = Matrix.Invert(batWorld);
-        var localStart = Vector3.Transform(ToXna(previousBall), worldToBat);
-        var localEnd = Vector3.Transform(ToXna(currentBall), worldToBat);
+        contact = default;
         var expansion = _deliveryPreset.BallRadiusMeters + _shotSet.ContactPaddingMeters;
-        var padding = new Vector3(expansion);
-        var minimum = _batBladeMinimum - padding;
-        var maximum = _batBladeMaximum + padding;
-
-        if (!SegmentIntersectsBox(localStart, localEnd, minimum, maximum, out var hitFraction))
+        if (!SweptBattingContactResolver.TryResolve(
+            previousBall,
+            currentBall,
+            ToNumerics(batStartWorld),
+            ToNumerics(batEndWorld),
+            ToNumerics(_batBladeMinimum),
+            ToNumerics(_batBladeMaximum),
+            expansion,
+            batPoseDeltaSeconds,
+            out var resolved))
             return false;
 
-        contactPoint = Vector3.Lerp(ToXna(previousBall), ToXna(currentBall), hitFraction);
-        var localContact = Vector3.Lerp(localStart, localEnd, hitFraction);
-        var halfWidth = MathF.Max((_batBladeMaximum.X - _batBladeMinimum.X) / 2f, 0.001f);
-        var lateralError = MathF.Abs(localContact.X - (_batBladeMinimum.X + _batBladeMaximum.X) / 2f) / (halfWidth + expansion);
-        hitQuality = MathHelper.Clamp(1f - lateralError * 0.2f, 0.7f, 1f);
+        contact = new BattingContact(
+            ToXna(resolved.Position),
+            new Vector2(resolved.NormalizedSweetSpotOffset.X, resolved.NormalizedSweetSpotOffset.Y),
+            ToXna(resolved.BatPointVelocity));
         return true;
     }
 
-    private static Vector3 CreateShotVelocity(NumericsVector3 incomingVelocity, BattingShotData shot, float hitQuality)
+    private Matrix GetBatWorldTransform()
     {
-        var launchAngle = MathHelper.ToRadians(shot.LaunchAngleDegrees);
-        var horizontalDirection = Vector3.Normalize(new Vector3(shot.HorizontalAim, 0f, -1f));
-        var direction = new Vector3(
-            horizontalDirection.X * MathF.Cos(launchAngle),
-            MathF.Sin(launchAngle),
-            horizontalDirection.Z * MathF.Cos(launchAngle));
-        var outgoingSpeed = new Vector3(incomingVelocity.X, incomingVelocity.Y, incomingVelocity.Z).Length()
-            * shot.SpeedTransfer * hitQuality;
-        return direction * outgoingSpeed;
+        var skinMatrices = _playerAnimator.GetSkinMatrices();
+        return skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true);
     }
 
-    private static bool SegmentIntersectsBox(Vector3 start, Vector3 end, Vector3 minimum, Vector3 maximum, out float entry)
+    private float GetBatPoseFraction(float physicsElapsed, float accumulatorBeforeFrame, float elapsedSeconds, float flightElapsed)
     {
-        var direction = end - start;
-        var lower = 0f;
-        var upper = 1f;
-        if (!ClipAxis(start.X, direction.X, minimum.X, maximum.X, ref lower, ref upper) ||
-            !ClipAxis(start.Y, direction.Y, minimum.Y, maximum.Y, ref lower, ref upper) ||
-            !ClipAxis(start.Z, direction.Z, minimum.Z, maximum.Z, ref lower, ref upper))
-        {
-            entry = 0f;
-            return false;
-        }
+        if (elapsedSeconds <= 0.000001f)
+            return 1f;
 
-        entry = lower;
-        return true;
+        var afterReleaseFraction = 1f - Math.Clamp(flightElapsed / elapsedSeconds, 0f, 1f);
+        return Math.Clamp(afterReleaseFraction + (physicsElapsed - accumulatorBeforeFrame) / elapsedSeconds, 0f, 1f);
     }
 
-    private static bool ClipAxis(float origin, float direction, float minimum, float maximum, ref float lower, ref float upper)
+    private float GetBatPoseDeltaSeconds(float physicsElapsed, float accumulatorBeforeFrame, float elapsedSeconds, float flightElapsed)
     {
-        if (MathF.Abs(direction) < 0.000001f)
-            return origin >= minimum && origin <= maximum;
+        if (elapsedSeconds <= 0.000001f)
+            return 0f;
 
-        var inverseDirection = 1f / direction;
-        var first = (minimum - origin) * inverseDirection;
-        var second = (maximum - origin) * inverseDirection;
-        if (first > second)
-            (first, second) = (second, first);
-        lower = MathF.Max(lower, first);
-        upper = MathF.Min(upper, second);
-        return lower <= upper;
+        var start = GetBatPoseFraction(physicsElapsed, accumulatorBeforeFrame, elapsedSeconds, flightElapsed);
+        var end = GetBatPoseFraction(physicsElapsed + _ballFlight.FixedTimeStepSeconds, accumulatorBeforeFrame, elapsedSeconds, flightElapsed);
+        return MathF.Max(0f, end - start) * elapsedSeconds;
+    }
+
+    private Matrix InterpolateBatWorld(float amount)
+    {
+        amount = Math.Clamp(amount, 0f, 1f);
+        if (amount <= 0f)
+            return _previousBatWorld;
+        if (amount >= 1f)
+            return _currentBatWorld;
+
+        if (!_previousBatWorld.Decompose(out var previousScale, out var previousRotation, out var previousTranslation) ||
+            !_currentBatWorld.Decompose(out var currentScale, out var currentRotation, out var currentTranslation))
+            return Matrix.Lerp(_previousBatWorld, _currentBatWorld, amount);
+
+        return Matrix.CreateScale(Vector3.Lerp(previousScale, currentScale, amount)) *
+            Matrix.CreateFromQuaternion(Quaternion.Slerp(previousRotation, currentRotation, amount)) *
+            Matrix.CreateTranslation(Vector3.Lerp(previousTranslation, currentTranslation, amount));
     }
 
     private static (Vector3 Minimum, Vector3 Maximum) FindBounds(float[] positions)
@@ -1394,4 +1419,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private static Vector3 ToXna(NumericsVector3 value) => new(value.X, value.Y, value.Z);
     private static NumericsVector3 ToNumerics(Vector3 value) => new(value.X, value.Y, value.Z);
+    private static System.Numerics.Matrix4x4 ToNumerics(Matrix value) => new(
+        value.M11, value.M12, value.M13, value.M14,
+        value.M21, value.M22, value.M23, value.M24,
+        value.M31, value.M32, value.M33, value.M34,
+        value.M41, value.M42, value.M43, value.M44);
 }
