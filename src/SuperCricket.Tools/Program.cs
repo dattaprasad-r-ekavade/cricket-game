@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
 
 return Run(args);
@@ -16,6 +17,16 @@ static int Run(string[] arguments)
 
     try
     {
+        if (arguments[0] == "validate-player")
+        {
+            var player = PlayerAsset.Load(arguments[1]);
+            Console.WriteLine($"Valid player asset: {player.Name}");
+            Console.WriteLine($"Rig: {player.Bones.Count} bones, {player.Meshes.Count} meshes, {player.Animations.Count} animation clips.");
+            foreach (var animation in player.Animations)
+                Console.WriteLine($"  {animation.Name}: {animation.DurationSeconds:0.00} s, {animation.Samples.Count} sampled poses.");
+            return 0;
+        }
+
         var preset = DeliveryPreset.Load(arguments[1]);
         switch (arguments[0])
         {
@@ -90,6 +101,7 @@ static string F(float value) => value.ToString("0.000000", CultureInfo.Invariant
 static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
+    Console.WriteLine("  validate-player <player.scplayer.json>");
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
 }

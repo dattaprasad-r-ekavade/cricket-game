@@ -15,4 +15,6 @@ artifacts/
 *.suo
 *.userosscache
 *.sln.docstates
+*.blend1
+*.blend2
 

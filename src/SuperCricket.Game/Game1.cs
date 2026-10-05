@@ -4,6 +4,8 @@ using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using SuperCricket.Content;
+using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using NumericsVector3 = System.Numerics.Vector3;
@@ -21,6 +23,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private DeliveryPreset _deliveryPreset = null!;
     private BallFlightSimulator _ballFlight = null!;
+    private PlayerAsset _playerAsset = null!;
+    private PlayerAnimator _playerAnimator = null!;
+    private SkinnedPlayerRenderer _playerRenderer = null!;
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
     private bool _simulationPaused;
@@ -67,6 +72,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
         var presetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "standard-pace.json");
         _deliveryPreset = DeliveryPreset.Load(presetPath);
         RestartDelivery();
+        var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
+        _playerAsset = PlayerAsset.Load(playerPath);
+        _playerAnimator = new PlayerAnimator(_playerAsset);
+        _playerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _playerAsset);
     }
 
     protected override void Update(GameTime gameTime)
@@ -86,8 +95,13 @@ public class Game1 : Microsoft.Xna.Framework.Game
         {
             _simulationPaused = !_simulationPaused;
         }
+        if (keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
+        {
+            _playerAnimator.PlayNext();
+        }
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
+        _playerAnimator.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
         if (!_simulationPaused)
         {
@@ -164,8 +178,19 @@ public class Game1 : Microsoft.Xna.Framework.Game
             _worldEffect.World = Matrix.Identity;
         }
 
+        var playerWorld = Matrix.CreateTranslation(new Vector3(-0.48f, -0.025f, -8.72f));
+        _playerRenderer.Draw(playerWorld, _worldEffect.View, _worldEffect.Projection, _playerAnimator.GetSkinMatrices());
         DrawDebugOverlay();
         base.Draw(gameTime);
+    }
+
+    protected override void UnloadContent()
+    {
+        _playerRenderer?.Dispose();
+        _worldEffect?.Dispose();
+        _debugPanel?.Dispose();
+        _spriteBatch?.Dispose();
+        base.UnloadContent();
     }
 
     private void DrawDebugOverlay()
@@ -177,17 +202,18 @@ public class Game1 : Microsoft.Xna.Framework.Game
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
             $"Preset: {_deliveryPreset.Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_simulationPaused ? "Paused" : ball.Phase.ToString())}    speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m",
+            $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
             $"Camera distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    {_frameTimeMilliseconds:0.0} ms",
-            "Arrows: orbit    PgUp/PgDn: elevation    Mouse wheel: zoom    Home: reset    Space: pause    R: replay    Esc: quit"
+            "Arrows: orbit    PgUp/PgDn: elevation    Mouse wheel: zoom    Home: reset    Space: pause    R: replay    T: transition clip    Esc: quit"
         };
-        var panel = new Rectangle(16, 16, 900, 164);
+        var panel = new Rectangle(16, 16, 1000, 188);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, panel, Color.White);
         for (var index = 0; index < lines.Length; index++)
         {
             var color = index == 0 ? new Color(242, 206, 116) : Color.White;
-            _spriteBatch.DrawString(_debugFont, lines[index], new Vector2(30, 23 + index * 23), color);
+            _spriteBatch.DrawString(_debugFont, lines[index], new Vector2(30, 20 + index * 23), color);
         }
         _spriteBatch.End();
     }

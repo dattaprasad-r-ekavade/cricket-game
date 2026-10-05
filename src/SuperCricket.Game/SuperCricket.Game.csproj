@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
     <RollForward>Major</RollForward>
     <PublishReadyToRun>false</PublishReadyToRun>
     <TieredCompilation>false</TieredCompilation>
@@ -18,11 +19,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperCricket.Simulation\SuperCricket.Simulation.csproj" />
+    <ProjectReference Include="..\SuperCricket.Content\SuperCricket.Content.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\assets\deliveries\standard-pace.json"
-          Link="Assets\Deliveries\standard-pace.json"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\deliveries\standard-pace.json" Link="Assets\Deliveries\standard-pace.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\characters\practice-batter.scplayer.json" Link="Assets\Characters\practice-batter.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

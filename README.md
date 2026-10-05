@@ -16,14 +16,16 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The practice scene uses metres in world space. Arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, Space pauses/resumes the delivery, R restarts it, and Escape exits.
+The practice scene uses metres in world space. Arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, Space pauses/resumes the delivery, R restarts it, T blends to the next player animation, and Escape exits.
 
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application
 - `src/SuperCricket.Simulation` — graphics-independent ball-flight simulation
-- `src/SuperCricket.Tools` — local commands for validating presets and exporting trajectories
-- `assets/deliveries` — editable, version-controlled delivery presets
+- `src/SuperCricket.Content` — validated delivery and player asset formats
+- `src/SuperCricket.Tools` — local commands for validating presets, players, and trajectories
+- `assets` — editable delivery presets and Blender-authored player source/export
+- `tools/blender` — Blender scripts that generate and export the practice batter
 - `plan.md` — milestone plan and progress record
 
 ## Delivery tools
@@ -34,4 +36,12 @@ dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standa
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. Pass a different CSV path as the third argument to choose another location.
+
+Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the sample rig and game asset with:
+
+```powershell
+blender --background --factory-startup --python tools/blender/build_practice_batter.py -- `
+  --blend-output assets/characters/practice-batter.blend `
+  --asset-output assets/characters/practice-batter.scplayer.json
+```
 

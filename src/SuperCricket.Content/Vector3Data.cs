@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace SuperCricket.Simulation;
+namespace SuperCricket.Content;
 
 /// <summary>JSON-friendly three-component vector for saved gameplay data.</summary>
 public sealed class Vector3Data

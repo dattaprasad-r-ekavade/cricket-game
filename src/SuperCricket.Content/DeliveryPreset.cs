@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Numerics;
 
-namespace SuperCricket.Simulation;
+namespace SuperCricket.Content;
 
 /// <summary>Editable, serializable values for one repeatable bowling delivery.</summary>
 public sealed class DeliveryPreset

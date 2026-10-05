@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SuperCricket.Simulation\SuperCricket.Simulation.csproj" />
+    <ProjectReference Include="..\SuperCricket.Content\SuperCricket.Content.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

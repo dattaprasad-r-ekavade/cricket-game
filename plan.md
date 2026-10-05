@@ -19,7 +19,10 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 1 — Bootstrap the Windows MonoGame application, pin the SDK and runtime versions, and verify a clean build.
 - [x] Step 2 — Render a measured practice ground, marked pitch, stumps, ball placeholder, orbit camera, and debug overlay.
 - [x] Step 3 — Add a fixed-step ball flight, pitch bounce, trajectory display, and a saved delivery preset.
-- [ ] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
+- [x] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
+- [ ] Step 5 — Add player-controlled batting, contact timing, and an inspectable first shot set.
+- [ ] Step 6 — Add fielding, running, wickets, and a complete over.
+- [ ] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -45,6 +48,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Repeated the headless run and confirmed the trajectory CSVs match exactly. The standard 123 km/h preset bounces at approximately 0.492 s and z = -5.62 m.
 - Connected the game to the same simulation, drawing the moving ball and its trajectory. Space pauses; R restarts the delivery.
 - Built the solution, ran both tool commands, launched the game with the copied preset, and visually reviewed the trajectory in the scene.
+
+### Step 4 notes
+
+- Added a dedicated content project with a versioned, validated player asset format and a `validate-player` command.
+- Added a Blender 5.2 script that generates an editable `.blend` batter and exports the game's skinned mesh, 13-bone rig, material colors, and two 30 Hz animation clips.
+- Added the exported practice batter to the game assets: 21 material-separated mesh parts, `practice-stance`, and `front-foot-drive`.
+- Added animation sampling and a 0.35 s pose crossfade using MonoGame's GPU `SkinnedEffect`; T advances to the next clip.
+- Regenerated and validated the player asset, built the solution without warnings, launched the game, zoomed in on the player, and confirmed the second clip displays.
 
 ## Technical foundation
 
