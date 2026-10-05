@@ -37,6 +37,31 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "validate-field")
+        {
+            var field = FieldPreset.Load(arguments[1]);
+            Console.WriteLine($"Valid field preset: {field.Name}");
+            Console.WriteLine($"Boundary: {field.BoundaryRadiusMeters:0.##} m; {field.Players.Count} fielders.");
+            foreach (var player in field.Players)
+            {
+                var position = player.Position.ToVector3();
+                Console.WriteLine($"  {player.Name}{(player.IsWicketkeeper ? " (wicketkeeper)" : string.Empty)}: ({position.X:0.##}, {position.Y:0.##}, {position.Z:0.##}) m");
+            }
+            return 0;
+        }
+
+        if (arguments[0] == "analyze-field")
+        {
+            var outputPath = arguments.Length > 2
+                ? arguments[2]
+                : Path.Combine("artifacts", "practice-attack-coverage.csv");
+            var gridSpacing = arguments.Length > 3
+                ? float.Parse(arguments[3], CultureInfo.InvariantCulture)
+                : 2f;
+            AnalyzeField(arguments[1], outputPath, gridSpacing);
+            return 0;
+        }
+
         if (arguments[0] == "simulate-over")
         {
             SimulateOver(arguments[1]);
@@ -64,7 +89,7 @@ static int Run(string[] arguments)
                 return 2;
         }
     }
-    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException)
+    catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or JsonException)
     {
         Console.Error.WriteLine(exception.Message);
         return 1;
@@ -104,6 +129,71 @@ static void SimulateOver(string scenarioPath)
     Console.WriteLine($"Completed over: {score.Runs}/{score.Wickets} in {score.OversText} overs.");
     Console.WriteLine($"Striker {score.Striker}, non-striker {score.NonStriker}.");
 }
+
+static void AnalyzeField(string presetPath, string outputPath, float gridSpacingMeters)
+{
+    if (!float.IsFinite(gridSpacingMeters) || gridSpacingMeters is < 0.5f or > 10f)
+        throw new ArgumentOutOfRangeException(nameof(gridSpacingMeters), "Grid spacing must be between 0.5 and 10 m.");
+
+    var preset = FieldPreset.Load(presetPath);
+    var csv = new StringBuilder("x_m,z_m,nearest_fielder,estimated_reach_s\n");
+    var reachTimes = new List<float>();
+    var fastestFielders = new int[preset.Players.Count];
+    var radius = preset.BoundaryRadiusMeters;
+    for (var z = -radius; z <= radius + 0.0001f; z += gridSpacingMeters)
+    {
+        for (var x = -radius; x <= radius + 0.0001f; x += gridSpacingMeters)
+        {
+            if (x * x + z * z > radius * radius)
+                continue;
+
+            var target = new Vector3(x, -0.08f, z);
+            var fastestIndex = -1;
+            var fastestTime = float.PositiveInfinity;
+            for (var playerIndex = 0; playerIndex < preset.Players.Count; playerIndex++)
+            {
+                var time = FieldingSide.EstimateReachTime(preset.Players[playerIndex].Position.ToVector3(), target);
+                if (time >= fastestTime)
+                    continue;
+                fastestIndex = playerIndex;
+                fastestTime = time;
+            }
+
+            reachTimes.Add(fastestTime);
+            fastestFielders[fastestIndex]++;
+            csv.Append(F(x)).Append(',')
+                .Append(F(z)).Append(',')
+                .Append(CsvValue(preset.Players[fastestIndex].Name)).Append(',')
+                .AppendLine(F(fastestTime));
+        }
+    }
+
+    if (reachTimes.Count == 0)
+        throw new InvalidDataException("Field analysis produced no in-boundary grid points.");
+
+    var sortedTimes = reachTimes.Order().ToArray();
+    var p95Index = Math.Clamp((int)MathF.Ceiling(sortedTimes.Length * 0.95f) - 1, 0, sortedTimes.Length - 1);
+    var withinOneSecond = reachTimes.Count(time => time <= 1f);
+    var withinTwoSeconds = reachTimes.Count(time => time <= 2f);
+    var fullOutputPath = Path.GetFullPath(outputPath);
+    var outputDirectory = Path.GetDirectoryName(fullOutputPath);
+    if (!string.IsNullOrEmpty(outputDirectory))
+        Directory.CreateDirectory(outputDirectory);
+    File.WriteAllText(fullOutputPath, csv.ToString());
+
+    Console.WriteLine($"Field: {preset.Name} ({preset.Players.Count} fielders, {radius:0.##} m boundary)");
+    Console.WriteLine($"Coverage grid: {reachTimes.Count} points at {gridSpacingMeters:0.##} m spacing.");
+    Console.WriteLine($"Estimated reach within 1 s: {withinOneSecond}/{reachTimes.Count} ({withinOneSecond * 100f / reachTimes.Count:0.0}%).");
+    Console.WriteLine($"Estimated reach within 2 s: {withinTwoSeconds}/{reachTimes.Count} ({withinTwoSeconds * 100f / reachTimes.Count:0.0}%).");
+    Console.WriteLine($"Reach time P95/max: {sortedTimes[p95Index]:0.000}/{sortedTimes[^1]:0.000} s.");
+    for (var index = 0; index < preset.Players.Count; index++)
+        Console.WriteLine($"  {preset.Players[index].Name}: fastest for {fastestFielders[index]} points.");
+    Console.WriteLine($"Coverage CSV written to {fullOutputPath}");
+}
+
+static string CsvValue(string value) => value.Contains(',') || value.Contains('"')
+    ? $"\"{value.Replace("\"", "\"\"")}\""
+    : value;
 
 static void Simulate(DeliveryPreset preset, string outputPath)
 {
@@ -153,6 +243,8 @@ static void PrintUsage()
     Console.WriteLine("Super Cricket tools");
     Console.WriteLine("  validate-player <player.scplayer.json>");
     Console.WriteLine("  validate-shots <shots.json>");
+    Console.WriteLine("  validate-field <field.json>");
+    Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");

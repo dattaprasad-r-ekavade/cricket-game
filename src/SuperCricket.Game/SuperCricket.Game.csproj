@@ -25,6 +25,8 @@
     <None Include="..\..\assets\deliveries\standard-pace.json" Link="Assets\Deliveries\standard-pace.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\deliveries\wide-pace.json" Link="Assets\Deliveries\wide-pace.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\deliveries\no-ball-pace.json" Link="Assets\Deliveries\no-ball-pace.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\fields\practice-attack.json" Link="Assets\Fields\practice-attack.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\fields\practice-attack.json" Link="Assets\Fields\practice-attack.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\characters\practice-batter.scplayer.json" Link="Assets\Characters\practice-batter.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "Practice attacking ring",
+  "boundaryRadiusMeters": 42.0,
+  "players": [
+    { "name": "First slip", "position": { "x": -3.2, "y": -0.08, "z": -16.0 } },
+    { "name": "Second slip", "position": { "x": 3.2, "y": -0.08, "z": -17.5 } },
+    { "name": "Gully", "position": { "x": -10.0, "y": -0.08, "z": -18.0 } },
+    { "name": "Short cover", "position": { "x": 0.0, "y": -0.08, "z": -20.0 } },
+    { "name": "Deep point", "position": { "x": -20.0, "y": -0.08, "z": -7.0 } },
+    { "name": "Cover", "position": { "x": 2.25, "y": -0.08, "z": -24.0 } },
+    { "name": "Long leg", "position": { "x": -17.0, "y": -0.08, "z": 16.0 } },
+    { "name": "Deep midwicket", "position": { "x": 16.0, "y": -0.08, "z": 16.0 } },
+    { "name": "Long off", "position": { "x": 0.0, "y": -0.08, "z": -31.0 } },
+    { "name": "Wicketkeeper", "isWicketkeeper": true, "position": { "x": 0.0, "y": -0.08, "z": -11.2 } }
+  ]
+}

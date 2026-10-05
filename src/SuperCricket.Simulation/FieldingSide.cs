@@ -13,7 +13,7 @@ public readonly record struct FieldingContact(int FielderIndex, Vector3 Position
 /// <summary>Small fielder set with bounded chase movement and swept ball interception.</summary>
 public sealed class FieldingSide
 {
-    private static readonly Vector3[] StartingPositions =
+    private static readonly Vector3[] DefaultStartingPositions =
     [
         new(-3.2f, -0.08f, -16.0f),
         new(3.2f, -0.08f, -17.5f),
@@ -27,20 +27,45 @@ public sealed class FieldingSide
         new(0.0f, -0.08f, -11.2f)
     ];
 
-    private readonly Vector3[] _positions = (Vector3[])StartingPositions.Clone();
-    private const float MoveSpeedMetersPerSecond = 7.5f;
-    private const float ReactionSeconds = 0.14f;
-    private const float FieldingRadiusMeters = 0.68f;
+    private readonly Vector3[] _startingPositions = (Vector3[])DefaultStartingPositions.Clone();
+    private readonly Vector3[] _positions = (Vector3[])DefaultStartingPositions.Clone();
+    public const float MoveSpeedMetersPerSecond = 7.5f;
+    public const float ReactionSeconds = 0.14f;
+    public const float FieldingRadiusMeters = 0.68f;
+    public const int FielderCount = 10;
     private int _activeChaser = -1;
     private float _reactionRemaining;
 
     public IReadOnlyList<Vector3> Positions => _positions;
 
+    public void ConfigureStartingPositions(IReadOnlyList<Vector3> positions)
+    {
+        ArgumentNullException.ThrowIfNull(positions);
+        if (positions.Count != FielderCount)
+            throw new ArgumentException($"A fielding side requires exactly {FielderCount} starting positions.", nameof(positions));
+
+        for (var index = 0; index < positions.Count; index++)
+        {
+            if (!IsFinite(positions[index]))
+                throw new ArgumentException($"Fielder position {index + 1} must be finite.", nameof(positions));
+            _startingPositions[index] = positions[index];
+        }
+        Reset();
+    }
+
     public void Reset()
     {
-        Array.Copy(StartingPositions, _positions, StartingPositions.Length);
+        Array.Copy(_startingPositions, _positions, _startingPositions.Length);
         _activeChaser = -1;
         _reactionRemaining = 0f;
+    }
+
+    public static float EstimateReachTime(Vector3 start, Vector3 target)
+    {
+        if (!IsFinite(start) || !IsFinite(target))
+            throw new ArgumentException("Reach estimates require finite positions.");
+        var distance = MathF.Sqrt(HorizontalDistanceSquared(start, target));
+        return ReactionSeconds + MathF.Max(0f, distance - FieldingRadiusMeters) / MoveSpeedMetersPerSecond;
     }
 
     public void Step(float deltaTime, Vector3 ballPosition)

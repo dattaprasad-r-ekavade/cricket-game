@@ -24,7 +24,7 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `src/SuperCricket.Simulation` — graphics-independent ball-flight, fielding, and over-scoring simulation
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
-- `assets` — editable delivery presets and Blender-authored player source/export
+- `assets` — editable delivery and field presets plus Blender-authored player source/export
 - `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export the practice batter
 - `plan.md` — milestone plan and progress record
@@ -35,10 +35,12 @@ The match scene uses metres in world space and includes a procedural stadium pre
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- validate-shots assets/batting/shots.json
+dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/practice-attack.json
+dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
 ```
 
-The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. Pass a different CSV path as the third argument to choose another location.
+The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.
 
 Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the sample rig and game asset with:
 

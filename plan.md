@@ -23,6 +23,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 5 — Add player-controlled batting, contact timing, and an inspectable first shot set.
 - [x] Step 6 — Add fielding, running, wickets, and a complete over.
 - [x] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
+- [x] Step 8 — Make field formations editable assets and build a Field Lab coverage analyzer.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -78,6 +79,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added broadcast, behind-striker, bowler-end, and square-leg camera presets. V cycles views, Home returns to broadcast, and the existing orbit/zoom controls remain available.
 - Added elapsed frame, FPS, CPU Update/Draw timing, and submitted scene-vertex counters to the developer overlay. On the current Windows machine, one settled-scene sample at the square-leg view reported 140 FPS, 6.7 ms elapsed frame time, 0.01/0.61 ms Update/Draw, 63,594 stadium vertices, and 2,160 fielder vertices.
 - Rebuilt with zero warnings, reran the one-over scenario, launched and visually checked broadcast and behind-wicket views, and captured the profiling overlay. This is still a low-detail vertex-colored prototype: it has no crowd animation, textured materials, shadows, or separately measured GPU time; those remain part of the art and target-hardware pass.
+
+### Step 8 notes
+
+- Moved the ten non-bowler fielding positions into the versioned `practice-attack.json` preset, with unique position names, one wicketkeeper, boundary checks, and finite world-space coordinates. The game now loads and resets from that same file.
+- Added `validate-field` and `analyze-field` CLI commands. The analyzer samples the field on a configurable grid, estimates the fastest fielder from reaction time, movement speed, and pickup radius, and exports per-point CSV data with summary coverage counts.
+- The 2 m sample contains 1,373 in-boundary points: 19.2% are estimated reachable within 1 s, 57.1% within 2 s, and the 95th-percentile reach estimate is 3.623 s. Repeated runs produced the same CSV hash. A 9-player preset is rejected with a clean exit code 1.
+- Built the solution, validated the preset, ran the analyzer at both 2 m and 3 m spacing, launched the game with the data-driven formation, and reran the practice over. Reach times are straight-line estimates; they do not model other fielders' collisions, terrain, or a moving ball's interception window.
 
 ## Technical foundation
 

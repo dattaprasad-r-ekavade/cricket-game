@@ -32,6 +32,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private PlayerAsset _playerAsset = null!;
     private PlayerAnimator _playerAnimator = null!;
     private SkinnedPlayerRenderer _playerRenderer = null!;
+    private FieldPreset _fieldPreset = null!;
     private OverScoreboard _scoreboard = new();
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
@@ -112,6 +113,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "wide-pace.json")),
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json"))
         ];
+        _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
+        _fieldingSide.ConfigureStartingPositions(
+            _fieldPreset.Players.ConvertAll(player => ToNumerics(player.Position.ToVector3())));
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
@@ -364,7 +368,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_simulationPaused ? "Paused" : ball.Phase.ToString())}    speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
-            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    fielders {_fieldingSide.Positions.Count}    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
+            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Scene vertices {_groundVertices.Length:N0}    fielder vertices {_fielderDrawVertices.Count:N0}    rendered players 2",
