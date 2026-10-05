@@ -29,6 +29,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 11 — Generate and prepare seamless grass and pitch textures, then render them on measured oval and pitch meshes.
 - [x] Step 12 — Populate the stadium bowl with a restrained static crowd and keep the crowd mesh on a reusable GPU buffer.
 - [x] Step 13 — Create a Blender-authored bowler and synchronize his run-up, delivery animation, and ball release.
+- [x] Step 14 — Author a bowling run cycle, derive approach timing from the clip, and add deterministic run-up capture.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -126,6 +127,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added a visible 1.35 s run-up and follow-through at the bowling end. The game starts the ball simulation and its trail on the clip's authored frame-21 release (20/30 s after the delivery action begins), hides the ball before release, and draws the bowler's shadow. Capture mode shows a repeatable release pose.
 - Captured and visually reviewed 1440×900 broadcast and behind-striker frames at `artifacts/step13-bowler-broadcast.png` and `artifacts/step13-bowler-behind.png`. The capture path loads the new player asset; repeated behind-striker captures matched byte-for-byte (SHA-256 `24626A527B4FA933FDA1FA290B694CA766E09A42B1D6D5AF7EDA2BFF6DACAC0B`).
 - Release build completed without warnings or errors; batter and bowler exports validate, and the sample over still completes at 10/2. This is an early stylized bowler: the run-up uses the existing between-wickets cycle plus linear root movement, and the release event time is currently configured in game code rather than exported as clip metadata.
+
+### Step 14 notes
+
+- Authored and saved a looping `bowling-run-up` action in Blender MCP. The 2-second, 30 Hz cycle keys torso lean, arm counter-swing, thigh and shin drive, foot angle, and a small vertical bounce across the existing 13-bone rig. The bowler asset now exports seven clips.
+- Replaced the borrowed between-wickets clip with the bowling-specific cycle. Runtime approach duration now comes from the exported clip duration, keeping the 15 m movement synchronized when the authored clip timing changes.
+- Extended deterministic game capture with `--run-up-time <seconds>` so an exact point in the bowler's approach can be inspected in the actual MonoGame renderer; the default capture remains the release pose. Captured and reviewed `artifacts/step14-bowler-run-up-bowler-end.png`; repeated captures matched byte-for-byte (SHA-256 `683F2BE0EBC4BD6ED452C91D0272DA3872A7C6662BBF3CC80E096D6A91667783`).
+- Release build completed without warnings or errors, the exported bowler validates, and the sample over still completes at 10/2. Root movement remains a straight game-space approach; the new authored cycle currently provides the body and limb motion.
 
 ## Technical foundation
 

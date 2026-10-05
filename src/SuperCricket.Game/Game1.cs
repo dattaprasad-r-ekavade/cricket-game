@@ -17,6 +17,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 {
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
+    private readonly float? _captureRunUpTimeSeconds;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -50,6 +51,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
     private bool _simulationPaused;
+    private float _bowlerRunUpDurationSeconds;
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
     private bool _bowlerActionStarted;
@@ -77,7 +79,6 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _fielderThrowerIndex;
     private const float NearBatterZ = -8.72f;
     private const float FarBatterZ = 8.72f;
-    private const float BowlerRunUpDurationSeconds = 1.35f;
     private const float BowlerRunUpDistanceMeters = 15f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
@@ -101,9 +102,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private double _updateMilliseconds;
     private double _drawMilliseconds;
 
-    public Game1(string? capturePath = null, string? captureCameraPreset = null)
+    public Game1(string? capturePath = null, string? captureCameraPreset = null, float? captureRunUpTimeSeconds = null)
     {
         _capturePath = capturePath;
+        _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
             throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
@@ -209,7 +211,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _bowlerAsset = PlayerAsset.Load(bowlerPath);
         _bowlerAnimator = new PlayerAnimator(_bowlerAsset);
         _bowlerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _bowlerAsset);
-        RequireAnimation(_bowlerAsset, "between-wickets");
+        _bowlerRunUpDurationSeconds = GetAnimationDuration(_bowlerAsset, "bowling-run-up");
+        RequireAnimation(_bowlerAsset, "bowling-run-up");
         RequireAnimation(_bowlerAsset, "overarm-delivery");
         RequireAnimation(_bowlerAsset, "practice-stance");
         var shotSetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "shots.json");
@@ -229,7 +232,17 @@ public class Game1 : Microsoft.Xna.Framework.Game
         StartNewOver();
         if (_captureTarget is not null)
         {
-            SetBowlerCaptureReleasePose();
+            if (_captureRunUpTimeSeconds is { } runUpTime)
+            {
+                if (runUpTime > _bowlerRunUpDurationSeconds)
+                    throw new ArgumentOutOfRangeException("captureRunUpTimeSeconds", runUpTime,
+                        $"Run-up capture time must be between 0 and {_bowlerRunUpDurationSeconds:0.###} seconds.");
+                SetBowlerRunUpCapturePose(runUpTime);
+            }
+            else
+            {
+                SetBowlerCaptureReleasePose();
+            }
             _simulationPaused = true;
         }
     }
@@ -563,7 +576,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _bowlerActionStarted = false;
         _bowlerActionFinished = false;
         _bowlerReleased = false;
-        _bowlerAnimator.Play("between-wickets", 0.08f);
+        _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
     }
 
@@ -580,12 +593,12 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
         if (!_bowlerActionStarted)
         {
-            var runUpRemaining = MathF.Max(0f, BowlerRunUpDurationSeconds - _bowlerRunUpElapsed);
+            var runUpRemaining = MathF.Max(0f, _bowlerRunUpDurationSeconds - _bowlerRunUpElapsed);
             var runUpStep = MathF.Min(remaining, runUpRemaining);
             _bowlerRunUpElapsed += runUpStep;
             _bowlerAnimator.Update(runUpStep);
             remaining -= runUpStep;
-            if (_bowlerRunUpElapsed >= BowlerRunUpDurationSeconds)
+            if (_bowlerRunUpElapsed >= _bowlerRunUpDurationSeconds)
             {
                 _bowlerActionStarted = true;
                 _bowlerActionElapsed = 0f;
@@ -635,7 +648,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void SetBowlerCaptureReleasePose()
     {
-        _bowlerRunUpElapsed = BowlerRunUpDurationSeconds;
+        _bowlerRunUpElapsed = _bowlerRunUpDurationSeconds;
         _bowlerActionStarted = true;
         _bowlerActionFinished = false;
         _bowlerActionElapsed = BowlerReleaseTimeSeconds;
@@ -646,6 +659,18 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
             new Color(248, 181, 82)));
+    }
+
+    private void SetBowlerRunUpCapturePose(float timeSeconds)
+    {
+        _bowlerRunUpElapsed = timeSeconds;
+        _bowlerActionElapsed = 0f;
+        _bowlerActionStarted = false;
+        _bowlerActionFinished = false;
+        _bowlerReleased = false;
+        _bowlerAnimator.Play("bowling-run-up", 0.001f);
+        _bowlerAnimator.Update(timeSeconds);
+        _trajectoryVertices.Clear();
     }
 
     private static float GetAnimationDuration(PlayerAsset asset, string clipName)
@@ -1054,7 +1079,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private Matrix GetBowlerWorld()
     {
         var release = _deliveryPreset.ReleasePosition;
-        var runUpProgress = MathHelper.Clamp(_bowlerRunUpElapsed / BowlerRunUpDurationSeconds, 0f, 1f);
+        var runUpProgress = MathHelper.Clamp(_bowlerRunUpElapsed / _bowlerRunUpDurationSeconds, 0f, 1f);
         var z = release.Z + BowlerHandForwardMeters + BowlerRunUpDistanceMeters * (1f - runUpProgress);
         if (_bowlerActionStarted)
         {

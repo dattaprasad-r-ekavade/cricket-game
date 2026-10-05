@@ -62,11 +62,11 @@ blender --background assets/characters/practice-batter.blend --python tools/blen
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json
 ```
 
-The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the batter file and exports additional named actions with `--include-clip`. The bowler source is an edited copy of the player scene with its own overarm-delivery action; re-export it with:
+The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the batter file and exports additional named actions with `--include-clip`. The bowler source is an edited copy of the player scene with authored `bowling-run-up` and `overarm-delivery` actions; re-export it with:
 
 ```powershell
 blender --background assets/characters/practice-bowler.blend --python tools/blender/build_practice_batter.py -- `
-  --from-scene --include-clip overarm-delivery `
+  --from-scene --include-clip overarm-delivery --include-clip bowling-run-up `
   --blend-output assets/characters/practice-bowler.blend `
   --asset-output assets/characters/practice-bowler.scplayer.json
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler.scplayer.json
@@ -74,13 +74,17 @@ dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters
 
 For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
 
-Capture a deterministic, paused startup frame for visual review with:
+Capture a deterministic, paused release frame for visual review with:
 
 ```powershell
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/practice-ground.png
 ```
 
-The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view.
+The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view. Use `--run-up-time 0.5` to freeze and inspect a deterministic point in the bowler's run-up instead of the release pose; the value must be between zero and the authored clip duration.
+
+```powershell
+dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/bowler-run-up.png --camera bowler-end --run-up-time 0.5
+```
 
 Prepare an AI-generated or artist-authored square texture tile with Python and Pillow before adding it to `assets/textures`:
 
