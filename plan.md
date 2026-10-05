@@ -25,6 +25,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 7 — Replace the practice scene with a representative stadium presentation and profile it.
 - [x] Step 8 — Make field formations editable assets and build a Field Lab coverage analyzer.
 - [x] Step 9 — Set up Blender MCP for local art iteration, detail the rigged batter kit, and export edited scenes repeatably.
+- [x] Step 10 — Add directional daylight, soft contact shadows, and deterministic game-frame capture.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -94,6 +95,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added 64 skinned batter-kit details through Blender MCP: helmet cage and hardware, face details, jersey collar and fictional crest, sleeve bands, pad ribs and straps, shoe soles and laces, glove details, and bat grain and grip wraps. Every part is marked for the game exporter and weighted to an existing rig bone.
 - Added `--from-scene` to the Blender export script so MCP or artist edits in the saved `.blend` can be exported without rebuilding the starter model. It preserves the five standard clips in the source file and validates the exported 13-bone, 85-mesh, five-clip player asset.
 - This is a more readable stylized kit, not the final fidelity target; it still uses simple geometry and per-mesh diffuse colors without production textures or polished animation.
+
+### Step 10 notes
+
+- Added face normals to the procedural stadium mesh and lit it with a warm directional key plus ambient fill. Ball, fielder markers, seating, and the ground now share the lit world effect; trajectory lines remain unlit for contrast.
+- Added soft alpha contact shadows below the batters, fielders, and ball. Ball shadows spread and fade as the ball rises; batter and fielder shadows sit slightly above the pitch and outfield surfaces to avoid depth fighting.
+- Added `--capture-frame <path.png>` to launch the DirectX game at the paused release frame, render one normal game frame into a target, save it as PNG, and exit. `--camera` selects any of the four match presets. Captured and visually reviewed `artifacts/step10-lit-stadium.png`.
+- Release build completed with zero warnings or errors. The behind-striker capture produced a 1440x900 PNG, and two repeated captures produced identical SHA-256 hashes after capture mode froze the player's first-frame animation. The sample over still completes at 10/2 and the player asset validates. The stadium remains vertex-colored; contact shadows are soft ground decals, with cast stadium shadows, textured surfaces, and post-processing still ahead.
 
 ## Technical foundation
 

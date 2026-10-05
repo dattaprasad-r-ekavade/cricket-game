@@ -51,6 +51,20 @@ public sealed class OrbitCamera
         ApplyPreset((_presetIndex + 1) % _presets.Length);
     }
 
+    public bool SelectPreset(string name)
+    {
+        var normalizedName = name.Replace('-', ' ').Trim();
+        for (var index = 0; index < _presets.Length; index++)
+        {
+            if (!string.Equals(_presets[index].Name, normalizedName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            ApplyPreset(index);
+            return true;
+        }
+
+        return false;
+    }
+
     private void ApplyPreset(int index)
     {
         _presetIndex = index;

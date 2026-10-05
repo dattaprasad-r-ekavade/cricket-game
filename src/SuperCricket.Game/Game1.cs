@@ -16,13 +16,17 @@ namespace SuperCricket.Game;
 public class Game1 : Microsoft.Xna.Framework.Game
 {
     private readonly GraphicsDeviceManager _graphics;
+    private readonly string? _capturePath;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
     private BasicEffect _worldEffect = null!;
+    private BasicEffect _lineEffect = null!;
+    private RenderTarget2D? _captureTarget;
     private readonly OrbitCamera _camera = new();
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
-    private readonly List<VertexPositionColor> _fielderDrawVertices = [];
+    private readonly List<VertexPositionColorNormal> _fielderDrawVertices = [];
+    private readonly List<VertexPositionColor> _shadowVertices = [];
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
@@ -64,9 +68,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
     private Vector3 _batBladeMaximum;
-    private VertexPositionColor[] _groundVertices = [];
-    private VertexPositionColor[] _ballVertices = [];
-    private VertexPositionColor[] _fielderMarkerVertices = [];
+    private VertexPositionColorNormal[] _groundVertices = [];
+    private VertexPositionColorNormal[] _ballVertices = [];
+    private VertexPositionColorNormal[] _fielderMarkerVertices = [];
     private double _fpsElapsed;
     private int _frameCount;
     private int _framesPerSecond;
@@ -74,8 +78,11 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private double _updateMilliseconds;
     private double _drawMilliseconds;
 
-    public Game1()
+    public Game1(string? capturePath = null, string? captureCameraPreset = null)
     {
+        _capturePath = capturePath;
+        if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
+            throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
@@ -105,8 +112,33 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _worldEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = true,
+            LightingEnabled = true
+        };
+        _worldEffect.EnableDefaultLighting();
+        _worldEffect.AmbientLightColor = new Vector3(0.48f, 0.50f, 0.46f);
+        _worldEffect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.45f, -0.82f, 0.34f));
+        _worldEffect.DirectionalLight0.DiffuseColor = new Vector3(0.94f, 0.88f, 0.73f);
+        _worldEffect.DirectionalLight0.SpecularColor = new Vector3(0.20f, 0.19f, 0.16f);
+        _worldEffect.DirectionalLight1.Enabled = false;
+        _worldEffect.DirectionalLight2.Enabled = false;
+        _lineEffect = new BasicEffect(GraphicsDevice)
+        {
+            VertexColorEnabled = true,
             LightingEnabled = false
         };
+        if (_capturePath is not null)
+        {
+            var outputDirectory = Path.GetDirectoryName(_capturePath);
+            if (!string.IsNullOrEmpty(outputDirectory))
+                Directory.CreateDirectory(outputDirectory);
+            _captureTarget = new RenderTarget2D(
+                GraphicsDevice,
+                GraphicsDevice.PresentationParameters.BackBufferWidth,
+                GraphicsDevice.PresentationParameters.BackBufferHeight,
+                false,
+                SurfaceFormat.Color,
+                DepthFormat.Depth24);
+        }
         _deliveryPresets =
         [
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "standard-pace.json")),
@@ -135,6 +167,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
         _fielderMarkerVertices = PracticeGround.CreateFielderMarker();
         StartNewOver();
+        _simulationPaused = _captureTarget is not null;
     }
 
     protected override void Update(GameTime gameTime)
@@ -177,7 +210,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
         var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        _playerAnimator.Update(elapsedSeconds);
+        if (_captureTarget is null)
+            _playerAnimator.Update(elapsedSeconds);
         if (_isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
             UpdateRun(elapsedSeconds);
         if (_fielderThrowActive)
@@ -262,6 +296,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
     protected override void Draw(GameTime gameTime)
     {
         var drawStart = Stopwatch.GetTimestamp();
+        if (_captureTarget is not null)
+            GraphicsDevice.SetRenderTarget(_captureTarget);
         GraphicsDevice.Clear(new Color(116, 161, 195));
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
@@ -275,6 +311,12 @@ public class Game1 : Microsoft.Xna.Framework.Game
             0.05f,
             250f);
         BuildFielderDrawVertices();
+        var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
+        var ballPosition = _fielderThrowActive
+            ? NumericsVector3.Lerp(_fielderThrowStart, _fielderThrowTarget,
+                Math.Clamp(_fielderThrowElapsed / FielderThrowDurationSeconds, 0f, 1f))
+            : _ballFlight.CurrentFrame.Position;
+        BuildShadowVertices(strikerWorld, nonStrikerWorld, ballPosition);
 
         foreach (var pass in _worldEffect.CurrentTechnique.Passes)
         {
@@ -295,10 +337,27 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     0,
                     _fielderDrawVertices.Count / 3);
             }
+        }
 
-            if (_trajectoryVertices.Count >= 2)
+        DrawShadows();
+
+        _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
+            * Matrix.CreateTranslation(ToXna(ballPosition));
+        foreach (var pass in _worldEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, _ballVertices, 0, _ballVertices.Length / 3);
+        }
+        _worldEffect.World = Matrix.Identity;
+
+        _lineEffect.World = Matrix.Identity;
+        _lineEffect.View = _worldEffect.View;
+        _lineEffect.Projection = _worldEffect.Projection;
+        if (_trajectoryVertices.Count >= 2)
+        {
+            var trajectory = _trajectoryVertices.ToArray();
+            foreach (var pass in _lineEffect.CurrentTechnique.Passes)
             {
-                var trajectory = _trajectoryVertices.ToArray();
                 pass.Apply();
                 GraphicsDevice.DrawUserPrimitives(
                     PrimitiveType.LineStrip,
@@ -306,31 +365,33 @@ public class Game1 : Microsoft.Xna.Framework.Game
                     0,
                     trajectory.Length - 1);
             }
-
-            var ballPosition = _fielderThrowActive
-                ? NumericsVector3.Lerp(_fielderThrowStart, _fielderThrowTarget,
-                    Math.Clamp(_fielderThrowElapsed / FielderThrowDurationSeconds, 0f, 1f))
-                : _ballFlight.CurrentFrame.Position;
-            _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
-                * Matrix.CreateTranslation(ToXna(ballPosition));
-            pass.Apply();
-            GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, _ballVertices, 0, _ballVertices.Length / 3);
-            _worldEffect.World = Matrix.Identity;
         }
 
         var skinMatrices = _playerAnimator.GetSkinMatrices();
-        var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
         _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         DrawDebugOverlay();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
+
+        if (_captureTarget is not null)
+        {
+            var target = _captureTarget;
+            GraphicsDevice.SetRenderTarget(null);
+            using (var output = File.Create(_capturePath!))
+                target.SaveAsPng(output, target.Width, target.Height);
+            _captureTarget = null;
+            target.Dispose();
+            Exit();
+        }
     }
 
     protected override void UnloadContent()
     {
         _playerRenderer?.Dispose();
         _worldEffect?.Dispose();
+        _lineEffect?.Dispose();
+        _captureTarget?.Dispose();
         _debugPanel?.Dispose();
         _spriteBatch?.Dispose();
         base.UnloadContent();
@@ -666,12 +727,77 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private void BuildFielderDrawVertices()
     {
         _fielderDrawVertices.Clear();
+        _shadowVertices.Clear();
         foreach (var position in _fieldingSide.Positions)
         {
             var offset = ToXna(position);
+            var overPitch = MathF.Abs(offset.X) <= PracticeGround.PitchWidth / 2f &&
+                MathF.Abs(offset.Z) <= PracticeGround.WicketOffset;
+            PracticeGround.AppendSoftShadow(
+                _shadowVertices,
+                new Vector3(offset.X, overPitch ? -0.018f : -0.068f, offset.Z),
+                0.48f,
+                0.72f,
+                52);
             foreach (var marker in _fielderMarkerVertices)
-                _fielderDrawVertices.Add(new VertexPositionColor(marker.Position + offset, marker.Color));
+                _fielderDrawVertices.Add(new VertexPositionColorNormal(
+                    marker.Position + offset,
+                    marker.Color,
+                    marker.Normal));
         }
+    }
+
+    private void BuildShadowVertices(Matrix strikerWorld, Matrix nonStrikerWorld, NumericsVector3 ballPosition)
+    {
+        var striker = strikerWorld.Translation;
+        var nonStriker = nonStrikerWorld.Translation;
+        PracticeGround.AppendSoftShadow(
+            _shadowVertices,
+            new Vector3(striker.X, -0.018f, striker.Z),
+            0.52f,
+            0.82f,
+            74);
+        PracticeGround.AppendSoftShadow(
+            _shadowVertices,
+            new Vector3(nonStriker.X, -0.018f, nonStriker.Z),
+            0.52f,
+            0.82f,
+            74);
+
+        var ballOverPitch = MathF.Abs(ballPosition.X) <= PracticeGround.PitchWidth / 2f &&
+            MathF.Abs(ballPosition.Z) <= PracticeGround.WicketOffset;
+        var groundHeight = ballOverPitch ? -0.025f : -0.075f;
+        var ballHeight = MathF.Max(0f, ballPosition.Y - groundHeight);
+        var opacity = (byte)Math.Clamp(72f / (1f + ballHeight * 0.55f), 12f, 72f);
+        var ballRadiusX = Math.Clamp(0.09f + ballHeight * 0.11f, 0.09f, 1.2f);
+        var ballRadiusZ = Math.Clamp(0.12f + ballHeight * 0.13f, 0.12f, 1.5f);
+        var ballCenter = ToXna(ballPosition);
+        ballCenter.Y = groundHeight + 0.006f;
+        PracticeGround.AppendSoftShadow(_shadowVertices, ballCenter, ballRadiusX, ballRadiusZ, opacity);
+    }
+
+    private void DrawShadows()
+    {
+        if (_shadowVertices.Count == 0)
+            return;
+
+        GraphicsDevice.BlendState = BlendState.NonPremultiplied;
+        GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
+        _lineEffect.World = Matrix.Identity;
+        _lineEffect.View = _worldEffect.View;
+        _lineEffect.Projection = _worldEffect.Projection;
+        var shadows = _shadowVertices.ToArray();
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.TriangleList,
+                shadows,
+                0,
+                shadows.Length / 3);
+        }
+        GraphicsDevice.BlendState = BlendState.Opaque;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
     }
 
     private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()

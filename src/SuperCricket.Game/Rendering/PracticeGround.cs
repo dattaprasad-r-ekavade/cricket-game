@@ -14,7 +14,7 @@ public static class PracticeGround
     public const float BallRadius = 0.036f;
     public const float WicketOffset = PitchLength / 2f;
 
-    public static VertexPositionColor[] CreateField(bool nearWicketBroken = false)
+    public static VertexPositionColorNormal[] CreateField(bool nearWicketBroken = false)
     {
         var mesh = new MeshBuilder();
         const float fieldWidth = 120f;
@@ -57,6 +57,33 @@ public static class PracticeGround
         AddScoreScreen(mesh);
         AddFloodlights(mesh);
         return mesh.ToArray();
+    }
+
+    public static void AppendSoftShadow(
+        List<VertexPositionColor> vertices,
+        Vector3 center,
+        float radiusX,
+        float radiusZ,
+        byte opacity,
+        int segments = 32)
+    {
+        var centerColor = new Color(13, 18, 15, (int)opacity);
+        var edgeColor = new Color(13, 18, 15, 0);
+        var centerVertex = new VertexPositionColor(center, centerColor);
+        for (var segment = 0; segment < segments; segment++)
+        {
+            var angle0 = MathHelper.TwoPi * segment / segments;
+            var angle1 = MathHelper.TwoPi * (segment + 1) / segments;
+            var edge0 = new VertexPositionColor(
+                center + new Vector3(MathF.Cos(angle0) * radiusX, 0f, MathF.Sin(angle0) * radiusZ),
+                edgeColor);
+            var edge1 = new VertexPositionColor(
+                center + new Vector3(MathF.Cos(angle1) * radiusX, 0f, MathF.Sin(angle1) * radiusZ),
+                edgeColor);
+            vertices.Add(centerVertex);
+            vertices.Add(edge0);
+            vertices.Add(edge1);
+        }
     }
 
     private static void AddBoundaryRope(MeshBuilder mesh)
@@ -234,7 +261,7 @@ public static class PracticeGround
     private static Vector3 OvalPoint(float radiusX, float radiusZ, float angle, float y) =>
         new(radiusX * MathF.Cos(angle), y, radiusZ * MathF.Sin(angle));
 
-    public static VertexPositionColor[] CreateBall()
+    public static VertexPositionColorNormal[] CreateBall()
     {
         const int latitudeSegments = 12;
         const int longitudeSegments = 16;
@@ -263,7 +290,7 @@ public static class PracticeGround
         return mesh.ToArray();
     }
 
-    public static VertexPositionColor[] CreateFielderMarker()
+    public static VertexPositionColorNormal[] CreateFielderMarker()
     {
         var mesh = new MeshBuilder();
         var shirt = new Color(218, 190, 105);
@@ -351,13 +378,24 @@ public static class PracticeGround
 
     private sealed class MeshBuilder
     {
-        private readonly List<VertexPositionColor> _vertices = [];
+        private readonly List<VertexPositionColorNormal> _vertices = [];
 
         public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color)
         {
-            _vertices.Add(new VertexPositionColor(a, color));
-            _vertices.Add(new VertexPositionColor(b, color));
-            _vertices.Add(new VertexPositionColor(c, color));
+            var normal = Vector3.Cross(b - a, c - a);
+            if (normal.LengthSquared() < 0.000001f)
+                normal = Vector3.Up;
+            else
+                normal.Normalize();
+
+            // The top faces of the ground and seating tiers should receive the daylight
+            // even when their authored triangle winding faces down.
+            if (normal.Y < -0.5f)
+                normal = -normal;
+
+            _vertices.Add(new VertexPositionColorNormal(a, color, normal));
+            _vertices.Add(new VertexPositionColorNormal(b, color, normal));
+            _vertices.Add(new VertexPositionColorNormal(c, color, normal));
         }
 
         public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color)
@@ -412,6 +450,6 @@ public static class PracticeGround
             Quad(d, c, b, a, color);
         }
 
-        public VertexPositionColor[] ToArray() => _vertices.ToArray();
+        public VertexPositionColorNormal[] ToArray() => _vertices.ToArray();
     }
 }

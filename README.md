@@ -62,3 +62,11 @@ dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters
 
 The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the Blender file and exports them with the meshes. For local AI-assisted authoring, `uvx mcp-for-blender setup` can install the Blender add-on and configure Codex; keep the server on `127.0.0.1` and set `BLENDER_MCP_SAFE_MODE=1` in its launch environment. Start the Blender add-on's MCP server before asking Codex to inspect or edit the scene. See [MCP for Blender setup and safe mode](https://github.com/ahujasid/mcp-for-blender).
 
+Capture a deterministic, paused startup frame for visual review with:
+
+```powershell
+dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/practice-ground.png
+```
+
+The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view.
+
