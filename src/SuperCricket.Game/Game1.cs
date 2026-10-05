@@ -21,7 +21,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
     private BasicEffect _worldEffect = null!;
+    private BasicEffect _surfaceEffect = null!;
     private BasicEffect _lineEffect = null!;
+    private Texture2D _outfieldTexture = null!;
+    private Texture2D _pitchTexture = null!;
     private RenderTarget2D? _captureTarget;
     private readonly OrbitCamera _camera = new();
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
@@ -69,6 +72,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
     private Vector3 _batBladeMinimum;
     private Vector3 _batBladeMaximum;
     private VertexPositionColorNormal[] _groundVertices = [];
+    private VertexPositionColorNormalTexture[] _outfieldVertices = [];
+    private VertexPositionColorNormalTexture[] _pitchVertices = [];
     private VertexPositionColorNormal[] _ballVertices = [];
     private VertexPositionColorNormal[] _fielderMarkerVertices = [];
     private double _fpsElapsed;
@@ -99,6 +104,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         GraphicsDevice.BlendState = BlendState.Opaque;
         _groundVertices = PracticeGround.CreateField();
+        _outfieldVertices = PracticeGround.CreateOutfieldSurface();
+        _pitchVertices = PracticeGround.CreatePitchSurface();
         _ballVertices = PracticeGround.CreateBall();
         base.Initialize();
     }
@@ -121,6 +128,21 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _worldEffect.DirectionalLight0.SpecularColor = new Vector3(0.20f, 0.19f, 0.16f);
         _worldEffect.DirectionalLight1.Enabled = false;
         _worldEffect.DirectionalLight2.Enabled = false;
+        _surfaceEffect = new BasicEffect(GraphicsDevice)
+        {
+            VertexColorEnabled = true,
+            TextureEnabled = true,
+            LightingEnabled = true
+        };
+        _surfaceEffect.EnableDefaultLighting();
+        _surfaceEffect.AmbientLightColor = _worldEffect.AmbientLightColor;
+        _surfaceEffect.DirectionalLight0.Direction = _worldEffect.DirectionalLight0.Direction;
+        _surfaceEffect.DirectionalLight0.DiffuseColor = _worldEffect.DirectionalLight0.DiffuseColor;
+        _surfaceEffect.DirectionalLight0.SpecularColor = _worldEffect.DirectionalLight0.SpecularColor;
+        _surfaceEffect.DirectionalLight1.Enabled = false;
+        _surfaceEffect.DirectionalLight2.Enabled = false;
+        _outfieldTexture = LoadTexture(Path.Combine(AppContext.BaseDirectory, "Assets", "Textures", "outfield-grass.png"));
+        _pitchTexture = LoadTexture(Path.Combine(AppContext.BaseDirectory, "Assets", "Textures", "cricket-pitch-clay.png"));
         _lineEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = true,
@@ -310,6 +332,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
             GraphicsDevice.Viewport.AspectRatio,
             0.05f,
             250f);
+        DrawTexturedSurfaces();
         BuildFielderDrawVertices();
         var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
         var ballPosition = _fielderThrowActive
@@ -798,6 +821,42 @@ public class Game1 : Microsoft.Xna.Framework.Game
         }
         GraphicsDevice.BlendState = BlendState.Opaque;
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+    }
+
+    private void DrawTexturedSurfaces()
+    {
+        _surfaceEffect.World = Matrix.Identity;
+        _surfaceEffect.View = _worldEffect.View;
+        _surfaceEffect.Projection = _worldEffect.Projection;
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
+
+        _surfaceEffect.Texture = _outfieldTexture;
+        foreach (var pass in _surfaceEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.TriangleList,
+                _outfieldVertices,
+                0,
+                _outfieldVertices.Length / 3);
+        }
+
+        _surfaceEffect.Texture = _pitchTexture;
+        foreach (var pass in _surfaceEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.TriangleList,
+                _pitchVertices,
+                0,
+                _pitchVertices.Length / 3);
+        }
+    }
+
+    private Texture2D LoadTexture(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Texture2D.FromStream(GraphicsDevice, stream);
     }
 
     private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()

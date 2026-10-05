@@ -25,8 +25,10 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating presets, players, shots, and trajectories
 - `assets` — editable delivery and field presets plus Blender-authored player source/export
+- `assets/textures` — seamless generated albedo tiles for the outfield and pitch
 - `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export the practice batter
+- `tools/prepare_texture.py` — resize and feather generated square texture tiles for repeat sampling
 - `plan.md` — milestone plan and progress record
 
 ## Delivery tools
@@ -69,4 +71,13 @@ dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/practice
 ```
 
 The game writes one PNG at the requested path and exits. Captures use the same DirectX renderer and content as a normal game launch. Choose a camera preset with `--camera broadcast`, `--camera behind-striker`, `--camera bowler-end`, or `--camera square-leg` to review another match view.
+
+Prepare an AI-generated or artist-authored square texture tile with Python and Pillow before adding it to `assets/textures`:
+
+```powershell
+py -m pip install Pillow
+py tools/prepare_texture.py source.png assets/textures/outfield-grass.png
+```
+
+The tool writes a 256×256 RGB PNG by default, feathers opposite borders for repeat sampling, and checks the wrapped edge delta. Pass `--size` and `--blend-width` to adjust those values. The game currently uses the grass tile over 6 m and the pitch tile over 4 m, which keeps fine source detail from sparkling in the broadcast view.
 

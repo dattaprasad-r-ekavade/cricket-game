@@ -14,40 +14,70 @@ public static class PracticeGround
     public const float BallRadius = 0.036f;
     public const float WicketOffset = PitchLength / 2f;
 
+    public static VertexPositionColorNormalTexture[] CreateOutfieldSurface()
+    {
+        const int segments = 256;
+        const int bands = 8;
+        const float radiusX = 42f;
+        const float radiusZ = 42f;
+        const float tileSizeMeters = 6f;
+        const float surfaceY = -0.08f;
+        var vertices = new List<VertexPositionColorNormalTexture>(segments * bands * 6 + segments * 3);
+        var center = SurfaceVertex(new Vector3(0f, surfaceY, 0f), Color.White, tileSizeMeters);
+
+        // Keep the mowing pattern broad and quiet so the generated turf texture remains readable.
+        for (var band = 0; band < bands; band++)
+        {
+            var innerRadius = band / (float)bands;
+            var outerRadius = (band + 1f) / bands;
+            var tint = band % 2 == 0 ? new Color(224, 235, 222) : new Color(244, 246, 232);
+            for (var segment = 0; segment < segments; segment++)
+            {
+                var angle0 = MathHelper.TwoPi * segment / segments;
+                var angle1 = MathHelper.TwoPi * (segment + 1) / segments;
+                var inner0 = SurfaceVertex(OutfieldPoint(innerRadius, angle0, radiusX, radiusZ, surfaceY), tint, tileSizeMeters);
+                var inner1 = SurfaceVertex(OutfieldPoint(innerRadius, angle1, radiusX, radiusZ, surfaceY), tint, tileSizeMeters);
+                var outer0 = SurfaceVertex(OutfieldPoint(outerRadius, angle0, radiusX, radiusZ, surfaceY), tint, tileSizeMeters);
+                var outer1 = SurfaceVertex(OutfieldPoint(outerRadius, angle1, radiusX, radiusZ, surfaceY), tint, tileSizeMeters);
+
+                if (band == 0)
+                {
+                    vertices.Add(center);
+                    vertices.Add(outer0);
+                    vertices.Add(outer1);
+                }
+                else
+                {
+                    vertices.Add(inner0);
+                    vertices.Add(outer0);
+                    vertices.Add(outer1);
+                    vertices.Add(inner0);
+                    vertices.Add(outer1);
+                    vertices.Add(inner1);
+                }
+            }
+        }
+
+        return vertices.ToArray();
+    }
+
+    public static VertexPositionColorNormalTexture[] CreatePitchSurface()
+    {
+        const float halfWidth = PitchWidth / 2f;
+        const float halfLength = PitchLength / 2f;
+        const float tileSizeMeters = 4f;
+        const float surfaceY = -0.025f;
+        var tint = new Color(231, 218, 192);
+        var a = SurfaceVertex(new Vector3(-halfWidth, surfaceY, -halfLength), tint, tileSizeMeters);
+        var b = SurfaceVertex(new Vector3(halfWidth, surfaceY, -halfLength), tint, tileSizeMeters);
+        var c = SurfaceVertex(new Vector3(halfWidth, surfaceY, halfLength), tint, tileSizeMeters);
+        var d = SurfaceVertex(new Vector3(-halfWidth, surfaceY, halfLength), tint, tileSizeMeters);
+        return [a, b, c, a, c, d];
+    }
+
     public static VertexPositionColorNormal[] CreateField(bool nearWicketBroken = false)
     {
         var mesh = new MeshBuilder();
-        const float fieldWidth = 120f;
-        const float fieldLength = 110f;
-
-        mesh.Quad(
-            new Vector3(-fieldWidth / 2f, -0.08f, -fieldLength / 2f),
-            new Vector3(fieldWidth / 2f, -0.08f, -fieldLength / 2f),
-            new Vector3(fieldWidth / 2f, -0.08f, fieldLength / 2f),
-            new Vector3(-fieldWidth / 2f, -0.08f, fieldLength / 2f),
-            new Color(48, 112, 60));
-
-        // Broad mowing bands make camera scale and field orientation easier to read.
-        for (var i = 0; i < 12; i++)
-        {
-            var left = -fieldWidth / 2f + i * 10f;
-            var right = MathF.Min(left + 10f, fieldWidth / 2f);
-            var color = i % 2 == 0 ? new Color(54, 123, 65) : new Color(48, 112, 60);
-            mesh.Quad(
-                new Vector3(left, -0.075f, -fieldLength / 2f),
-                new Vector3(right, -0.075f, -fieldLength / 2f),
-                new Vector3(right, -0.075f, fieldLength / 2f),
-                new Vector3(left, -0.075f, fieldLength / 2f),
-                color);
-        }
-
-        mesh.Quad(
-            new Vector3(-PitchWidth / 2f, -0.025f, -PitchLength / 2f),
-            new Vector3(PitchWidth / 2f, -0.025f, -PitchLength / 2f),
-            new Vector3(PitchWidth / 2f, -0.025f, PitchLength / 2f),
-            new Vector3(-PitchWidth / 2f, -0.025f, PitchLength / 2f),
-            new Color(151, 116, 79));
-
         AddPitchMarkings(mesh);
         AddWicket(mesh, -WicketOffset, nearWicketBroken);
         AddWicket(mesh, WicketOffset, false);
@@ -58,6 +88,12 @@ public static class PracticeGround
         AddFloodlights(mesh);
         return mesh.ToArray();
     }
+
+    private static Vector3 OutfieldPoint(float radius, float angle, float radiusX, float radiusZ, float y) =>
+        new(MathF.Cos(angle) * radius * radiusX, y, MathF.Sin(angle) * radius * radiusZ);
+
+    private static VertexPositionColorNormalTexture SurfaceVertex(Vector3 position, Color tint, float tileSizeMeters) =>
+        new(position, tint, Vector3.Up, new Vector2(position.X / tileSizeMeters, position.Z / tileSizeMeters));
 
     public static void AppendSoftShadow(
         List<VertexPositionColor> vertices,
