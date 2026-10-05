@@ -1,0 +1,28 @@
+{
+  "name": "Standard pace",
+  "releasePosition": {
+    "x": 0.0,
+    "y": 2.0,
+    "z": 11.06
+  },
+  "releaseVelocity": {
+    "x": 0.0,
+    "y": -1.6,
+    "z": -34.0
+  },
+  "gravityMetersPerSecondSquared": 9.81,
+  "airDragPerMeter": 0.00025,
+  "lateralAccelerationMetersPerSecondSquared": 0.0,
+  "ballRadiusMeters": 0.036,
+  "pitchSurfaceHeightMeters": -0.025,
+  "fieldSurfaceHeightMeters": -0.08,
+  "pitchWidthMeters": 3.05,
+  "pitchLengthMeters": 20.12,
+  "pitchBounceRestitution": 0.53,
+  "groundBounceRestitution": 0.38,
+  "tangentialRetention": 0.96,
+  "rollingDecelerationMetersPerSecondSquared": 1.6,
+  "fixedTimeStepSeconds": 0.008333333,
+  "maximumSimulationSeconds": 3.5,
+  "fieldBoundaryRadiusMeters": 42.0
+}

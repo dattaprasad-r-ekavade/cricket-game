@@ -18,7 +18,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 
 - [x] Step 1 — Bootstrap the Windows MonoGame application, pin the SDK and runtime versions, and verify a clean build.
 - [x] Step 2 — Render a measured practice ground, marked pitch, stumps, ball placeholder, orbit camera, and debug overlay.
-- [ ] Step 3 — Add a fixed-step ball flight, pitch bounce, trajectory display, and a saved delivery preset.
+- [x] Step 3 — Add a fixed-step ball flight, pitch bounce, trajectory display, and a saved delivery preset.
 - [ ] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
@@ -36,6 +36,15 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added an orbit camera with keyboard, mouse-wheel zoom, and reset controls.
 - Added a SpriteFont debug overlay with dimensions, camera values, ball position, FPS, and frame time.
 - Built and launched the Windows game, captured and visually reviewed the rendered scene, and confirmed clean build output.
+
+### Step 3 notes
+
+- Added a graphics-independent, 120 Hz ball simulation with gravity, drag, tunable lateral acceleration, swept pitch/ground contact, bounce response, and rolling friction.
+- Added a validated JSON delivery preset shared by the game and command-line tools.
+- Added `validate` and `simulate` commands; simulation writes a CSV containing position, velocity, speed, bounce count, and motion phase for each fixed step.
+- Repeated the headless run and confirmed the trajectory CSVs match exactly. The standard 123 km/h preset bounces at approximately 0.492 s and z = -5.62 m.
+- Connected the game to the same simulation, drawing the moving ball and its trajectory. Space pauses; R restarts the delivery.
+- Built the solution, ran both tool commands, launched the game with the copied preset, and visually reviewed the trajectory in the scene.
 
 ## Technical foundation
 

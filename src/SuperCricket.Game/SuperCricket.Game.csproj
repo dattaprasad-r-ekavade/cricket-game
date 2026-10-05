@@ -16,4 +16,13 @@
     <PackageReference Include="MonoGame.Framework.WindowsDX" Version="3.8.5.1" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.5.1" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SuperCricket.Simulation\SuperCricket.Simulation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\assets\deliveries\standard-pace.json"
+          Link="Assets\Deliveries\standard-pace.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

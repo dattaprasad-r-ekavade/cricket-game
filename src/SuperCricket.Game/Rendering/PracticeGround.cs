@@ -14,8 +14,6 @@ public static class PracticeGround
     public const float BallRadius = 0.036f;
     public const float WicketOffset = PitchLength / 2f;
 
-    public static readonly Vector3 BallStart = new(0f, BallRadius - 0.025f, -WicketOffset + 3f);
-
     public static VertexPositionColor[] CreateField()
     {
         var mesh = new MeshBuilder();
