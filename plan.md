@@ -17,7 +17,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 ## Progress
 
 - [x] Step 1 — Bootstrap the Windows MonoGame application, pin the SDK and runtime versions, and verify a clean build.
-- [ ] Step 2 — Render a measured practice ground, marked pitch, stumps, ball placeholder, orbit camera, and debug overlay.
+- [x] Step 2 — Render a measured practice ground, marked pitch, stumps, ball placeholder, orbit camera, and debug overlay.
 - [ ] Step 3 — Add a fixed-step ball flight, pitch bounce, trajectory display, and a saved delivery preset.
 - [ ] Step 4 — Prove import and playback of one rigged player with two clips and a transition.
 
@@ -29,6 +29,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Pinned MonoGame runtime/content packages and local content tools to 3.8.5.1.
 - Added a .NET 9 SDK selection, build instructions, and repository ignore rules.
 - Verified restore and build on Windows x64 with .NET SDK 9.0.302.
+
+### Step 2 notes
+
+- Added a metre-scaled practice ground with a 20.12 m pitch, 3.05 m width, crease markings, 0.71 m wickets, and a cricket-ball-sized placeholder.
+- Added an orbit camera with keyboard, mouse-wheel zoom, and reset controls.
+- Added a SpriteFont debug overlay with dimensions, camera values, ball position, FPS, and frame time.
+- Built and launched the Windows game, captured and visually reviewed the rendered scene, and confirmed clean build output.
 
 ## Technical foundation
 

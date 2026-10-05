@@ -16,7 +16,7 @@ dotnet build
 dotnet run --project src/SuperCricket.Game
 ```
 
-The initial scene uses metres in world space. Arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, and Escape exits.
+The practice scene uses metres in world space. Arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the camera, and Escape exits.
 
 ## Repository layout
 
