@@ -22,6 +22,7 @@ The scene uses Godot Forward+ on the desktop trial, 2× MSAA, a four-split shado
 - `artifacts/godot-b2-result.png` — followed ball at the rope, with the `FOUR · BOUNDARY` result card.
 - `artifacts/godot-b2-wide.png` — full oval bowl, seating and roof, pitch, and stadium HUD.
 - The captures were generated at 1440×900 on the RTX 4060 Laptop GPU and visually inspected. The stadium and player remain deliberately low-detail proof assets. The result view proves tracking and the boundary result; it is a tight ball shot and does not replace a polished broadcast cut.
+- The shared drive sample contacts at `Z=-8.45 m` and launches at `Z=-19.27 m/s`, reaching the striker-side rope. B2 renders the shared simulation faithfully; B3 should verify the shot-axis convention before using this example as a gameplay benchmark.
 
 ## Verification
 
