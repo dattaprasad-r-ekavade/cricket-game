@@ -41,6 +41,8 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
+        Require(_camera.PresetName == "Broadcast" && MathF.Abs(_camera.Distance - 28f) < 0.001f,
+            "the batting delivery did not start with the closer broadcast camera");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
@@ -133,9 +135,34 @@ public partial class Game1
         Require(ballCamera.Target.X is > 2f and < 6f && ballCamera.Target.Z is < -4f and > -12f,
             "ball-follow camera did not ease toward the moving ball");
         ballCamera.SelectPreset("broadcast");
-        Require(!ballCamera.FollowsBall && ballCamera.Target == Vector3.Zero,
+        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 28f) < 0.001f &&
+            ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Console.WriteLine("PASS: ball-follow camera tracks and eases across a delivery; broadcast remains a fixed preset.");
+        Require(ballCamera.SelectPreset("behind-striker") && ballCamera.Distance < 22f &&
+            ballCamera.Yaw > 3f && ballCamera.SelectPreset("bowler-end") &&
+            MathF.Abs(ballCamera.Distance - 24f) < 0.001f && ballCamera.Yaw == 0f,
+            "close batting and bowling camera angles were not available at readable distances");
+        Console.WriteLine("PASS: closer broadcast, behind-striker, and bowler-end views frame the pitch; ball-follow tracks the delivery.");
+
+        Reset();
+        var feedbackBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
+            ?? throw new InvalidOperationException("The standard delivery has no pitch bounce for the feedback review.");
+        _firstBouncePosition = new Vector3(feedbackBounce.Position.X, feedbackBounce.Position.Y, feedbackBounce.Position.Z);
+        _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
+        _activeBowlingTargetPosition = _firstBouncePosition.Value + new Vector3(0.5f, 0f, 0f);
+        _chosenShot = _shotSet.Get("drive");
+        _contactQuality = 0.91f;
+        CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
+        _match.CompleteDelivery();
+        var feedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
+        Require(feedbackLines.Count == 4 && feedbackLines[0].Contains("FOUR", StringComparison.Ordinal) &&
+            feedbackLines[1].Contains("km/h", StringComparison.Ordinal) &&
+            feedbackLines[1].Contains("good length", StringComparison.Ordinal) &&
+            feedbackLines[2].Contains("drive", StringComparison.Ordinal) &&
+            feedbackLines[2].Contains("middled", StringComparison.Ordinal) &&
+            feedbackLines[3].Contains("0.5 m from aim", StringComparison.Ordinal),
+            "the delivery result card did not explain pace, pitch, contact, runs, and bowling accuracy");
+        Console.WriteLine("PASS: completed-ball feedback reports pace, pitch line/length, contact quality, score, and bowling target error.");
 
         Reset();
         Tick(0f, Keys.J);

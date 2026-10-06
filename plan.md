@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 50 records the first control redesign pass against the playtest gate; A4a remains in progress and A4b/A4c remain open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
+Step 51 addresses the reported camera framing and missing delivery feedback. Its Release captures and automated checks pass; the owner still needs to retest the new build on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md) and [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -39,13 +39,15 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] A1. Commit the outstanding Step 49 ball-follow camera work after the full review and capture pass.
 - [x] A2. First human playtest (7 Oct 2026). Findings in [docs/playtests/2026-10-07.md](docs/playtests/2026-10-07.md).
 - [x] A3. Record the ranked problems.
-- [ ] A4. Fix the three blocking problems below, then playtest again.
+- [ ] A4. Fix the remaining control-learning and batting-timing problems below, then playtest the camera and result-card pass again.
 
 **Playtest 1 findings (blocking, in priority order):**
 
 1. **The controls can't be learned.** There are about 25 keys across batting, footwork, aim, running, delivery selection, camera, and result actions, all shown as one text block. Nobody could build a mental model of them.
 2. **The batting mechanic isn't understood.** The player can't tell when to press, what the three shots do differently, or why a shot hit or missed.
 3. **No feedback after a delivery.** Nothing communicates what the ball did (speed, line, length, where it pitched) or how the shot went (early/late, contact quality, edge or middle).
+
+**Playtest 2 (keyboard-only follow-up, 7 Oct 2026):** the batting and bowling camera view felt badly framed and too distant; batting/bowling feedback was still not visible. The tester did not report whether the Step 50 controls were understandable, so that question remains open. Step 51 adds closer role-based cameras and a persistent outcome card; human retest is pending. Full notes: [docs/playtests/2026-10-07.md](docs/playtests/2026-10-07.md).
 
 **A4a — Controls redesign** (Cricket 07 model: *direction + shot type*, in progress)
 - [x] Batting uses left/right direction for placement and two shot buttons: Space/A defends with no direction or drives with direction; Shift/Y lofts. This replaces A/S/D, J/L, and Q/E as primary controls.
@@ -63,11 +65,16 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - Slower default pace on Rookie and in the first match.
 
 **A4c — Delivery and shot feedback**
-- After every ball, show a short result card: delivery speed (km/h), line/length label (e.g. "good length, outside off"), and a pitch-map dot.
-- Batting result: timing (`Early 40 ms` / `Perfect` / `Late`), contact quality (middled / edge / missed), shot direction, and runs.
-- Bowling result for the human bowler: accuracy against the chosen target, and what the batter did.
+- [x] After each completed ball, show a persistent result card with release speed (km/h), measured pitch length/line, shot/contact quality, and score or wicket.
+- [x] When the human bowls, show the selected target, measured landing, and distance from aim.
+- [ ] Add calibrated early/perfect/late timing feedback and a pitch-map dot.
 - A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
 - Immediate in-world feedback: a bat-contact flash or sound sting scaled by quality, ball trail colour by speed, and the pitch spot marked briefly.
+
+**A4d — Gameplay cameras**
+- [x] Replace the distant default framing with a closer batting broadcast and closer behind-striker, bowler-end, and square-leg views.
+- [x] Select batting/bowling camera by player role for each delivery and follow the ball after bat contact.
+- [ ] Confirm batting, bowling, and fielding readability in a human keyboard retest; controller retest remains open.
 
 **Gate:** a new player understands the controls without the README within one over, can explain why a shot was early or late, and can describe the last delivery (pace, line, length) from the on-screen feedback. Phase 2's "repeated delivery practice is enjoyable" is answered yes or no with evidence.
 

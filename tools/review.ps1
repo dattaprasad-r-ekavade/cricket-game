@@ -221,6 +221,10 @@ try {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-bowling-target.png', '--bowling-target')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-feedback.png', '--feedback-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-bowling-feedback.png', '--bowling-target', '--feedback-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-debug-overlay.png', '--camera', 'bowler-end', '--show-debug-overlay')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-ball-follow.png', '--camera', 'ball-follow', '--ball-flight-time', '0.45')

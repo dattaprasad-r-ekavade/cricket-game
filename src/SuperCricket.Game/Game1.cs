@@ -50,6 +50,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly string? _captureBatterFootworkActionClip;
     private readonly float? _captureBatterFootworkActionTimeSeconds;
     private readonly bool _captureBowlingTarget;
+    private readonly bool _captureFeedbackPreview;
+    private readonly bool _captureCameraPresetSpecified;
     private bool _developerMode;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
@@ -196,7 +198,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         float? captureBatterFootworkActionTimeSeconds = null,
         float? captureBallFlightTimeSeconds = null,
         bool developerMode = false,
-        bool captureBowlingTarget = false)
+        bool captureBowlingTarget = false,
+        bool captureFeedbackPreview = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -210,6 +213,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             captureBatterFootworkActionClip is not null && captureBatterFootworkActionClip is not
                 ("batting-step-offside" or "batting-step-legside") ||
             captureBowlingTarget && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
+            captureFeedbackPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
             profileFrameCount is < 0 or > 36000)
@@ -226,6 +232,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         _captureBallFlightTimeSeconds = captureBallFlightTimeSeconds;
         _captureBowlingTarget = captureBowlingTarget;
+        _captureFeedbackPreview = captureFeedbackPreview;
+        _captureCameraPresetSpecified = captureCameraPreset is not null;
         _captureFielderActionClip = captureFielderActionClip;
         _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
         _captureBatterFootworkActionClip = captureBatterFootworkActionClip;
@@ -426,6 +434,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (_camera.FollowsBall)
                 _camera.FollowBall(ToXna(_ballFlight.CurrentFrame.Position), 0f);
             _simulationPaused = true;
+            if (_captureFeedbackPreview)
+                PrepareFeedbackPreviewCapture();
         }
         if (_verifyGameplay)
         {
@@ -678,6 +688,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     _fieldingSide.Step(_ballFlight.FixedTimeStepSeconds, previousFrame.Position);
 
                 var frame = _ballFlight.Step();
+                if (_firstBouncePosition is null && previousFrame.BounceCount == 0 && frame.BounceCount > 0)
+                    _firstBouncePosition = ToXna(frame.Position);
                 if (_chosenShot is not null && !_shotResolved &&
                     TryBatContact(
                         previousFrame.Position,
@@ -703,6 +715,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
                     _battedBall = true;
+                    _camera.SelectPreset("ball-follow");
                     _fieldingSide.Reset();
                     _shotOutcome = $"HIT: {_chosenShot.Name}, {impact.ContactQuality:0.00} quality at {impact.OutgoingVelocity.Length():0.0} m/s";
                     PlayAudio(CricketAudioCue.BatContact);
@@ -893,6 +906,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             DrawDebugMarkers();
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         }
+        DrawDeliveryFeedbackCard();
         DrawDebugOverlay();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
@@ -1177,7 +1191,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             "GamePad batting: left stick aim | A ground/defend | Y loft",
             "Running: Enter/B starts; tap again for another; hold to turn back",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "At result: R/A replay | D/LB difficulty | O/RB overs | V camera",
+            "V: camera | R/A replay | D/LB difficulty | O/RB overs when match ends",
             $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
             $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
             _settingsStatusMessage ?? (_audioUnavailable
@@ -1430,6 +1444,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
         UpdateBowlingTargetPreview();
+        _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
+        _firstBouncePosition = null;
+        _activeBowlingTargetPosition = IsCpuBattingControlled && !_developerMode
+            ? _bowlingTargetMarkerPosition
+            : null;
+        if (!_captureCameraPresetSpecified)
+            _camera.SelectPreset(IsCpuBattingControlled ? "bowler-end" : "broadcast");
 
         if (IsCpuBattingControlled)
         {
