@@ -72,7 +72,17 @@ try {
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'verify-match')
+    Invoke-CheckedDotNet @($toolsDll, 'verify-match-batch')
     Invoke-CheckedDotNet @($toolsDll, 'verify-fielding')
+    $matchBatchPath = 'artifacts/review-match-batch.csv'
+    Invoke-CheckedDotNet @($toolsDll, 'simulate-match-batch', $coastalRosterPath, $highlandRosterPath,
+        '32', '2', '3026', $matchBatchPath)
+    $matchBatchRows = @(Import-Csv -LiteralPath $matchBatchPath)
+    if ($matchBatchRows.Count -ne 32) { throw "Automatic match batch wrote $($matchBatchRows.Count) rows instead of 32." }
+    if (@($matchBatchRows | Where-Object { [string]::IsNullOrWhiteSpace($_.result) }).Count -gt 0) {
+        throw 'Automatic match batch included a result without a match outcome.'
+    }
+    Write-Output 'PASS: match batch CSV contains 32 completed, scored matches.'
     foreach ($presetName in @('standard', 'wide', 'no-ball')) {
         $deliveryPath = "assets/deliveries/$presetName-pace.json"
         Invoke-CheckedDotNet @($toolsDll, 'validate', $deliveryPath)

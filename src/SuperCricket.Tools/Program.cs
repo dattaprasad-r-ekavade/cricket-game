@@ -12,7 +12,7 @@ static int Run(string[] arguments)
 {
     if (arguments.Length == 0 ||
         arguments[0] is "help" or "--help" or "-h" ||
-        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-fielding" or "verify-footwork"))
+        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-match-batch" or "verify-fielding" or "verify-footwork"))
     {
         PrintUsage();
         return arguments.Length < 2 ? 2 : 0;
@@ -133,6 +133,29 @@ static int Run(string[] arguments)
             MatchStateReviewChecks.Run();
             LimitedOversMatchReviewChecks.Run();
             TeamRosterReviewChecks.Run();
+            return 0;
+        }
+
+        if (arguments[0] == "verify-match-batch")
+        {
+            if (arguments.Length != 1)
+                throw new ArgumentException("Usage: verify-match-batch");
+            AutomatedMatchBatchReviewChecks.Run();
+            return 0;
+        }
+
+        if (arguments[0] == "simulate-match-batch")
+        {
+            if (arguments.Length is < 6 or > 7)
+                throw new ArgumentException("Usage: simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
+            if (!int.TryParse(arguments[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var matchCount) ||
+                !int.TryParse(arguments[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var oversPerInnings) ||
+                !int.TryParse(arguments[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed))
+                throw new ArgumentException("Match count, overs, and seed must be integers.");
+            var firstTeam = TeamRosterAsset.Load(arguments[1]);
+            var secondTeam = TeamRosterAsset.Load(arguments[2]);
+            var outputPath = arguments.Length == 7 ? arguments[6] : Path.Combine("artifacts", "automatic-match-batch.csv");
+            SimulateMatchBatch(firstTeam, secondTeam, matchCount, oversPerInnings, seed, outputPath);
             return 0;
         }
 
@@ -275,7 +298,7 @@ static void AnalyzeField(string presetPath, string outputPath, float gridSpacing
     Console.WriteLine($"Coverage CSV written to {fullOutputPath}");
 }
 
-static string CsvValue(string value) => value.Contains(',') || value.Contains('"')
+static string CsvValue(string value) => value.Contains(',') || value.Contains('"') || value.Contains('\r') || value.Contains('\n')
     ? $"\"{value.Replace("\"", "\"\"")}\""
     : value;
 
@@ -512,6 +535,48 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
 }
 
+static void SimulateMatchBatch(
+    TeamRosterAsset firstTeam,
+    TeamRosterAsset secondTeam,
+    int matchCount,
+    int oversPerInnings,
+    int seed,
+    string outputPath)
+{
+    var results = AutomatedMatchBatchSimulator.RunBatch(firstTeam, secondTeam, matchCount, oversPerInnings, seed);
+    var outputDirectory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+    if (!string.IsNullOrEmpty(outputDirectory))
+        Directory.CreateDirectory(outputDirectory);
+
+    using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+    {
+        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries");
+        foreach (var result in results)
+        {
+            writer.WriteLine(string.Join(',',
+                result.Seed.ToString(CultureInfo.InvariantCulture),
+                CsvValue(firstTeam.Name),
+                result.FirstInnings.Runs.ToString(CultureInfo.InvariantCulture),
+                result.FirstInnings.Wickets.ToString(CultureInfo.InvariantCulture),
+                result.FirstInnings.LegalBalls.ToString(CultureInfo.InvariantCulture),
+                CsvValue(secondTeam.Name),
+                result.SecondInnings.Runs.ToString(CultureInfo.InvariantCulture),
+                result.SecondInnings.Wickets.ToString(CultureInfo.InvariantCulture),
+                result.SecondInnings.LegalBalls.ToString(CultureInfo.InvariantCulture),
+                CsvValue(result.ResultText),
+                result.TotalDeliveries.ToString(CultureInfo.InvariantCulture)));
+        }
+    }
+
+    var firstTeamWins = results.Count(result => result.FirstInnings.Runs > result.SecondInnings.Runs);
+    var secondTeamWins = results.Count(result => result.SecondInnings.Runs > result.FirstInnings.Runs);
+    var ties = results.Count - firstTeamWins - secondTeamWins;
+    var averageRuns = results.Average(result => result.FirstInnings.Runs + result.SecondInnings.Runs);
+    Console.WriteLine($"Completed {results.Count} seeded matches at {oversPerInnings} overs per innings (seed {seed} onward).");
+    Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
+    Console.WriteLine($"Match results written to {Path.GetFullPath(outputPath)}");
+}
+
 static void VerifyFootwork(string batterPath, string bowlerPath, string shotSetPath, string wideDeliveryPath)
 {
     var targetOffset = 0f;
@@ -568,7 +633,9 @@ static void PrintUsage()
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
+    Console.WriteLine("  simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
     Console.WriteLine("  verify-match");
+    Console.WriteLine("  verify-match-batch");
     Console.WriteLine("  verify-fielding");
     Console.WriteLine("  verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
 }
