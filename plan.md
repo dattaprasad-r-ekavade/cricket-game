@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 53 tightens the default camera framing and makes camera cycling visible on keyboard and GamePad. Release captures and automated checks pass; the owner still needs to retest camera readability and batting feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), and [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 54 adds a pitch map to the delivery card, plotting the actual bounce and showing the intended bowling point beside it. Release captures and automated checks pass; the owner still needs to retest camera readability and batting/bowling feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), and [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] After each completed ball, show a persistent result card with release speed (km/h), measured pitch length/line, shot/contact quality, and score or wicket.
 - [x] When the human bowls, show the selected target, measured landing, and distance from aim.
 - [x] Add calibrated early/perfect/late timing feedback from measured best-contact delays; the result card reports the timing band and offset.
-- [ ] Add a pitch-map dot.
+- [x] Add a pitch map with the actual bounce and, for human bowling, the intended target marker.
 - A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
 - Immediate in-world feedback: a bat-contact flash or sound sting scaled by quality, ball trail colour by speed, and the pitch spot marked briefly.
 

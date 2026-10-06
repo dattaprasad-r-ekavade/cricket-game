@@ -148,7 +148,18 @@ public partial class Game1
             MathF.Abs(ballCamera.Distance - 18f) < 0.001f && ballCamera.Yaw == 0f &&
             MathF.Abs(ballCamera.Target.Z - 2.5f) < 0.001f,
             "close batting and bowling camera angles were not available at readable distances");
-        Console.WriteLine("PASS: closer broadcast, behind-striker, and bowler-end views frame the pitch; ball-follow tracks the delivery.");
+        var mapPlot = new Rectangle(100, 200, 120, 100);
+        var mapCenter = MapPitchPosition(Vector3.Zero, mapPlot, PracticeGround.PitchLength);
+        var bowlerMapPoint = MapPitchPosition(new Vector3(0f, 0f, PracticeGround.WicketOffset),
+            mapPlot, PracticeGround.PitchLength);
+        var batterMapPoint = MapPitchPosition(new Vector3(0f, 0f, -PracticeGround.WicketOffset),
+            mapPlot, PracticeGround.PitchLength);
+        var wideMapPoint = MapPitchPosition(new Vector3(20f, 0f, 0f), mapPlot, PracticeGround.PitchLength);
+        Require(MathF.Abs(mapCenter.X - mapPlot.Center.X) < 0.001f &&
+            bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
+            MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
+            "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
+        Console.WriteLine("PASS: tighter cameras and pitch-map projection preserve readable ends and wide-ball locations.");
 
         Reset();
         var feedbackBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)

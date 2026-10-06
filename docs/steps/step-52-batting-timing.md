@@ -17,4 +17,4 @@ Calibration is stored in `assets/batting/timing-calibration.json` for defence, d
 
 ## Follow-up
 
-Ask the owner to replay with keyboard and confirm the camera and timing readout are understandable during a live over. GamePad retest remains open. Add the pitch-map dot and teaching/timing aids under A4b/A4c after the result card has been tested by a person.
+Step 54 has since added the pitch map to the result card. The owner still needs to replay with keyboard and confirm that the camera, timing label, and map are understandable during a live over; GamePad retest remains open. Guided nets and the in-world timing/contact aids remain open under A4b/A4c.

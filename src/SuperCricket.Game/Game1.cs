@@ -56,6 +56,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
+    private Texture2D _feedbackMapPixel = null!;
+    private Texture2D _feedbackMapDot = null!;
+    private Texture2D _feedbackMapRing = null!;
     private readonly Dictionary<CricketAudioCue, SoundEffect> _audioCues = [];
     private BasicEffect _worldEffect = null!;
     private BasicEffect _crowdEffect = null!;
@@ -276,6 +279,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _debugFont = Content.Load<SpriteFont>("DebugFont");
         _debugPanel = new Texture2D(GraphicsDevice, 1, 1);
         _debugPanel.SetData([new Color(11, 20, 20, 220)]);
+        _feedbackMapPixel = new Texture2D(GraphicsDevice, 1, 1);
+        _feedbackMapPixel.SetData([Color.White]);
+        _feedbackMapDot = CreateCircularMarkerTexture(GraphicsDevice, 32, innerRadiusFraction: 0f);
+        _feedbackMapRing = CreateCircularMarkerTexture(GraphicsDevice, 32, innerRadiusFraction: 0.58f);
         _worldEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = true,
@@ -1059,6 +1066,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             audioCue.Dispose();
         _audioCues.Clear();
         _debugPanel?.Dispose();
+        _feedbackMapPixel?.Dispose();
+        _feedbackMapDot?.Dispose();
+        _feedbackMapRing?.Dispose();
         _spriteBatch?.Dispose();
         base.UnloadContent();
     }
