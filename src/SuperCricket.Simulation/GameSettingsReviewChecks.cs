@@ -11,7 +11,7 @@ public static class GameSettingsReviewChecks
         {
             var defaults = GameSettingsStore.Load(missingPath);
             Require(defaults.Difficulty == CpuDifficulty.Standard && defaults.OversPerInnings == 1 &&
-                !defaults.HighContrast && !defaults.LargeText,
+                !defaults.HighContrast && !defaults.LargeText && defaults.EffectsVolume == 0.5f,
                 "a missing settings file did not return the documented defaults");
 
             var saved = new GameSettings
@@ -19,12 +19,14 @@ public static class GameSettingsReviewChecks
                 Difficulty = CpuDifficulty.Pro,
                 OversPerInnings = 5,
                 HighContrast = true,
-                LargeText = true
+                LargeText = true,
+                EffectsVolume = 0.8f
             };
             GameSettingsStore.Save(settingsPath, saved);
             var loaded = GameSettingsStore.Load(settingsPath);
             Require(loaded.Difficulty == saved.Difficulty && loaded.OversPerInnings == saved.OversPerInnings &&
-                loaded.HighContrast == saved.HighContrast && loaded.LargeText == saved.LargeText,
+                loaded.HighContrast == saved.HighContrast && loaded.LargeText == saved.LargeText &&
+                loaded.EffectsVolume == saved.EffectsVolume,
                 "saved match and accessibility preferences did not round-trip");
             Require(!File.Exists(settingsPath + ".tmp"), "a successful save left its temporary file behind");
 
@@ -34,9 +36,16 @@ public static class GameSettingsReviewChecks
                 "an unsupported CPU difficulty was accepted on save");
             ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { OversPerInnings = 3 }),
                 "an unsupported overs length was accepted on save");
+            ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { EffectsVolume = float.NaN }),
+                "a non-finite effects volume was accepted on save");
+            ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { EffectsVolume = -0.1f }),
+                "a negative effects volume was accepted on save");
+            ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { EffectsVolume = 1.1f }),
+                "an effects volume above 1 was accepted on save");
             var unchanged = GameSettingsStore.Load(settingsPath);
             Require(unchanged.Difficulty == saved.Difficulty && unchanged.OversPerInnings == saved.OversPerInnings &&
-                unchanged.HighContrast == saved.HighContrast && unchanged.LargeText == saved.LargeText,
+                unchanged.HighContrast == saved.HighContrast && unchanged.LargeText == saved.LargeText &&
+                unchanged.EffectsVolume == saved.EffectsVolume,
                 "a rejected save changed the previously saved settings");
 
             File.WriteAllText(settingsPath, "{\"version\":99}");
@@ -46,11 +55,18 @@ public static class GameSettingsReviewChecks
             ExpectInvalidData(() => GameSettingsStore.Load(settingsPath),
                 "an unsupported CPU difficulty was accepted on load");
 
+            File.WriteAllText(settingsPath,
+                "{\"version\":1,\"difficulty\":\"pro\",\"oversPerInnings\":5,\"highContrast\":true,\"largeText\":true}");
+            var upgraded = GameSettingsStore.Load(settingsPath);
+            Require(upgraded.Difficulty == CpuDifficulty.Pro && upgraded.OversPerInnings == 5 &&
+                upgraded.HighContrast && upgraded.LargeText && upgraded.EffectsVolume == 0.5f,
+                "a saved settings file from before audio controls did not load with the default volume");
+
             File.WriteAllText(settingsPath, "{ invalid json");
             ExpectInvalidData(() => GameSettingsStore.Load(settingsPath),
                 "malformed settings JSON was accepted on load");
 
-            Console.WriteLine("PASS: settings round-trip atomically, defaults load, rejected writes preserve prior data, and invalid data is rejected.");
+            Console.WriteLine("PASS: settings and effects volume round-trip, legacy files keep the default, and rejected writes preserve prior data.");
         }
         finally
         {

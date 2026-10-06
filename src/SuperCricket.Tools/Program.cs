@@ -147,6 +147,7 @@ static int Run(string[] arguments)
             MatchControllerInputReviewChecks.Run();
             GameSettingsReviewChecks.Run();
             CricketDeliveryRuleReviewChecks.Run();
+            ProceduralCricketAudioReviewChecks.Run();
             return 0;
         }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
@@ -46,6 +47,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
+    private readonly Dictionary<CricketAudioCue, SoundEffect> _audioCues = [];
     private BasicEffect _worldEffect = null!;
     private BasicEffect _crowdEffect = null!;
     private BasicEffect _surfaceEffect = null!;
@@ -85,6 +87,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private MatchControllerButtons _previousControllerButtons;
     private float _simulationAccumulator;
     private bool _simulationPaused;
+    private bool _audioUnavailable;
     private float _bowlerRunUpDurationSeconds;
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
@@ -329,6 +332,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
         LoadGameSettings();
+        LoadAudioCues();
         StartNewMatch();
         if (_captureTarget is not null)
         {
@@ -454,6 +458,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _gameSettings.LargeText = !_gameSettings.LargeText;
             SaveGameSettings();
         }
+        if (_simulationPaused &&
+            ((keyboard.IsKeyDown(Keys.OemMinus) && !_previousKeyboard.IsKeyDown(Keys.OemMinus)) ||
+             ControllerPressed(MatchControllerActions.DecreaseEffectsVolume)))
+            AdjustEffectsVolume(-0.1f);
+        if (_simulationPaused &&
+            ((keyboard.IsKeyDown(Keys.OemPlus) && !_previousKeyboard.IsKeyDown(Keys.OemPlus)) ||
+             ControllerPressed(MatchControllerActions.IncreaseEffectsVolume)))
+            AdjustEffectsVolume(0.1f);
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
             if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
@@ -539,6 +551,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     _battedBall = true;
                     _fieldingSide.Reset();
                     _shotOutcome = $"HIT: {_chosenShot.Name}, {impact.ContactQuality:0.00} quality at {impact.OutgoingVelocity.Length():0.0} m/s";
+                    PlayAudio(CricketAudioCue.BatContact);
                     if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
                     {
                         var fieldingPlayers = _match.FieldingPlayers;
@@ -831,6 +844,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _crowdEffect?.Dispose();
         _lineEffect?.Dispose();
         _captureTarget?.Dispose();
+        foreach (var audioCue in _audioCues.Values)
+            audioCue.Dispose();
+        _audioCues.Clear();
         _debugPanel?.Dispose();
         _spriteBatch?.Dispose();
         base.UnloadContent();
@@ -838,7 +854,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void DrawDebugOverlay()
     {
-        if (_simulationPaused)
+        if (_simulationPaused && _captureTarget is null)
         {
             DrawPauseMenu();
             return;
@@ -942,9 +958,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"CPU difficulty: {_cpuDifficulty}",
             $"H / Pad Y: high contrast  {(_gameSettings.HighContrast ? "ON" : "OFF")}",
             $"T / Pad X: larger text  {(_gameSettings.LargeText ? "ON" : "OFF")}",
+            $"- / Pad LB: effects volume down    { _gameSettings.EffectsVolume:P0}",
+            $"+ / Pad RB: effects volume up      { _gameSettings.EffectsVolume:P0}",
             "P / Start: resume match",
             "Escape / Back: quit",
-            _settingsStatusMessage ?? "Match and accessibility settings save on this device."
+            _settingsStatusMessage ?? (_audioUnavailable
+                ? "Audio output is unavailable; the match remains playable."
+                : "Match, audio, and accessibility settings save on this device.")
         };
         var panelWidth = Math.Min(900, viewport.Width - 40);
         var panelHeight = 44 + lines.Length * lineSpacing;
@@ -1015,6 +1035,53 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             InvalidOperationException or System.Security.SecurityException)
         {
             _settingsStatusMessage = "Settings could not be saved; changes last for this session.";
+        }
+    }
+
+    private void AdjustEffectsVolume(float amount)
+    {
+        var volume = Math.Clamp(MathF.Round((_gameSettings.EffectsVolume + amount) * 10f) / 10f, 0f, 1f);
+        if (MathF.Abs(volume - _gameSettings.EffectsVolume) < 0.0001f)
+            return;
+        _gameSettings.EffectsVolume = volume;
+        SaveGameSettings();
+    }
+
+    private void LoadAudioCues()
+    {
+        try
+        {
+            foreach (var cue in Enum.GetValues<CricketAudioCue>())
+                _audioCues.Add(cue, new SoundEffect(
+                    ProceduralCricketAudio.CreatePcmSamples(cue),
+                    ProceduralCricketAudio.SampleRate,
+                    AudioChannels.Mono));
+        }
+        catch (Exception exception) when (exception is NoAudioHardwareException or DllNotFoundException or
+            PlatformNotSupportedException)
+        {
+            foreach (var audioCue in _audioCues.Values)
+                audioCue.Dispose();
+            _audioCues.Clear();
+            _audioUnavailable = true;
+        }
+    }
+
+    private void PlayAudio(CricketAudioCue cue)
+    {
+        if (_audioUnavailable || _gameSettings.EffectsVolume <= 0f || !_audioCues.TryGetValue(cue, out var sound))
+            return;
+        try
+        {
+            _ = sound.Play(_gameSettings.EffectsVolume, pitch: 0f, pan: 0f);
+        }
+        catch (InstancePlayLimitException)
+        {
+            // Skip a cue when the audio system is already at its instance limit.
+        }
+        catch (NoAudioHardwareException)
+        {
+            _audioUnavailable = true;
         }
     }
 
@@ -1546,10 +1613,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             case IncomingDeliveryResolution.NoBall:
                 _shotOutcome = "NO-BALL: one penalty run, delivery not counted";
+                PlayAudio(CricketAudioCue.Extra);
                 FinishDelivery();
                 break;
             case IncomingDeliveryResolution.Wide:
                 _shotOutcome = "WIDE: one extra run, delivery not counted";
+                PlayAudio(CricketAudioCue.Extra);
                 FinishDelivery();
                 break;
             case IncomingDeliveryResolution.Bowled:
@@ -1583,6 +1652,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (!CurrentDelivery.ResolveCatch())
             {
                 _shotOutcome = $"NO-BALL: fielder {contact.FielderIndex + 1} caught it; one penalty run";
+                PlayAudio(CricketAudioCue.Extra);
             }
             else
             {
@@ -1638,6 +1708,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
         _shotOutcome = crossing.ClearedInTheAir ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
+        PlayAudio(CricketAudioCue.Boundary);
         _cpuRunsRemaining = 0;
         _runRequestedPending = false;
         _isRunning = false;
@@ -1659,6 +1730,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _fielderSequencePhase = FielderSequencePhase.None;
         if (_dismissal != DismissalKind.None)
         {
+            PlayAudio(CricketAudioCue.Wicket);
             if (_dismissal is DismissalKind.Bowled or DismissalKind.RunOut)
                 _groundVertices = PracticeGround.CreateField(nearWicketBroken: true);
             _playerAnimator.Play("practice-stance", 0.12f);

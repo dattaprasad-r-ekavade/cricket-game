@@ -39,7 +39,9 @@ public enum MatchControllerActions
     CycleOvers = 1 << 14,
     CycleDifficulty = 1 << 15,
     ToggleHighContrast = 1 << 16,
-    ToggleLargeText = 1 << 17
+    ToggleLargeText = 1 << 17,
+    DecreaseEffectsVolume = 1 << 18,
+    IncreaseEffectsVolume = 1 << 19
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -61,6 +63,8 @@ public static class MatchControllerInputModel
         {
             if (Has(pressed, MatchControllerButtons.Y)) actions |= MatchControllerActions.ToggleHighContrast;
             if (Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.ToggleLargeText;
+            if (Has(pressed, MatchControllerButtons.LeftShoulder)) actions |= MatchControllerActions.DecreaseEffectsVolume;
+            if (Has(pressed, MatchControllerButtons.RightShoulder)) actions |= MatchControllerActions.IncreaseEffectsVolume;
             return actions;
         }
 

@@ -26,12 +26,14 @@ public static class MatchControllerInputReviewChecks
 
         var pausedButtons = MatchControllerButtons.X | MatchControllerButtons.Y |
             MatchControllerButtons.A | MatchControllerButtons.B | MatchControllerButtons.DPadLeft |
-            MatchControllerButtons.Start;
+            MatchControllerButtons.Start | MatchControllerButtons.LeftShoulder |
+            MatchControllerButtons.RightShoulder;
         var pausedActions = MatchControllerInputModel.ReadPressedActions(
             pausedButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
             isMatchComplete: false, isPaused: true);
         Require(HasAll(pausedActions, MatchControllerActions.Pause |
-                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText) &&
+                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText |
+                MatchControllerActions.DecreaseEffectsVolume | MatchControllerActions.IncreaseEffectsVolume) &&
             !HasAny(pausedActions, MatchControllerActions.Defend | MatchControllerActions.Drive |
                 MatchControllerActions.Run | MatchControllerActions.SelectStandardDelivery),
             "paused controller inputs did not expose settings without triggering match actions");
@@ -40,7 +42,8 @@ public static class MatchControllerInputReviewChecks
             pausedButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
             isMatchComplete: true, isPaused: true);
         Require(HasAll(pausedResultActions, MatchControllerActions.Pause |
-                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText) &&
+                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText |
+                MatchControllerActions.DecreaseEffectsVolume | MatchControllerActions.IncreaseEffectsVolume) &&
             !HasAny(pausedResultActions, MatchControllerActions.RestartMatch |
                 MatchControllerActions.CycleDifficulty | MatchControllerActions.CycleOvers),
             "paused result controls did not prioritize accessibility settings over result actions");

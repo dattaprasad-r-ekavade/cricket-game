@@ -13,6 +13,7 @@ public sealed class GameSettings
     public int OversPerInnings { get; set; } = 1;
     public bool HighContrast { get; set; }
     public bool LargeText { get; set; }
+    public float EffectsVolume { get; set; } = 0.5f;
 
     public List<string> Validate()
     {
@@ -23,6 +24,8 @@ public sealed class GameSettings
             errors.Add("CPU difficulty is not supported.");
         if (OversPerInnings is not (1 or 2 or 5 or 10))
             errors.Add("Overs per innings must be 1, 2, 5, or 10.");
+        if (!float.IsFinite(EffectsVolume) || EffectsVolume is < 0f or > 1f)
+            errors.Add("Effects volume must be between 0 and 1.");
         return errors;
     }
 }
