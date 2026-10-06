@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Add innings only after the Steps 23–26 rules, positioning, and live-overlay gates pass.
+- Steps 23–26 rules, positioning, and live-overlay gates are complete; innings work can proceed while remaining fielding approximations stay open for playtesting.
 - Lateral footwork is in so the existing shots can reach the wide preset. Do not add a fourth named shot before this step is playtested.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -253,6 +253,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - The swept-contact result includes the blade's sweet-spot center interpolated to the hit fraction. Gameplay regressions require all three marker positions and contact metrics after standard and wide shots at 30/60/120 FPS; the resolver check also verifies the moving bat's sweet-spot world position.
 - Added a deterministic F1 renderer capture to `tools/review.ps1`; the capture was visually checked. The full Release review passed with zero warnings/errors, including all asset, simulation, analysis, and actual-gameplay checks.
 
+### Phase 0 target notes
+
+- Added the short-match experience brief, original four-panel stadium/material/player/HUD reference board, and v1 Blender player asset contract in `docs/design/`.
+- `PlayerAsset.Validate` now rejects rig/sample scales outside 0.5–2.0 per axis and player mesh heights outside 0.5–4.0 m. The review command mutates a temporary batter export to 10x scale and confirms the validator rejects it. The v1 format supports per-mesh diffuse colour; external image maps are not part of the current renderer contract.
+- Added `--profile-frames <count>` with a warm-up window and frame-interval/CPU update/draw summaries. On the Lenovo IdeaPad S145-15IIL (81W8), a 300-frame sample at 1440x900 with VSync averaged 16.66 ms; P95 was 17.55 ms. CPU update and draw-submission P95 were 0.14 ms and 2.65 ms. GPU timing remains open for Phase 4.
+- Removed the duplicate `practice-attack.json` content-copy entry. A clean Release review passed: both real player assets validate and load, invalid scale is rejected, all simulation/gameplay checks pass, and the renderer captures are produced.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -279,7 +286,7 @@ Build `content validate` to catch missing textures, unsupported materials, scale
 
 **Gate:** a clean checkout builds and displays the same animated player without manual repair of exported assets. Record a short capture of the intended look.
 
-**Open after Step 22:** the running scene and asset contract exist. The written batting/bowling/camera brief, visual reference board, and named hardware floor are still missing; current assumptions above stand in until those are written.
+**Phase 0 gate — passed 6 October 2026:** the brief, original visual reference board, player asset contract, and named renderer baseline are recorded in `docs/design/`. The clean Release review builds and loads both exported rigs without asset repair, creates the intended-look capture, and rejects a deliberately 10x-scaled rig. `--profile-frames 300` provides repeatable frame-interval and CPU timing samples. GPU timing and a second-machine check remain in their later gates.
 
 ## Phase 1 — Bowling and ball simulation
 
@@ -297,7 +304,7 @@ Keep contact authored and tunable: determine eligibility from ball and bat posit
 
 **Gate:** the player can intentionally defend, drive, and loft; timing and positioning differences are clear; contact aligns from both gameplay and replay cameras. Repeated delivery practice is enjoyable before expanding the shot catalogue.
 
-**Open after Step 25:** defence, drive, and loft work on standard and wide pace. Q/E moves the batter laterally, and the analyzer identifies the step and timing needed to make contact. The current step reuses the between-wickets cycle; an authored batting footwork clip, leave decision, and broader delivery coverage remain open.
+**Open after Step 26:** defence, drive, and loft work on standard and wide pace. Q/E moves the batter laterally, and the analyzer identifies the step and timing needed to make contact. The current step reuses the between-wickets cycle; an authored batting footwork clip, leave decision, and broader delivery coverage remain open.
 
 ## Phase 3 — Fielding and a complete over
 
@@ -307,7 +314,7 @@ Build a Field Lab to place players, inspect interception predictions and reachab
 
 **Gate:** play six legal deliveries, resolve extras and supported dismissals, update score and striker correctly, and return to a stable state after every ball.
 
-**Open after Step 24:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Low catches, ground pickups, airborne and rope-skim boundary crossings, and a throw while the runner approaches the crease now have repeatable checks. Fielder movement, throw travel, receiving, and wicket-breaking still use simplified rules. Do not start Phase 5 until Steps 23–26 land.
+**Open after Step 26:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Low catches, ground pickups, airborne and rope-skim boundary crossings, and a throw while the runner approaches the crease now have repeatable checks. Steps 23–26 are complete, so Phase 5 can begin. Fielder movement, throw travel, receiving, and wicket-breaking still use simplified rules and need full-match scenarios.
 
 ## Phase 4 — Demonstrate the visual target
 
@@ -317,7 +324,7 @@ Build a Stadium and Presentation panel for placement, camera bookmarks, lighting
 
 **Gate:** capture an entire over at the intended visual level, with consistent movement and cameras. Measure CPU/GPU frame times and animation cost with the full fielding side on the target hardware. Aim for stable 60 fps at the agreed resolution and tune from measurements.
 
-**Open after Step 22:** stadium, cameras, light, ground textures, static crowd, and skinned fielders are in. The short-match visual bar is a readable stylized prototype. A richer rig, kit textures, audio, post-process, and GPU timing stay in this phase; they are not a reason to delay Steps 23–25.
+**Open after Step 26:** stadium, cameras, light, ground textures, static crowd, and skinned fielders are in. The short-match visual bar is a readable stylized prototype, now captured as an original reference board. A richer rig, kit textures, audio, post-process, and GPU timing stay in this phase.
 
 ## Phase 5 — Complete short match
 
@@ -340,7 +347,7 @@ Package a reproducible release candidate, test on another machine, profile repre
 5. Replay and capture commands: reproduce defects and support visual review.
 6. Stadium, roster, and presentation editors: speed production after formats settle.
 
-The CLI is the lab for items 1–5 (`validate`, `simulate`, `analyze-*`, `verify-*`, `--capture-frame`, `tools/review.ps1`). Do not build a second in-game editor for the same jobs. The remaining in-game need is the F1 overlay for contact, sweet-spot, and release markers (Step 26). Hot-reload tuning data first; reload models and shaders once resource replacement is safe. Add a service/MCP interface only when a repeated AI workflow justifies it. Keep output paths, errors, and changes reviewable.
+The CLI is the lab for items 1–5 (`validate`, `simulate`, `analyze-*`, `verify-*`, `--capture-frame`, `--profile-frames`, `tools/review.ps1`). Do not build a second in-game editor for the same jobs. Step 26 delivered the F1 overlay for contact, sweet-spot, and release markers. Hot-reload tuning data first; reload models and shaders once resource replacement is safe. Add a service/MCP interface only when a repeated AI workflow justifies it. Keep output paths, errors, and changes reviewable.
 
 ## AI-assisted workflow
 
@@ -364,7 +371,7 @@ Initial work package (complete):
 4. Implement fixed-step ball flight, pitch collision, and trajectory visualization.
 5. Save and replay one delivery preset through an initial Delivery Lab.
 
-The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. The current milestone is a stable one-over loop whose scoring and fielding can survive a short match; that is Steps 23–26 before Phase 5.
+The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. Steps 23–26 completed the one-over loop and live batting overlay; Phase 5 now needs to prove the two-innings match while Phase 4 visual and performance checks continue.
 
 ## References
 

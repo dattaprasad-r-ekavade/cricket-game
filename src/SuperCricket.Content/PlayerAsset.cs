@@ -8,6 +8,11 @@ namespace SuperCricket.Content;
 /// <summary>Blender-exported skinned player mesh, skeleton, and sampled animation clips.</summary>
 public sealed class PlayerAsset
 {
+    private const float MinimumRigScale = 0.5f;
+    private const float MaximumRigScale = 2f;
+    private const float MinimumPlayerHeightMeters = 0.5f;
+    private const float MaximumPlayerHeightMeters = 4f;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -70,6 +75,10 @@ public sealed class PlayerAsset
             {
                 errors.Add($"Bone '{bone.Name}' has a non-invertible bind pose.");
             }
+            else if (!HasSupportedScale(bone.BindPose))
+            {
+                errors.Add($"Bone '{bone.Name}' bind-pose scale must be between {MinimumRigScale:0.0} and {MaximumRigScale:0.0} on each axis; apply Blender object scale before export.");
+            }
         }
         if (rootCount != 1) errors.Add("Skeleton must have exactly one root bone.");
 
@@ -81,6 +90,7 @@ public sealed class PlayerAsset
         {
             for (var meshIndex = 0; meshIndex < Meshes.Count; meshIndex++)
                 ValidateMesh(Meshes[meshIndex], meshIndex, Bones.Count, errors);
+            ValidatePlayerHeight(Meshes, errors);
         }
 
         if (Animations is null || Animations.Count < 2)
@@ -142,9 +152,10 @@ public sealed class PlayerAsset
                         errors.Add($"Clip '{clip.Name}' sample at {sample.TimeSeconds:0.###} s must have finite root motion.");
                         break;
                     }
-                    if (sample.Bones is null || sample.Bones.Count != Bones.Count || sample.Bones.Any(pose => pose is null || !pose.IsFinite()))
+                    if (sample.Bones is null || sample.Bones.Count != Bones.Count ||
+                        sample.Bones.Any(pose => pose is null || !pose.IsFinite() || !HasSupportedScale(pose)))
                     {
-                        errors.Add($"Clip '{clip.Name}' sample at {sample.TimeSeconds:0.###} s must contain one valid pose per bone.");
+                        errors.Add($"Clip '{clip.Name}' sample at {sample.TimeSeconds:0.###} s must contain one finite, normalized-scale pose per bone.");
                         break;
                     }
                     previousTime = sample.TimeSeconds;
@@ -153,6 +164,36 @@ public sealed class PlayerAsset
         }
 
         return errors;
+    }
+
+    private static bool HasSupportedScale(TransformData transform) =>
+        transform.Scale.X is >= MinimumRigScale and <= MaximumRigScale &&
+        transform.Scale.Y is >= MinimumRigScale and <= MaximumRigScale &&
+        transform.Scale.Z is >= MinimumRigScale and <= MaximumRigScale;
+
+    private static void ValidatePlayerHeight(List<PlayerMeshData> meshes, List<string> errors)
+    {
+        var minimumY = float.PositiveInfinity;
+        var maximumY = float.NegativeInfinity;
+        foreach (var mesh in meshes)
+        {
+            if (mesh?.Positions is not { Length: >= 3 } positions || positions.Length % 3 != 0)
+                continue;
+            for (var index = 1; index < positions.Length; index += 3)
+            {
+                var y = positions[index];
+                if (!float.IsFinite(y))
+                    continue;
+                minimumY = MathF.Min(minimumY, y);
+                maximumY = MathF.Max(maximumY, y);
+            }
+        }
+
+        if (!float.IsFinite(minimumY) || !float.IsFinite(maximumY))
+            return;
+        var heightMeters = maximumY - minimumY;
+        if (heightMeters is < MinimumPlayerHeightMeters or > MaximumPlayerHeightMeters)
+            errors.Add($"Player mesh height {heightMeters:0.###} m must be between {MinimumPlayerHeightMeters:0.0} and {MaximumPlayerHeightMeters:0.0} m; verify Blender units and applied object scale.");
     }
 
     private static void ValidateMesh(PlayerMeshData? mesh, int meshIndex, int boneCount, List<string> errors)

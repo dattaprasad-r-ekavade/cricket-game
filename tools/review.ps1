@@ -17,6 +17,18 @@ try {
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
     }
+    $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
+    try {
+        $invalidScaleAsset = Get-Content -LiteralPath $batterPath -Raw | ConvertFrom-Json
+        $invalidScaleAsset.bones[0].bindPose.scale.x = 10.0
+        $invalidScaleAsset | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidScalePath -Encoding utf8
+        $null = & dotnet $toolsDll validate-player $invalidScalePath 2>&1
+        if ($LASTEXITCODE -ne 1) { throw 'Player validator accepted an invalid rig scale.' }
+    }
+    finally {
+        Remove-Item -LiteralPath $invalidScalePath -Force -ErrorAction SilentlyContinue
+    }
+    Write-Output 'PASS: invalid player rig scale rejected.'
     Invoke-CheckedDotNet @($toolsDll, 'validate-shots', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
@@ -51,6 +63,7 @@ try {
 
     Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
     if (!$SkipCaptures) {
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--profile-frames', '90')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-start.png')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',

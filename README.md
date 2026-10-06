@@ -31,12 +31,15 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `tools/prepare_texture.py` — resize and feather generated square texture tiles for repeat sampling
 - `plan.md` — milestone plan, current assumptions, and progress record
 - `docs/reviews` — dated gameplay and planning reviews
+- `docs/design` — short-match brief, visual board, hardware baseline, and player asset contract
 
 ## Delivery tools
 
 Run the current review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, an over, extras, boundaries, catches, and pickup/throw run-outs. `verify-fielding` covers low catches, ground pickups, and airborne versus rope-skim boundary crossings.
 
 To capture a scene with the debug overlay and its release marker, pass `--show-debug-overlay` to the game's `--capture-frame` command; `tools/review.ps1` saves one under `artifacts/review-debug-overlay.png`.
+
+Use `dotnet run --project src/SuperCricket.Game -- --profile-frames 300` for a live renderer profile. It warms up for up to 60 frames, then reports frame-interval and CPU update/draw-submission distributions; GPU execution timing requires a GPU profiler.
 
 ```powershell
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json

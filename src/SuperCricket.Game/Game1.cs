@@ -25,6 +25,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         Throw
     }
 
+    private readonly record struct FrameTiming(double FrameIntervalMilliseconds, double UpdateCpuMilliseconds, double DrawCpuMilliseconds);
+
     private readonly record struct BattingContact(
         Vector3 Position,
         Vector3 SweetSpotPosition,
@@ -35,6 +37,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
     private readonly bool _verifyGameplay;
+    private readonly int _profileFrameTarget;
     private readonly float? _captureRunUpTimeSeconds;
     private readonly float? _captureDeliveryTimeSeconds;
     private readonly string? _captureFielderActionClip;
@@ -54,6 +57,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];
     private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
+    private readonly List<FrameTiming> _profileTimings = [];
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
@@ -138,6 +142,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private double _frameTimeMilliseconds;
     private double _updateMilliseconds;
     private double _drawMilliseconds;
+    private readonly int _profileWarmupFrameCount;
+    private int _profileWarmupRemaining;
 
     public Game1(
         string? capturePath = null,
@@ -147,14 +153,19 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         string? captureFielderActionClip = null,
         float? captureFielderActionTimeSeconds = null,
         bool verifyGameplay = false,
-        bool captureDebugOverlay = false)
+        bool captureDebugOverlay = false,
+        int profileFrameCount = 0)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
-            captureFielderActionClip is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null))
+            captureFielderActionClip is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
+            profileFrameCount is < 0 or > 36000)
             throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
         _capturePath = capturePath;
         _verifyGameplay = verifyGameplay;
+        _profileFrameTarget = profileFrameCount;
+        _profileWarmupFrameCount = Math.Min(60, profileFrameCount / 4);
+        _profileWarmupRemaining = _profileWarmupFrameCount;
         _showDebugOverlay = captureDebugOverlay;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
@@ -592,6 +603,27 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
 
+        if (_profileFrameTarget > 0)
+        {
+            if (_profileWarmupRemaining > 0)
+            {
+                _profileWarmupRemaining--;
+            }
+            else
+            {
+                _profileTimings.Add(new FrameTiming(
+                    _frameTimeMilliseconds,
+                    _updateMilliseconds,
+                    _drawMilliseconds));
+                if (_profileTimings.Count >= _profileFrameTarget)
+                {
+                    PrintFrameProfile();
+                    Exit();
+                    return;
+                }
+            }
+        }
+
         if (_captureTarget is not null)
         {
             var target = _captureTarget;
@@ -637,6 +669,36 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 0,
                 vertexCount / 2);
         }
+    }
+
+    private void PrintFrameProfile()
+    {
+        static (double Average, double Median, double P95, double Maximum) Summarize(
+            IReadOnlyList<FrameTiming> samples,
+            Func<FrameTiming, double> valueSelector)
+        {
+            var values = new double[samples.Count];
+            var total = 0d;
+            for (var index = 0; index < samples.Count; index++)
+            {
+                values[index] = valueSelector(samples[index]);
+                total += values[index];
+            }
+            Array.Sort(values);
+            var medianIndex = Math.Clamp((int)Math.Ceiling(values.Length * 0.5d) - 1, 0, values.Length - 1);
+            var p95Index = Math.Clamp((int)Math.Ceiling(values.Length * 0.95d) - 1, 0, values.Length - 1);
+            return (total / values.Length, values[medianIndex], values[p95Index], values[^1]);
+        }
+
+        static void WriteSummary(string name, (double Average, double Median, double P95, double Maximum) summary) =>
+            Console.WriteLine($"{name}: avg {summary.Average:0.00} ms, p50 {summary.Median:0.00} ms, p95 {summary.P95:0.00} ms, max {summary.Maximum:0.00} ms");
+
+        Console.WriteLine($"Renderer profile: {GraphicsDevice.Viewport.Width}x{GraphicsDevice.Viewport.Height}, VSync enabled");
+        Console.WriteLine($"Measured {_profileTimings.Count} rendered frames after {_profileWarmupFrameCount} warm-up frames.");
+        WriteSummary("Frame interval", Summarize(_profileTimings, static sample => sample.FrameIntervalMilliseconds));
+        WriteSummary("CPU update", Summarize(_profileTimings, static sample => sample.UpdateCpuMilliseconds));
+        WriteSummary("CPU draw submission", Summarize(_profileTimings, static sample => sample.DrawCpuMilliseconds));
+        Console.WriteLine("GPU execution time is not included in CPU draw submission; use a GPU profiler for that measurement.");
     }
 
     protected override void UnloadContent()
