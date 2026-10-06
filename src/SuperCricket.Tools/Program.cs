@@ -135,6 +135,7 @@ static int Run(string[] arguments)
             TeamRosterReviewChecks.Run();
             BowlingDecisionReviewChecks.Run();
             FieldPlacementReviewChecks.Run();
+            CpuBattingOutcomeReviewChecks.Run();
             return 0;
         }
 

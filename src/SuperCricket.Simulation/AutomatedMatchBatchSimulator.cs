@@ -90,29 +90,23 @@ public static class AutomatedMatchBatchSimulator
         var isNoBall = random.NextDouble() < 0.008;
         var delivery = match.BeginDelivery(isNoBall);
         var striker = match.StrikerPlayer;
-        var ballsRemaining = Math.Max(1, match.OversPerInnings * OverScoreboard.BallsPerOver - match.LegalBalls);
-        var runsRequired = match.Target is { } target ? Math.Max(0, target - match.Runs) : 0;
-        var requiredRate = match.Target is null ? 0f : runsRequired / (float)ballsRemaining;
-        var pressure = Math.Clamp((requiredRate - 0.7f) / 1.8f, 0f, 1f);
-        var timing = striker.Timing / 100f;
-        var power = striker.Power / 100f;
-        var aggression = Math.Clamp(0.28f + pressure * 0.48f + (power - 0.5f) * 0.24f, 0.12f, 0.92f);
-        if (match.Target is null && match.Wickets >= 7)
-            aggression *= 0.78f;
+        var situation = new BowlingSituation(
+            match.LegalBalls,
+            match.OversPerInnings,
+            match.Runs,
+            match.Wickets,
+            match.Target);
+        var fieldingTactic = FieldPlacementModel.ChooseTactic(situation, striker.Power);
+        var battingDecision = CpuBattingOutcomeModel.Choose(
+            striker,
+            match.CurrentBowler,
+            match.FieldingPlayers,
+            situation,
+            fieldingTactic);
 
-        var shotChoice = ChooseShot(aggression, power, match.Wickets);
-        var wicketChance = shotChoice switch
+        if (!isNoBall && random.NextDouble() < battingDecision.WicketChance)
         {
-            SimulatedShot.Defence => 0.035f,
-            SimulatedShot.Drive => 0.065f,
-            _ => 0.13f
-        };
-        wicketChance *= 1.12f - timing * 0.24f;
-        wicketChance += pressure * 0.025f;
-
-        if (!isNoBall && random.NextDouble() < wicketChance)
-        {
-            if (shotChoice == SimulatedShot.Loft && delivery.ResolveCatch())
+            if (battingDecision.Shot == CpuShotChoice.Loft && delivery.ResolveCatch())
             {
                 match.CompleteDelivery();
                 return;
@@ -123,52 +117,29 @@ public static class AutomatedMatchBatchSimulator
             return;
         }
 
-        var boundaryChance = shotChoice switch
+        if (random.NextDouble() < battingDecision.BoundaryChance)
         {
-            SimulatedShot.Defence => 0.025f,
-            SimulatedShot.Drive => 0.09f,
-            _ => 0.18f
-        };
-        boundaryChance += power * 0.08f + pressure * 0.04f;
-        if (random.NextDouble() < boundaryChance)
-        {
-            var clearedInTheAir = shotChoice == SimulatedShot.Loft && random.NextDouble() < 0.78;
+            var clearedInTheAir = battingDecision.Shot == CpuShotChoice.Loft &&
+                random.NextDouble() < battingDecision.BoundaryClearedChance;
             var currentRunCrossed = random.NextDouble() < 0.025;
             delivery.ResolveBoundary(clearedInTheAir, currentRunCrossed);
             match.CompleteDelivery();
             return;
         }
 
-        var runChance = 0.50f + aggression * 0.12f;
         var runRoll = random.NextDouble();
-        var runs = runRoll < runChance
+        var runs = runRoll < battingDecision.OneRunChance
             ? 1
-            : runRoll < runChance + 0.16f + aggression * 0.06f
+            : runRoll < battingDecision.OneRunChance + battingDecision.TwoRunChance
                 ? 2
-                : runRoll < runChance + 0.19f + aggression * 0.07f
+                : runRoll < battingDecision.OneRunChance + battingDecision.TwoRunChance + battingDecision.ThreeRunChance
                     ? 3
                     : 0;
         for (var run = 0; run < runs; run++)
             delivery.RecordCompletedRun();
 
-        if (runs > 0 && random.NextDouble() < 0.008 + (1f - timing) * 0.012)
+        if (runs > 0 && random.NextDouble() < battingDecision.RunOutChance)
             delivery.ResolveRunOut();
         match.CompleteDelivery();
-    }
-
-    private static SimulatedShot ChooseShot(float aggression, float power, int wickets)
-    {
-        if (aggression >= 0.64f && power >= 0.4f)
-            return SimulatedShot.Loft;
-        if (aggression < 0.29f || wickets >= 9 && aggression < 0.52f)
-            return SimulatedShot.Defence;
-        return SimulatedShot.Drive;
-    }
-
-    private enum SimulatedShot
-    {
-        Defence,
-        Drive,
-        Loft
     }
 }

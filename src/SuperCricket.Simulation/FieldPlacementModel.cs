@@ -26,21 +26,11 @@ public static class FieldPlacementModel
         int strikerPower)
     {
         ArgumentNullException.ThrowIfNull(preset);
-        if (strikerPower is < 0 or > 100)
-            throw new ArgumentOutOfRangeException(nameof(strikerPower), "Batting power must be between 0 and 100.");
-        var situationError = ValidateSituation(situation);
-        if (situationError is not null)
-            throw new ArgumentOutOfRangeException(nameof(situation), situationError);
         var presetErrors = preset.Validate();
         if (presetErrors.Count > 0)
             throw new ArgumentException($"Invalid field preset: {string.Join(" ", presetErrors)}", nameof(preset));
 
-        var pressure = GetPressure(situation);
-        var tactic = strikerPower >= 75 || pressure >= 0.75f
-            ? FieldingTactic.ProtectBoundary
-            : situation.Wickets >= 7 && pressure <= 0.30f
-                ? FieldingTactic.AttackWickets
-                : FieldingTactic.Balanced;
+        var tactic = ChooseTactic(situation, strikerPower);
 
         var positions = new Vector3[preset.Players.Count];
         var maximumRadius = preset.BoundaryRadiusMeters - BoundarySafetyMarginMeters;
@@ -68,6 +58,22 @@ public static class FieldPlacementModel
         }
 
         return new FieldPlacementDecision(tactic, Array.AsReadOnly(positions));
+    }
+
+    public static FieldingTactic ChooseTactic(BowlingSituation situation, int strikerPower)
+    {
+        if (strikerPower is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(strikerPower), "Batting power must be between 0 and 100.");
+        var situationError = ValidateSituation(situation);
+        if (situationError is not null)
+            throw new ArgumentOutOfRangeException(nameof(situation), situationError);
+
+        var pressure = GetPressure(situation);
+        return strikerPower >= 75 || pressure >= 0.75f
+            ? FieldingTactic.ProtectBoundary
+            : situation.Wickets >= 7 && pressure <= 0.30f
+                ? FieldingTactic.AttackWickets
+                : FieldingTactic.Balanced;
     }
 
     private static float GetPressure(BowlingSituation situation)

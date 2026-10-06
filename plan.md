@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–33 rules, positioning, live-overlay, first match-loop, roster skills, team-kit palette, headless match batches, skill-driven CPU bowling, and adaptive field placement are complete; CPU batting/running, settings, accessibility, and playtesting work remains open in Phase 5.
+- Steps 23–34 rules, positioning, live-overlay, first match-loop, roster skills, team-kit palette, headless match batches, skill-driven CPU bowling, adaptive field placement, and rating-aware match outcomes are complete; live CPU batting/running, settings, accessibility, and playtesting work remains open in Phase 5.
 - Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -61,8 +61,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 31 — Add bowling/fielding player ratings, over-based bowler rotation, and skill-based field movement.
 - [x] Step 32 — Add pressure-aware CPU bowling variations with skill-scaled line control, pace, and swing.
 - [x] Step 33 — Adapt the field between boundary protection and attacking positions from match pressure and batter power.
+- [x] Step 34 — Use batting, bowling, and fielding ratings in seeded automatic match outcomes.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–33 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–34 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -305,7 +306,7 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added a renderer-free CPU bowling model. It chooses stock, outside-off, inswing, or outswing using wicket pressure, chase rate, and striker power; bowling skill scales pace, line control, and swing execution. It deep-copies the stock preset so delivery-by-delivery changes do not leak into later balls.
 - Wired the model into normal live stock deliveries. The game creates a per-match seed and derives per-ball seeds from match state and player identities. Explicit wide/no-ball presets remain available as diagnostic overrides.
 - Added seeded checks for repeatable decisions, pressure response, skill-scaled control and pace, valid physics inputs, source-preset preservation, and invalid ratings/state. The Release build and code-only review passed with zero warnings/errors; the game host and GUI were not started.
-- Adaptive field placement is Step 33. CPU batting and running decisions, gameplay-grounded match-batch outcomes, and GUI calibration remain open in Phase 5.
+- Adaptive field placement is Step 33. Live CPU batting/running control, physics-grounded match-batch outcomes, and GUI calibration remain open in Phase 5.
 
 ### Step 33 notes
 
@@ -313,6 +314,12 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Adapted positions from the validated field preset on every delivery. Deep fielders move toward the rope for protection; close fielders move in for a wicket chance. The wicketkeeper stays at the wicket, positions stay within the field boundary margin, and each decision starts from the original asset so offsets do not accumulate.
 - Added headless checks for tactic choice, fielder movement, boundary clearance, surface height, wicketkeeper placement, and preset preservation. The Release build and code-only review passed with zero warnings/errors; the game host and GUI were not started.
 - Play balance and clear in-game presentation remain open for the later GUI pass; CPU batting/running, adaptive outcomes in the automatic-match model, and settings remain open in Phase 5.
+
+### Step 34 notes
+
+- Extracted a CPU batting outcome model and used it in the seeded automatic match simulator. The batter's timing/power, current chase pressure and wickets, current bowler's rating, fielding team's average rating, and selected fielding tactic now affect shot choice and dismissal, boundary, running, run-out, and catch probabilities.
+- The simulator continues to resolve every synthetic event through the production `LimitedOversMatch` and `DeliverySession` score rules. Seeded checks cover aggressive and defensive decisions, bowling/fielding effects, bounded probabilities, deterministic batches, and completion at all supported overs lengths.
+- Release build and the full code-only review passed with zero warnings/errors; the game host and GUI were not started. This remains a synthetic outcome model: it does not yet drive live CPU batting or resolve every automated outcome from ball flight and fielder movement.
 
 ## Technical foundation
 
@@ -388,7 +395,7 @@ Build roster and tuning editors around validated files. Run automated matches to
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
 
-**Current progress (Step 33):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive boundary-protection and wicket-attack field tactics, validated kit palettes, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. Headless review replays seeded synthetic matches at every supported length and exports scorecards. GUI gameplay and palette appearance remain deferred by the current instruction. Phase 5 remains open for CPU batting and running, field/delivery balance, difficulty/settings, controller mapping, accessibility, save requirements, gameplay-grounded automated batches, and human playtesting.
+**Current progress (Step 34):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive boundary-protection and wicket-attack field tactics, and a rating-aware synthetic CPU batting/outcome model in seeded match batches. The live loop includes the first two-innings target chase, results, restart, and an in-game overs-length cycle. GUI gameplay and palette appearance remain deferred by the current instruction. Phase 5 remains open for live CPU batting and running, physics-grounded automated outcomes, field/delivery balance, difficulty/settings, controller mapping, accessibility, save requirements, and human playtesting.
 
 ## Phase 6 — Stabilize and choose expansion
 
