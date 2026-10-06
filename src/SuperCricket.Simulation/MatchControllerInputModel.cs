@@ -42,7 +42,12 @@ public enum MatchControllerActions
     ToggleLargeText = 1 << 17,
     DecreaseEffectsVolume = 1 << 18,
     IncreaseEffectsVolume = 1 << 19,
-    SelectYorkerDelivery = 1 << 20
+    SelectYorkerDelivery = 1 << 20,
+    CycleDelivery = 1 << 21,
+    AimOffSide = 1 << 22,
+    AimLegSide = 1 << 23,
+    AimLong = 1 << 24,
+    AimShort = 1 << 25
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -53,7 +58,8 @@ public static class MatchControllerInputModel
         MatchControllerButtons previousButtons,
         bool isCpuBattingControlled,
         bool isMatchComplete,
-        bool isPaused = false)
+        bool isPaused = false,
+        bool developerMode = false)
     {
         var pressed = currentButtons & ~previousButtons;
         var actions = MatchControllerActions.None;
@@ -78,23 +84,40 @@ public static class MatchControllerInputModel
         }
 
         if (Has(pressed, MatchControllerButtons.A)) actions |= MatchControllerActions.Defend;
-        if (Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.Drive;
+        if (developerMode && Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.Drive;
         if (Has(pressed, MatchControllerButtons.Y)) actions |= MatchControllerActions.Loft;
         if (Has(pressed, MatchControllerButtons.B)) actions |= MatchControllerActions.Run;
-        if (Has(pressed, MatchControllerButtons.LeftShoulder)) actions |= MatchControllerActions.CancelRun;
         if (Has(pressed, MatchControllerButtons.RightShoulder)) actions |= MatchControllerActions.NextBall;
 
         if (isCpuBattingControlled)
         {
-            if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.SelectStandardDelivery;
-            if (Has(pressed, MatchControllerButtons.DPadUp)) actions |= MatchControllerActions.SelectWideDelivery;
-            if (Has(pressed, MatchControllerButtons.DPadDown)) actions |= MatchControllerActions.SelectNoBallDelivery;
-            if (Has(pressed, MatchControllerButtons.DPadRight)) actions |= MatchControllerActions.SelectYorkerDelivery;
+            if (developerMode)
+            {
+                if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.SelectStandardDelivery;
+                if (Has(pressed, MatchControllerButtons.DPadUp)) actions |= MatchControllerActions.SelectWideDelivery;
+                if (Has(pressed, MatchControllerButtons.DPadDown)) actions |= MatchControllerActions.SelectNoBallDelivery;
+                if (Has(pressed, MatchControllerButtons.DPadRight)) actions |= MatchControllerActions.SelectYorkerDelivery;
+            }
+            else if (Has(pressed, MatchControllerButtons.LeftShoulder))
+            {
+                actions |= MatchControllerActions.CycleDelivery;
+            }
+            if (!developerMode)
+            {
+                if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.AimOffSide;
+                if (Has(pressed, MatchControllerButtons.DPadRight)) actions |= MatchControllerActions.AimLegSide;
+                if (Has(pressed, MatchControllerButtons.DPadUp)) actions |= MatchControllerActions.AimLong;
+                if (Has(pressed, MatchControllerButtons.DPadDown)) actions |= MatchControllerActions.AimShort;
+            }
         }
         else
         {
-            if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.StepOffSide;
-            if (Has(pressed, MatchControllerButtons.DPadRight)) actions |= MatchControllerActions.StepLegSide;
+            if (Has(pressed, MatchControllerButtons.DPadLeft))
+                actions |= developerMode ? MatchControllerActions.StepOffSide : MatchControllerActions.AimOffSide;
+            if (Has(pressed, MatchControllerButtons.DPadRight))
+                actions |= developerMode ? MatchControllerActions.StepLegSide : MatchControllerActions.AimLegSide;
+            if (developerMode && Has(pressed, MatchControllerButtons.LeftShoulder))
+                actions |= MatchControllerActions.CancelRun;
         }
 
         return actions;

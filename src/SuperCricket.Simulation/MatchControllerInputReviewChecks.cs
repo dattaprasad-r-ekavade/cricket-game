@@ -12,13 +12,15 @@ public static class MatchControllerInputReviewChecks
             playerButtons, MatchControllerButtons.None, isCpuBattingControlled: false, isMatchComplete: false);
         Require(HasAll(battingActions,
                 MatchControllerActions.Exit | MatchControllerActions.Pause |
-                MatchControllerActions.Defend | MatchControllerActions.Drive | MatchControllerActions.Loft |
-                MatchControllerActions.Run | MatchControllerActions.CancelRun | MatchControllerActions.NextBall |
-                MatchControllerActions.StepOffSide | MatchControllerActions.StepLegSide) &&
+                MatchControllerActions.Defend | MatchControllerActions.Loft |
+                MatchControllerActions.Run | MatchControllerActions.NextBall |
+                MatchControllerActions.AimOffSide | MatchControllerActions.AimLegSide) &&
             !HasAny(battingActions, MatchControllerActions.SelectStandardDelivery |
                 MatchControllerActions.SelectWideDelivery | MatchControllerActions.SelectNoBallDelivery |
-                MatchControllerActions.SelectYorkerDelivery),
-            "controller batting buttons did not map to the documented match actions");
+                MatchControllerActions.SelectYorkerDelivery | MatchControllerActions.Drive |
+                MatchControllerActions.CancelRun | MatchControllerActions.StepOffSide |
+                MatchControllerActions.StepLegSide),
+            "normal controller batting input did not map to the directional two-shot controls");
 
         var heldActions = MatchControllerInputModel.ReadPressedActions(
             playerButtons, playerButtons, isCpuBattingControlled: false, isMatchComplete: false);
@@ -49,17 +51,38 @@ public static class MatchControllerInputReviewChecks
                 MatchControllerActions.CycleDifficulty | MatchControllerActions.CycleOvers),
             "paused result controls did not prioritize accessibility settings over result actions");
 
-        var bowlingButtons = MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadUp |
+        var bowlingButtons = MatchControllerButtons.LeftShoulder | MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadUp |
             MatchControllerButtons.DPadDown | MatchControllerButtons.DPadRight |
             MatchControllerButtons.RightShoulder;
         var bowlingActions = MatchControllerInputModel.ReadPressedActions(
             bowlingButtons, MatchControllerButtons.None, isCpuBattingControlled: true, isMatchComplete: false);
         Require(HasAll(bowlingActions,
+                MatchControllerActions.CycleDelivery | MatchControllerActions.NextBall |
+                MatchControllerActions.AimOffSide | MatchControllerActions.AimLegSide |
+                MatchControllerActions.AimLong | MatchControllerActions.AimShort) &&
+            !HasAny(bowlingActions, MatchControllerActions.SelectStandardDelivery |
+                MatchControllerActions.SelectWideDelivery | MatchControllerActions.SelectNoBallDelivery |
+                MatchControllerActions.SelectYorkerDelivery | MatchControllerActions.StepOffSide |
+                MatchControllerActions.StepLegSide),
+            "normal controller bowling input did not use one delivery selector and one next-ball button");
+
+        var developerBattingActions = MatchControllerInputModel.ReadPressedActions(
+            playerButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
+            isMatchComplete: false, developerMode: true);
+        Require(HasAll(developerBattingActions,
+                MatchControllerActions.Defend | MatchControllerActions.Drive | MatchControllerActions.Loft |
+                MatchControllerActions.CancelRun | MatchControllerActions.StepOffSide |
+                MatchControllerActions.StepLegSide),
+            "developer mode did not retain the detailed legacy batting controls");
+
+        var developerBowlingActions = MatchControllerInputModel.ReadPressedActions(
+            bowlingButtons, MatchControllerButtons.None, isCpuBattingControlled: true,
+            isMatchComplete: false, developerMode: true);
+        Require(HasAll(developerBowlingActions,
                 MatchControllerActions.SelectStandardDelivery | MatchControllerActions.SelectWideDelivery |
                 MatchControllerActions.SelectNoBallDelivery | MatchControllerActions.SelectYorkerDelivery |
-                MatchControllerActions.NextBall) &&
-            !HasAny(bowlingActions, MatchControllerActions.StepOffSide | MatchControllerActions.StepLegSide),
-            "controller bowling buttons did not select deliveries in the CPU batting innings");
+                MatchControllerActions.NextBall),
+            "developer mode did not retain individual bowling delivery selection");
 
         var resultButtons = MatchControllerButtons.A | MatchControllerButtons.LeftShoulder |
             MatchControllerButtons.RightShoulder;

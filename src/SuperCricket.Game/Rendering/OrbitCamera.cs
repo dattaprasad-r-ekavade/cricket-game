@@ -110,18 +110,21 @@ public sealed class OrbitCamera
         Target = preset.Target;
     }
 
-    public void Update(GameTime gameTime)
+    public void Update(GameTime gameTime, bool allowDeveloperControls)
     {
         var keyboard = Keyboard.GetState();
         var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         const float orbitSpeed = 1.0f;
         const float elevationSpeed = 0.7f;
 
-        if (keyboard.IsKeyDown(Keys.Left)) Yaw += orbitSpeed * seconds;
-        if (keyboard.IsKeyDown(Keys.Right)) Yaw -= orbitSpeed * seconds;
-        if (keyboard.IsKeyDown(Keys.PageUp)) Elevation += elevationSpeed * seconds;
-        if (keyboard.IsKeyDown(Keys.PageDown)) Elevation -= elevationSpeed * seconds;
-        if (keyboard.IsKeyDown(Keys.Home)) Reset();
+        if (allowDeveloperControls)
+        {
+            if (keyboard.IsKeyDown(Keys.Left)) Yaw += orbitSpeed * seconds;
+            if (keyboard.IsKeyDown(Keys.Right)) Yaw -= orbitSpeed * seconds;
+            if (keyboard.IsKeyDown(Keys.PageUp)) Elevation += elevationSpeed * seconds;
+            if (keyboard.IsKeyDown(Keys.PageDown)) Elevation -= elevationSpeed * seconds;
+            if (keyboard.IsKeyDown(Keys.Home)) Reset();
+        }
 
         Elevation = MathHelper.Clamp(Elevation, MinElevation, MaxElevation);
         Distance = MathHelper.Clamp(Distance, MinDistance, MaxDistance);
@@ -134,7 +137,8 @@ public sealed class OrbitCamera
         }
 
         var wheelDelta = mouse.ScrollWheelValue - _previousWheel;
-        Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f, MinDistance, MaxDistance);
+        if (allowDeveloperControls)
+            Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f, MinDistance, MaxDistance);
         _previousWheel = mouse.ScrollWheelValue;
     }
 

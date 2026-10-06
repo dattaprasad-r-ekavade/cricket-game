@@ -17,6 +17,11 @@ public partial class Game1
 
     private void RunLiveMatchReviewChecks(string outputPath)
     {
+        var developerModeWasEnabled = _developerMode;
+        _developerMode = false;
+        VerifyNormalBowlingSelectorControls();
+        _developerMode = developerModeWasEnabled;
+
         var cases = new List<LiveMatchReviewCase>();
         foreach (var frameRate in new[] { 30, 60, 120 })
             foreach (var difficulty in Enum.GetValues<CpuDifficulty>())
@@ -60,6 +65,93 @@ public partial class Game1
         RequireLiveReview(defendedTargets > 0, "the suite never exercised a live defended target");
         Console.WriteLine($"Live-match review passed: {cases.Count} match traces replayed exactly, {totalContacts} CPU contacts, {totalLeaves} leaves, {totalYorkers} yorkers, {totalRuns} completed runs, {defendedTargets} defended targets.");
         Console.WriteLine($"Delivery trace written to {outputPath}");
+    }
+
+    private void VerifyNormalBowlingSelectorControls()
+    {
+        var step = TimeSpan.FromSeconds(1d / 120d);
+        var time = TimeSpan.Zero;
+        void Tick(params Keys[] keys)
+        {
+            time += step;
+            UpdateMatch(new GameTime(time, step), new KeyboardState(keys));
+        }
+
+        _selectedOversPerInnings = 1;
+        StartNewMatch(19007);
+        for (var ball = 0; ball < 6; ball++)
+        {
+            for (var frame = 0; frame < 1200 && !_deliveryComplete; frame++)
+                Tick();
+            RequireLiveReview(_deliveryComplete, "control test could not complete the first innings");
+            if (ball < 5)
+            {
+                Tick(Keys.N);
+                Tick();
+            }
+        }
+        Tick(Keys.N);
+        Tick();
+        RequireLiveReview(IsCpuBattingControlled, "control test did not enter the human bowling innings");
+        RequireLiveReview(_bowlingTargetMarkerPosition is not null,
+            "the human bowling innings did not show the predicted pitch target");
+        RequireLiveReview(GetPrimaryControlHint().Contains("Next pitch: arrows aim", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("C: delivery", StringComparison.Ordinal),
+            "the human bowling HUD did not keep next-pitch controls concise and phase-specific");
+
+        var expectedNext = (_nextDeliveryPresetIndex + 1) % _deliveryPresets.Length;
+        Tick(Keys.C);
+        Tick();
+        RequireLiveReview(_nextDeliveryPresetIndex == expectedNext,
+            "C did not cycle to the next bowling delivery in normal mode");
+
+        var cycleAction = MatchControllerInputModel.ReadPressedActions(
+            MatchControllerButtons.LeftShoulder,
+            MatchControllerButtons.None,
+            isCpuBattingControlled: true,
+            isMatchComplete: false,
+            developerMode: false);
+        expectedNext = (_nextDeliveryPresetIndex + 1) % _deliveryPresets.Length;
+        UpdateMatch(new GameTime(time, TimeSpan.Zero), new KeyboardState(), cycleAction);
+        RequireLiveReview((cycleAction & MatchControllerActions.CycleDelivery) != 0 &&
+            _nextDeliveryPresetIndex == expectedNext,
+            "GamePad LB did not cycle the next bowling delivery in normal mode");
+
+        var markerBeforeAim = _bowlingTargetMarkerPosition!.Value;
+        Tick(Keys.Left);
+        Tick();
+        Tick(Keys.Up);
+        Tick();
+        RequireLiveReview(MathF.Abs(_bowlingAimOffsetX + 0.4f) < 0.001f &&
+            MathF.Abs(_bowlingAimOffsetZ + 0.4f) < 0.001f &&
+            MathF.Abs(_bowlingTargetMarkerPosition!.Value.X - markerBeforeAim.X + 0.4f) < 0.15f &&
+            MathF.Abs(_bowlingTargetMarkerPosition.Value.Z - markerBeforeAim.Z + 0.4f) < 0.15f,
+            "arrow keys did not move the visible bowling target across the pitch");
+
+        var longAction = MatchControllerInputModel.ReadPressedActions(
+            MatchControllerButtons.DPadUp,
+            MatchControllerButtons.None,
+            isCpuBattingControlled: true,
+            isMatchComplete: false,
+            developerMode: false);
+        var targetBeforePadInput = _bowlingAimOffsetZ;
+        UpdateMatch(new GameTime(time, TimeSpan.Zero), new KeyboardState(), longAction);
+        RequireLiveReview((longAction & MatchControllerActions.AimLong) != 0 &&
+            MathF.Abs(_bowlingAimOffsetZ - targetBeforePadInput + 0.4f) < 0.001f &&
+            GetPrimaryControlHint().Contains("Next pitch: D-pad / left stick aim", StringComparison.Ordinal),
+            "GamePad D-pad did not adjust the bowling target length or switch the live control prompt");
+
+        var selectedTarget = _bowlingTargetMarkerPosition!.Value;
+        CurrentDelivery.ResolveIncoming(isWide: false, hitsWickets: false);
+        FinishDelivery();
+        Tick(Keys.N);
+        Tick();
+        var actualBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset);
+        RequireLiveReview(actualBounce is { } bounce &&
+            MathF.Abs(ToXna(bounce.Position).X - selectedTarget.X) < 0.15f &&
+            MathF.Abs(ToXna(bounce.Position).Z - selectedTarget.Z) < 0.15f,
+            $"the next delivery did not pitch at its selected target marker ({(actualBounce is { } actual ? $"{actual.Position.X:0.00},{actual.Position.Z:0.00}" : "no bounce")} vs {selectedTarget.X:0.00},{selectedTarget.Z:0.00}; {_deliveryPreset.Name}; index {_activeDeliveryPresetIndex}; aim {_bowlingAimOffsetX:0.00},{_bowlingAimOffsetZ:0.00})");
+        Console.WriteLine("PASS: C/LB select deliveries, keyboard/GamePad direction moves the pitch marker, and the next ball reaches it.");
     }
 
     private LiveMatchReviewResult PlayLiveMatchReview(LiveMatchReviewCase scenario)

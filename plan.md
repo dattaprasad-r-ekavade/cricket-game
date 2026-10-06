@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Steps 1–49 are complete (≈26 hours, 50 commits, ≈10.7k lines of C#). Implementation notes per step live in [docs/steps/step-notes-01-49.md](docs/steps/step-notes-01-49.md).
+Step 50 records the first control redesign pass against the playtest gate; A4a remains in progress and A4b/A4c remain open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -47,12 +47,14 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 2. **The batting mechanic isn't understood.** The player can't tell when to press, what the three shots do differently, or why a shot hit or missed.
 3. **No feedback after a delivery.** Nothing communicates what the ball did (speed, line, length, where it pitched) or how the shot went (early/late, contact quality, edge or middle).
 
-**A4a — Controls redesign** (Cricket 07 model: *direction + shot type*)
-- Batting uses one directional input (arrow keys / left stick) for where to hit and **two shot buttons**: ground shot and lofted shot. Defence is the ground button with no direction. This replaces A/S/D + J/L aim + Q/E steps as primary controls. Footwork becomes automatic from line and length (front/back foot chosen by the game), with manual steps kept only as an advanced option.
-- Running is one button: press to run, press again for another run. Cancelling uses the same button held, or is automatic when the run is unsafe at Rookie.
-- Bowling: choose a delivery type with one button, aim a target marker on the pitch with the direction input, and press to bowl. A pace/accuracy meter replaces the number keys 1–4.
-- Developer keys (T, 1–4 presets, F1, orbit camera, Page Up/Down) move behind a debug flag and leave the normal HUD.
-- The HUD shows only the 2–4 actions available right now, as button glyphs (keyboard or GamePad, whichever was used last). The full control list moves to the pause menu.
+**A4a — Controls redesign** (Cricket 07 model: *direction + shot type*, in progress)
+- [x] Batting uses left/right direction for placement and two shot buttons: Space/A defends with no direction or drives with direction; Shift/Y lofts. This replaces A/S/D, J/L, and Q/E as primary controls.
+- [ ] Choose front/back foot automatically for human batting from delivery line and length; manual footwork remains an advanced/debug option.
+- [x] Running is one button: press to run, press again to queue another, and hold to turn back. Rookie cancels an unsafe queued follow-up run.
+- [x] Bowling cycles delivery types with C/LB and moves a visible pitch target with arrows, D-pad, or the left stick; the next delivery's simulated bounce reaches the selected point.
+- [ ] Replace delivery presets with a pace/accuracy meter.
+- [x] Developer keys (T, 1–4 presets, F1, orbit camera, Page Up/Down) move behind `--debug` and leave the normal HUD.
+- [x] The live HUD shows only phase-specific actions, labelled for the last-used keyboard or GamePad. The full control list moves to the pause menu.
 
 **A4b — Teach batting**
 - Interactive tutorial or practice nets: bowl five slow balls with an on-screen timing prompt, then remove the prompts.
@@ -158,7 +160,7 @@ With AI assistance, code throughput is high; art, animation, and playtesting set
 
 ## References
 
-- Step history: [docs/steps/step-notes-01-49.md](docs/steps/step-notes-01-49.md)
+- Step history: [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md)
 - Reviews: `docs/reviews/2026-10-06.md`, `docs/reviews/2026-10-06-planning.md`, `docs/reviews/2026-10-06-live-match.md`
 - Design: `docs/design/short-match-brief.md`, `docs/design/player-asset-contract.md`, `docs/design/hardware-baseline.md`
 - [MonoGame 3.8.5 release](https://monogame.net/blog/2026-07-15-3.8.5-release-2026/)

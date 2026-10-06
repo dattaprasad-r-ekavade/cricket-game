@@ -27,6 +27,101 @@ public partial class Game1
             BeginDelivery();
         }
 
+        var developerModeWasEnabled = _developerMode;
+        _developerMode = false;
+        _lastInputWasGamePad = false;
+        var standardDelivery = _deliveryPresets[0];
+        var standardBounce = BowlingAimModel.FindFirstBounce(standardDelivery);
+        var aimedDelivery = BowlingAimModel.AimForPitchTarget(standardDelivery, 0.8f, -0.6f);
+        var aimedBounce = BowlingAimModel.FindFirstBounce(aimedDelivery);
+        Require(standardBounce is { } baseBounce && aimedBounce is { } targetBounce &&
+            MathF.Abs(targetBounce.Position.X - baseBounce.Position.X - 0.8f) <= 0.15f &&
+            MathF.Abs(targetBounce.Position.Z - baseBounce.Position.Z + 0.6f) <= 0.15f &&
+            MathF.Abs(standardDelivery.ReleaseVelocity.X) < 0.001f,
+            "bowling aim did not move the real delivery bounce to its selected line and length");
+        Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
+        Reset();
+        Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
+            !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
+            "the normal batting HUD did not show the compact directional two-shot controls");
+        Tick(0f, Keys.Space);
+        Require(_chosenShot?.Name == "defence", "a neutral ground shot did not use the defensive clip");
+
+        Reset();
+        Tick(0f, Keys.Left);
+        Tick(0f);
+        Tick(0f, Keys.Space);
+        Require(_chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f,
+            "left direction plus the ground button did not select a left-directed drive");
+        Reset();
+        Tick(0f, Keys.LeftShift);
+        Require(_chosenShot?.Name == "loft", "the loft button did not select the lofted shot");
+        Reset();
+        Tick(0f, Keys.A);
+        Require(_chosenShot is null, "legacy A/S/D keyboard controls remained active outside developer mode");
+
+        Reset();
+        UpdateMatch(
+            new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.4)),
+            new KeyboardState(),
+            MatchControllerActions.Defend,
+            controllerAimAxis: -1f);
+        Require(_lastInputWasGamePad && _chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f &&
+            GetPrimaryControlHint().Contains("Left stick: aim", StringComparison.Ordinal),
+            "GamePad direction and shot buttons did not drive the compact, device-specific batting controls");
+
+        Reset();
+        _battedBall = true;
+        StartRun();
+        StartRun();
+        Require(_isRunning && _runRequestedPending,
+            "pressing the run button during a run did not queue another run");
+        CompleteRun();
+        Require(_isRunning && !_runRequestedPending && _match.CurrentDelivery?.CompletedRuns == 1,
+            "a queued run did not start when the first run completed");
+
+        var savedDifficulty = _cpuDifficulty;
+        Reset();
+        _battedBall = true;
+        _cpuDifficulty = CpuDifficulty.Rookie;
+        _fielderBallSecured = true;
+        StartRun();
+        StartRun();
+        CompleteRun();
+        Require(!_isRunning && !_runRequestedPending && _shotOutcome.Contains("unsafe", StringComparison.Ordinal),
+            "Rookie did not cancel a queued follow-up run when the ball was unsafe");
+
+        Reset();
+        _battedBall = true;
+        StartRun();
+        StartRun();
+        ResolveFieldingContact(new FieldingContact(
+            0, _fieldingSide.Positions[0], FieldingContactKind.GroundPickup));
+        Require(!_runRequestedPending,
+            "Rookie did not cancel a queued second run when a fielder reached the ball");
+        _cpuDifficulty = savedDifficulty;
+
+        Reset();
+        _battedBall = true;
+        Tick(0.1f, Keys.Enter);
+        Require(_isRunning, "the Enter button did not start a manual run");
+        Tick(0.5f, Keys.Enter);
+        Require(!_isRunning,
+            $"holding the run button did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
+
+        Reset();
+        _battedBall = true;
+        UpdateMatch(new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.1)), new KeyboardState(),
+            MatchControllerActions.Run, controllerRunHeld: true);
+        Require(_isRunning, "the GamePad B button did not start a manual run");
+        UpdateMatch(new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5)), new KeyboardState(),
+            MatchControllerActions.None, controllerRunHeld: true);
+        Require(!_isRunning, "holding GamePad B did not turn the batter back");
+        _developerMode = developerModeWasEnabled;
+        Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
+
         var ballCamera = new OrbitCamera();
         Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
             MathF.Abs(ballCamera.Distance - 9f) < 0.001f,

@@ -354,3 +354,11 @@ Historical implementation notes moved out of `plan.md` on 7 October 2026. The pl
 - Added a fifth camera preset, Ball follow. It eases the camera target toward the live ball, then keeps tracking it through the incoming delivery, batted-ball flight, and authored fielder throw while preserving the user's current orbit and zoom.
 - V cycles into the follow view. `--camera ball-follow --ball-flight-time <seconds>` freezes a real simulated delivery and its trail at a repeatable point in flight; the full review script captures 0.45 s after release in `artifacts/review-ball-follow.png`.
 - Camera review checks confirm tracking, smoothing, and preset reset; the rendered capture is visually reviewed with the Release build and full `tools/review.ps1` suite. Fielding and replay camera modes remain open in Phase 4.
+
+## Step 50 notes
+
+- Started the first playtest fix with the highest-ranked issue: replaced the normal batting key spread with left/right placement plus ground/defend and loft, simplified running to one repeat/hold control, and moved developer actions behind `--debug`.
+- Human bowling now cycles deliveries with C/LB and aims a pitch target with arrows, D-pad, or left stick. A new simulation helper solves the release velocity so the chosen marker matches the real first bounce; the scene draws a bright ring and cross, and the compact HUD shows phase-specific keyboard or GamePad prompts. Full controls are in pause.
+- Added a deterministic `--bowling-target` renderer capture and included it in the review script. Visually reviewed `artifacts/review-bowling-target.png` at 1440×900; the marker reads against the pitch and the next-pitch prompt fits the HUD.
+- Release build completed with zero warnings/errors. Full `tools/review.ps1` passed, including gameplay checks, 20 exact live-match trace replays, preference preservation, renderer profiling, and all captures.
+- This is only a first control pass, not a new-player retest. Automatic human front/back footwork and the pace/accuracy meter remain open in A4a; batting instruction/feedback and delivery/shot feedback (A4b/A4c) remain untouched. Keep finding #1 open until the external retest confirms discoverability.

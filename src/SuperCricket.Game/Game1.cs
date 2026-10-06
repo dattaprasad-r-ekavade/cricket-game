@@ -49,6 +49,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly float? _captureFielderActionTimeSeconds;
     private readonly string? _captureBatterFootworkActionClip;
     private readonly float? _captureBatterFootworkActionTimeSeconds;
+    private readonly bool _captureBowlingTarget;
+    private bool _developerMode;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -65,6 +67,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];
     private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
+    private readonly VertexPositionColor[] _bowlingTargetMarkerVertices = new VertexPositionColor[28];
     private readonly List<FrameTiming> _profileTimings = [];
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
@@ -107,6 +110,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _bowlerActionFinished;
     private bool _bowlerReleased;
     private bool _showDebugOverlay;
+    private bool _lastInputWasGamePad;
+    private float _runHoldElapsed;
+    private float _bowlingAimOffsetX;
+    private float _bowlingAimOffsetZ;
+    private Vector3? _bowlingTargetMarkerPosition;
     private FieldingTactic _activeFieldingTactic = FieldingTactic.Balanced;
     private Vector3? _releaseMarkerPosition;
     private Vector3? _contactMarkerPosition;
@@ -186,7 +194,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         string? liveMatchReviewPath = null,
         string? captureBatterFootworkActionClip = null,
         float? captureBatterFootworkActionTimeSeconds = null,
-        float? captureBallFlightTimeSeconds = null)
+        float? captureBallFlightTimeSeconds = null,
+        bool developerMode = false,
+        bool captureBowlingTarget = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -199,6 +209,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
             captureBatterFootworkActionClip is not null && captureBatterFootworkActionClip is not
                 ("batting-step-offside" or "batting-step-legside") ||
+            captureBowlingTarget && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
             profileFrameCount is < 0 or > 36000)
             throw new ArgumentException("Choose one bowler preview time, fielder action, or batter-footwork action and its preview time.");
         _capturePath = capturePath;
@@ -207,10 +220,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _profileFrameTarget = profileFrameCount;
         _profileWarmupFrameCount = Math.Min(60, profileFrameCount / 4);
         _profileWarmupRemaining = _profileWarmupFrameCount;
-        _showDebugOverlay = captureDebugOverlay;
+        _developerMode = developerMode;
+        _showDebugOverlay = captureDebugOverlay || developerMode;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         _captureBallFlightTimeSeconds = captureBallFlightTimeSeconds;
+        _captureBowlingTarget = captureBowlingTarget;
         _captureFielderActionClip = captureFielderActionClip;
         _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
         _captureBatterFootworkActionClip = captureBatterFootworkActionClip;
@@ -220,7 +235,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
-        Window.Title = "Super Cricket — One Over";
+        Window.Title = "Super Cricket — Short Match";
         _graphics.PreferredBackBufferWidth = 1440;
         _graphics.PreferredBackBufferHeight = 900;
         _graphics.SynchronizeWithVerticalRetrace = true;
@@ -362,6 +377,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         StartNewMatch();
         if (_captureTarget is not null)
         {
+            if (_captureBowlingTarget)
+                PrepareBowlingTargetCapture();
+
             if (_captureBatterFootworkActionClip is { } footworkClip &&
                 _captureBatterFootworkActionTimeSeconds is { } footworkTime)
             {
@@ -425,14 +443,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var controllerState = GamePad.GetState(PlayerIndex.One);
         var controllerButtons = ReadControllerButtons(controllerState);
+        var controllerAimAxis = controllerState.ThumbSticks.Left.X;
         var controllerActions = MatchControllerInputModel.ReadPressedActions(
             controllerButtons,
             _previousControllerButtons,
             IsCpuBattingControlled,
             _match.IsMatchComplete,
-            _simulationPaused);
+            _simulationPaused,
+            _developerMode);
         _previousControllerButtons = controllerButtons;
-        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions, controllerState.ThumbSticks.Right.X);
+        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions, controllerAimAxis,
+            controllerState.ThumbSticks.Left.Y, controllerState.IsButtonDown(Buttons.B));
     }
 
     private void UpdateMatch(GameTime gameTime, KeyboardState keyboard) =>
@@ -442,11 +463,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         GameTime gameTime,
         KeyboardState keyboard,
         MatchControllerActions controllerActions,
-        float controllerAimAxis = 0f)
+        float controllerAimAxis = 0f,
+        float controllerAimLengthAxis = 0f,
+        bool controllerRunHeld = false)
     {
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
+        bool KeyPressed(Keys key) => keyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+        var pressedKeys = keyboard.GetPressedKeys();
+        if (pressedKeys.Length > 0)
+            _lastInputWasGamePad = false;
+        if (controllerActions != MatchControllerActions.None || MathF.Abs(controllerAimAxis) > 0.2f ||
+            MathF.Abs(controllerAimLengthAxis) > 0.2f)
+            _lastInputWasGamePad = true;
         if (ControllerPressed(MatchControllerActions.Exit) ||
             keyboard.IsKeyDown(Keys.Escape))
         {
@@ -484,17 +514,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             SaveGameSettings();
             StartNewMatch();
         }
-        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) ||
+        if (_developerMode && !_simulationPaused && (KeyPressed(Keys.D1) ||
             ControllerPressed(MatchControllerActions.SelectStandardDelivery))) SelectNextDelivery(0);
-        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) ||
+        if (_developerMode && !_simulationPaused && ((KeyPressed(Keys.D2)) ||
             ControllerPressed(MatchControllerActions.SelectWideDelivery))) SelectNextDelivery(1);
-        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) ||
+        if (_developerMode && !_simulationPaused && ((KeyPressed(Keys.D3)) ||
             ControllerPressed(MatchControllerActions.SelectNoBallDelivery))) SelectNextDelivery(2);
-        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D4) && !_previousKeyboard.IsKeyDown(Keys.D4)) ||
+        if (_developerMode && !_simulationPaused && ((KeyPressed(Keys.D4)) ||
             ControllerPressed(MatchControllerActions.SelectYorkerDelivery))) SelectNextDelivery(3);
-        if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
-        if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
-        if (!IsCpuBattingControlled && !_simulationPaused &&
+        if (IsCpuBattingControlled && !_developerMode && !_simulationPaused &&
+            (KeyPressed(Keys.C) || ControllerPressed(MatchControllerActions.CycleDelivery)))
+            CycleNextDelivery();
+        if (KeyPressed(Keys.V)) _camera.CyclePreset();
+        if (_developerMode && KeyPressed(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
+        if (_developerMode && !IsCpuBattingControlled && !_simulationPaused &&
             ((keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) ||
              ControllerPressed(MatchControllerActions.CancelRun))) CancelRun();
         if ((keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P)) ||
@@ -527,10 +560,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete &&
             !_battedBall && !_shotResolved && !_isRunning)
         {
-            if (keyboard.IsKeyDown(Keys.J) && !_previousKeyboard.IsKeyDown(Keys.J))
-                AdjustHumanShotAim(-0.12f);
-            if (keyboard.IsKeyDown(Keys.L) && !_previousKeyboard.IsKeyDown(Keys.L))
-                AdjustHumanShotAim(0.12f);
+            var aimStep = _developerMode ? 0.12f : 0.24f;
+            if (KeyPressed(_developerMode ? Keys.J : Keys.Left) ||
+                ControllerPressed(MatchControllerActions.AimOffSide))
+                AdjustHumanShotAim(-aimStep);
+            if (KeyPressed(_developerMode ? Keys.L : Keys.Right) ||
+                ControllerPressed(MatchControllerActions.AimLegSide))
+                AdjustHumanShotAim(aimStep);
 
             var stickX = float.IsFinite(controllerAimAxis)
                 ? Math.Clamp(controllerAimAxis, -1f, 1f)
@@ -545,7 +581,32 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 AdjustHumanShotAim(stickIntent * 1.25f * elapsedSeconds);
             }
         }
-        if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
+        else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused && !_match.IsInningsComplete)
+        {
+            if (KeyPressed(Keys.Left) || ControllerPressed(MatchControllerActions.AimOffSide))
+                AdjustHumanBowlingAim(-0.4f, 0f);
+            if (KeyPressed(Keys.Right) || ControllerPressed(MatchControllerActions.AimLegSide))
+                AdjustHumanBowlingAim(0.4f, 0f);
+            if (KeyPressed(Keys.Up) || ControllerPressed(MatchControllerActions.AimLong))
+                AdjustHumanBowlingAim(0f, -0.4f);
+            if (KeyPressed(Keys.Down) || ControllerPressed(MatchControllerActions.AimShort))
+                AdjustHumanBowlingAim(0f, 0.4f);
+
+            var lineAxis = float.IsFinite(controllerAimAxis) ? Math.Clamp(controllerAimAxis, -1f, 1f) : 0f;
+            var lengthAxis = float.IsFinite(controllerAimLengthAxis)
+                ? Math.Clamp(controllerAimLengthAxis, -1f, 1f)
+                : 0f;
+            const float aimDeadZone = 0.2f;
+            if (MathF.Abs(lineAxis) > aimDeadZone || MathF.Abs(lengthAxis) > aimDeadZone)
+            {
+                var lineIntent = MathF.Abs(lineAxis) <= aimDeadZone ? 0f :
+                    MathF.CopySign((MathF.Abs(lineAxis) - aimDeadZone) / (1f - aimDeadZone), lineAxis);
+                var lengthIntent = MathF.Abs(lengthAxis) <= aimDeadZone ? 0f :
+                    MathF.CopySign((MathF.Abs(lengthAxis) - aimDeadZone) / (1f - aimDeadZone), lengthAxis);
+                AdjustHumanBowlingAim(lineIntent * 5f * elapsedSeconds, -lengthIntent * 5f * elapsedSeconds);
+            }
+        }
+        if (_developerMode && !IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
             if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
                 StepBatterFootwork(1f);
@@ -556,23 +617,38 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (ControllerPressed(MatchControllerActions.StepLegSide))
                 StepBatterFootwork(-1f);
         }
-        if (!IsCpuBattingControlled && !_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
+        if (_developerMode && !IsCpuBattingControlled && !_simulationPaused && KeyPressed(Keys.T))
         {
             _playerAnimator.PlayNext();
         }
         if (!IsCpuBattingControlled && !_simulationPaused)
         {
-            if ((keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) ||
-                ControllerPressed(MatchControllerActions.Defend)) StartShot("defence");
-            if ((keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) ||
-                ControllerPressed(MatchControllerActions.Drive)) StartShot("drive");
-            if ((keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) ||
-                ControllerPressed(MatchControllerActions.Loft)) StartShot("loft");
-            if ((keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) ||
-                ControllerPressed(MatchControllerActions.Run)) StartRun();
+            var groundShotPressed = _developerMode
+                ? KeyPressed(Keys.A) || ControllerPressed(MatchControllerActions.Defend)
+                : KeyPressed(Keys.Space) || ControllerPressed(MatchControllerActions.Defend);
+            var loftShotPressed = _developerMode
+                ? KeyPressed(Keys.D) || ControllerPressed(MatchControllerActions.Loft)
+                : KeyPressed(Keys.LeftShift) || KeyPressed(Keys.RightShift) || ControllerPressed(MatchControllerActions.Loft);
+            if (groundShotPressed)
+                StartShot(MathF.Abs(_humanShotAimOffset) < 0.08f ? "defence" : "drive");
+            if (_developerMode && (KeyPressed(Keys.S) || ControllerPressed(MatchControllerActions.Drive)))
+                StartShot("drive");
+            if (loftShotPressed) StartShot("loft");
+            if (KeyPressed(Keys.Enter) || ControllerPressed(MatchControllerActions.Run)) StartRun();
+        }
+        if (!_simulationPaused && !IsCpuBattingControlled && _isRunning &&
+            (keyboard.IsKeyDown(Keys.Enter) || controllerRunHeld))
+        {
+            _runHoldElapsed += elapsedSeconds;
+            if (_runHoldElapsed >= 0.45f)
+                CancelRun();
+        }
+        else
+        {
+            _runHoldElapsed = 0f;
         }
         _previousKeyboard = keyboard;
-        _camera.Update(gameTime);
+        _camera.Update(gameTime, _developerMode);
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
             UpdateCpuBatting(flightElapsed);
@@ -774,6 +850,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _lineEffect.World = Matrix.Identity;
         _lineEffect.View = _worldEffect.View;
         _lineEffect.Projection = _worldEffect.Projection;
+        DrawBowlingTargetMarker();
         if (_bowlerReleased && _trajectoryVertices.Count >= 2)
         {
             var trajectory = _trajectoryVertices.ToArray();
@@ -888,6 +965,41 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
     }
 
+    private void DrawBowlingTargetMarker()
+    {
+        if (_bowlingTargetMarkerPosition is not { } center)
+            return;
+
+        const int ringSegments = 12;
+        const float ringRadius = 0.55f;
+        const float crossHalfLength = 0.16f;
+        var markerColor = new Color(82, 255, 220);
+        for (var segment = 0; segment < ringSegments; segment++)
+        {
+            var startAngle = MathHelper.TwoPi * segment / ringSegments;
+            var endAngle = MathHelper.TwoPi * (segment + 1) / ringSegments;
+            _bowlingTargetMarkerVertices[segment * 2] = new VertexPositionColor(
+                center + new Vector3(MathF.Cos(startAngle) * ringRadius, 0f, MathF.Sin(startAngle) * ringRadius),
+                markerColor);
+            _bowlingTargetMarkerVertices[segment * 2 + 1] = new VertexPositionColor(
+                center + new Vector3(MathF.Cos(endAngle) * ringRadius, 0f, MathF.Sin(endAngle) * ringRadius),
+                markerColor);
+        }
+        _bowlingTargetMarkerVertices[24] = new VertexPositionColor(center - Vector3.UnitX * crossHalfLength, markerColor);
+        _bowlingTargetMarkerVertices[25] = new VertexPositionColor(center + Vector3.UnitX * crossHalfLength, markerColor);
+        _bowlingTargetMarkerVertices[26] = new VertexPositionColor(center - Vector3.UnitZ * crossHalfLength, markerColor);
+        _bowlingTargetMarkerVertices[27] = new VertexPositionColor(center + Vector3.UnitZ * crossHalfLength, markerColor);
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.LineList,
+                _bowlingTargetMarkerVertices,
+                0,
+                14);
+        }
+    }
+
     private void PrintFrameProfile()
     {
         static (double Average, double Median, double P95, double Maximum) Summarize(
@@ -935,6 +1047,39 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         base.UnloadContent();
     }
 
+    private string GetPrimaryControlHint()
+    {
+        var gamePad = _lastInputWasGamePad;
+        var pause = gamePad ? "Start: pause" : "P: pause";
+        if (_match.IsMatchComplete)
+            return gamePad
+                ? $"A: replay    LB: difficulty    RB: overs    {pause}"
+                : $"R: replay    D: difficulty    O: overs    {pause}";
+        if (_match.IsInningsComplete)
+            return gamePad ? $"RB: start the chase    {pause}" : $"N: start the chase    {pause}";
+        if (IsCpuBattingControlled)
+        {
+            var aim = gamePad ? "Next pitch: D-pad / left stick aim" : "Next pitch: arrows aim";
+            var changeDelivery = gamePad ? "LB: delivery" : "C: delivery";
+            var nextDelivery = gamePad ? "RB: bowl next" : "N: bowl next";
+            return _deliveryComplete
+                ? $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name})    {nextDelivery}    {pause}"
+                : $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name}; next ball)    {pause}";
+        }
+        if (_deliveryComplete)
+            return gamePad ? $"RB: next ball    {pause}" : $"N: next ball    {pause}";
+        if (_isRunning)
+        {
+            var run = gamePad ? "B" : "Enter";
+            return $"{run}: request another run    hold {run}: turn back    {pause}";
+        }
+        if (_battedBall)
+            return gamePad ? $"B: run    {pause}" : $"Enter: run    {pause}";
+        return gamePad
+            ? $"Left stick: aim    A: ground / defend    Y: loft    {pause}"
+            : $"Left / Right: aim    Space: ground / defend    Shift: loft    {pause}";
+    }
+
     private void DrawDebugOverlay()
     {
         if (_simulationPaused && _captureTarget is null)
@@ -958,29 +1103,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}",
                 ScoreStatusText,
                 batterText,
-                _match.IsMatchComplete ? "Match finished" : eventText
+                _match.IsMatchComplete ? "Match finished" : eventText,
+                GetPrimaryControlHint()
             };
-            if (_match.IsMatchComplete)
-            {
-                matchLines.Add("D: next CPU difficulty    O: next overs    R: replay");
-                matchLines.Add("Pad A: replay    LB: difficulty    RB: overs");
-            }
-            else if (IsCpuBattingControlled)
-            {
-                matchLines.Add($"CPU batting ({_cpuDifficulty}). Choose a bowling delivery.");
-                matchLines.Add("1-4 or D-pad: delivery    N/RB: next    P/Start: pause");
-            }
-            else
-            {
-                matchLines.Add("A/S/D or Pad A/X/Y: choose shot");
-                matchLines.Add($"{HumanShotAimStatus}    J: left  L: right  Right Stick: aim");
-                matchLines.Add("Q/E or D-pad: step    Enter/B: run    X/LB: cancel");
-                matchLines.Add("N/RB: next ball    R: restart    P/Start: pause");
-            }
             var scale = _gameSettings.LargeText ? 1.25f : 1f;
             var lineSpacing = (int)MathF.Round(25 * scale);
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
-                _gameSettings.LargeText ? GraphicsDevice.Viewport.Width - 40 : 660);
+                _gameSettings.LargeText ? GraphicsDevice.Viewport.Width - 40 : 1050);
             var panelHeight = 20 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 30 * scale);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, panelWidth, panelHeight),
@@ -1013,9 +1142,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
-            "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
-            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-4 bowl    N ball/innings    R restart    O overs    D difficulty at result    P pause    Esc quit",
-            "Pad A/X/Y shots    B run    LB cancel/difficulty    RB next/overs    D-pad delivery/steps    Start pause    Back quit"
+            "Debug: --debug enables A/S/D shots, J/L aim, Q/E steps, T animations, digits, orbit and developer overlay."
         };
         var debugScale = _gameSettings.LargeText ? 1.2f : 1f;
         var debugLineSpacing = (int)MathF.Round(23 * debugScale);
@@ -1039,32 +1166,35 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var viewport = GraphicsDevice.Viewport;
         var scale = _gameSettings.LargeText ? 1.3f : 1.1f;
-        var lineSpacing = (int)MathF.Round(34 * scale);
+        var lineSpacing = (int)MathF.Round(30 * scale);
         var scoreLine = $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText} overs";
-        var lines = new[]
+        var lines = new List<string>
         {
             "SUPER CRICKET  /  PAUSED",
             scoreLine,
             $"CPU difficulty: {_cpuDifficulty}",
-            $"H / Pad Y: high contrast  {(_gameSettings.HighContrast ? "ON" : "OFF")}",
-            $"T / Pad X: larger text  {(_gameSettings.LargeText ? "ON" : "OFF")}",
-            $"- / Pad LB: effects volume down    { _gameSettings.EffectsVolume:P0}",
-            $"+ / Pad RB: effects volume up      { _gameSettings.EffectsVolume:P0}",
-            "P / Start: resume match",
-            "Escape / Back: quit",
+            "Batting: Left/Right aim | Space ground/defend | Shift loft",
+            "GamePad batting: left stick aim | A ground/defend | Y loft",
+            "Running: Enter/B starts; tap again for another; hold to turn back",
+            "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
+            "At result: R/A replay | D/LB difficulty | O/RB overs | V camera",
+            $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
+            $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
             _settingsStatusMessage ?? (_audioUnavailable
                 ? "Audio output is unavailable; the match remains playable."
                 : "Match, audio, and accessibility settings save on this device.")
         };
+        if (_developerMode)
+            lines.Insert(3, "Debug: A/S/D shots | J/L aim | Q/E steps | 1-4 presets | arrows orbit | PgUp/PgDn height");
         var panelWidth = Math.Min(900, viewport.Width - 40);
-        var panelHeight = 44 + lines.Length * lineSpacing;
+        var panelHeight = 44 + lines.Count * lineSpacing;
         var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);
         var panelY = Math.Max(20, (viewport.Height - panelHeight) / 2);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, new Rectangle(0, 0, viewport.Width, viewport.Height), new Color(0, 0, 0, 210));
         _spriteBatch.Draw(_debugPanel, new Rectangle(panelX, panelY, panelWidth, panelHeight), Color.Black);
-        for (var index = 0; index < lines.Length; index++)
+        for (var index = 0; index < lines.Count; index++)
         {
             var color = index == 0 ? Color.Yellow : Color.White;
             DrawOverlayText(lines[index], new Vector2(panelX + 28, panelY + 18 + index * lineSpacing), color, scale);
@@ -1189,6 +1319,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _match.Reset(_selectedOversPerInnings);
         _matchBowlingSeed = seed ?? Random.Shared.Next();
         _nextDeliveryPresetIndex = 0;
+        _bowlingAimOffsetX = 0f;
+        _bowlingAimOffsetZ = 0f;
         BeginDelivery();
     }
 
@@ -1196,7 +1328,22 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         _match.StartNextInnings();
         _nextDeliveryPresetIndex = 0;
+        _bowlingAimOffsetX = 0f;
+        _bowlingAimOffsetZ = 0f;
         BeginDelivery();
+    }
+
+    private void PrepareBowlingTargetCapture()
+    {
+        for (var ball = 0; ball < _match.OversPerInnings * OverScoreboard.BallsPerOver; ball++)
+        {
+            CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
+            _match.CompleteDelivery();
+            if (!_match.IsInningsComplete)
+                BeginDelivery();
+        }
+
+        StartNextInnings();
     }
 
     private void BeginDelivery()
@@ -1216,7 +1363,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var fieldPlacement = FieldPlacementModel.Choose(_fieldPreset, situation, _match.StrikerPlayer.Power);
         _activeFieldingTactic = fieldPlacement.Tactic;
         _fieldingSide.ConfigureStartingPositions(fieldPlacement.StartingPositions);
-        if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
+        if (IsCpuBattingControlled && !_developerMode)
+        {
+            _deliveryPreset = BowlingAimModel.AimForPitchTarget(
+                selectedPreset,
+                _bowlingAimOffsetX,
+                _bowlingAimOffsetZ);
+        }
+        else if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
         {
             _deliveryPreset = BowlingDecisionModel.ChooseDelivery(
                 selectedPreset,
@@ -1250,6 +1404,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _cpuBattingPlan = null;
         _cpuShotStarted = false;
         _runElapsed = 0f;
+        _runHoldElapsed = 0f;
         _fielderThrowActive = false;
         _fielderThrowBallReleased = false;
         _fielderBallSecured = false;
@@ -1274,6 +1429,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerReleased = false;
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
+        UpdateBowlingTargetPreview();
 
         if (IsCpuBattingControlled)
         {
@@ -1532,6 +1688,54 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (_deliveryPresets.Length == 0)
             return;
         _nextDeliveryPresetIndex = Math.Clamp(index, 0, _deliveryPresets.Length - 1);
+        UpdateBowlingTargetPreview();
+    }
+
+    private void CycleNextDelivery()
+    {
+        if (_deliveryPresets.Length == 0)
+            return;
+        SelectNextDelivery((_nextDeliveryPresetIndex + 1) % _deliveryPresets.Length);
+    }
+
+    private void AdjustHumanBowlingAim(float lineAdjustmentMeters, float lengthAdjustmentMeters)
+    {
+        if (!float.IsFinite(lineAdjustmentMeters) || !float.IsFinite(lengthAdjustmentMeters))
+            return;
+        var nextLine = Math.Clamp(
+            _bowlingAimOffsetX + lineAdjustmentMeters,
+            -BowlingAimModel.MaximumLineOffsetMeters,
+            BowlingAimModel.MaximumLineOffsetMeters);
+        var nextLength = Math.Clamp(
+            _bowlingAimOffsetZ + lengthAdjustmentMeters,
+            -BowlingAimModel.MaximumLengthOffsetMeters,
+            BowlingAimModel.MaximumLengthOffsetMeters);
+        if (MathF.Abs(nextLine - _bowlingAimOffsetX) < 0.0001f &&
+            MathF.Abs(nextLength - _bowlingAimOffsetZ) < 0.0001f)
+            return;
+        _bowlingAimOffsetX = nextLine;
+        _bowlingAimOffsetZ = nextLength;
+        UpdateBowlingTargetPreview();
+    }
+
+    private void UpdateBowlingTargetPreview()
+    {
+        if (_developerMode || !IsCpuBattingControlled || _deliveryPresets.Length == 0)
+        {
+            _bowlingTargetMarkerPosition = null;
+            return;
+        }
+
+        var previewPreset = BowlingAimModel.AimForPitchTarget(
+            _deliveryPresets[_nextDeliveryPresetIndex],
+            _bowlingAimOffsetX,
+            _bowlingAimOffsetZ);
+        if (BowlingAimModel.FindFirstBounce(previewPreset) is not { } bounce)
+        {
+            _bowlingTargetMarkerPosition = null;
+            return;
+        }
+        _bowlingTargetMarkerPosition = ToXna(bounce.Position) + Vector3.UnitY * 0.045f;
     }
 
     private void StartShot(string name, float? horizontalAimOverride = null)
@@ -1631,8 +1835,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void StartRun()
     {
-        if (_simulationPaused || _deliveryComplete || _isRunning)
+        if (_simulationPaused || _deliveryComplete)
             return;
+        if (_isRunning)
+        {
+            if (!IsCpuBattingControlled)
+            {
+                _runRequestedPending = true;
+                _shotOutcome = "Another run requested.";
+            }
+            return;
+        }
         if (!_battedBall)
         {
             _runRequestedPending = _chosenShot is not null && !_shotResolved;
@@ -1650,6 +1863,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
         _isRunning = true;
         _runElapsed = 0f;
+        _runHoldElapsed = 0f;
         _playerAnimator.Play("between-wickets", 0.12f);
     }
 
@@ -1669,6 +1883,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _cpuRunsRemaining = 0;
         _isRunning = false;
         _runElapsed = 0f;
+        _runHoldElapsed = 0f;
         _playerAnimator.Play("practice-stance", 0.12f);
     }
 
@@ -1764,10 +1979,19 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _liveCompletedRunCrossings++;
         _isRunning = false;
         _runElapsed = 0f;
+        _runHoldElapsed = 0f;
         _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
         _playerAnimator.Play("practice-stance", 0.12f);
         if (allowNextRun && IsCpuBattingControlled && _cpuRunsRemaining > 0 && !_deliveryComplete)
             StartRun();
+        else if (allowNextRun && !IsCpuBattingControlled && _runRequestedPending && !_deliveryComplete)
+        {
+            _runRequestedPending = false;
+            if (_cpuDifficulty != CpuDifficulty.Rookie || (!_fielderBallSecured && !_fielderThrowActive))
+                StartRun();
+            else
+                _shotOutcome = "RUN completed; the next run was unsafe and cancelled.";
+        }
     }
 
     private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
@@ -1811,6 +2035,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             fielderPosition.Y + 1.02f,
             fielderPosition.Z);
         _fielderBallSecured = false;
+        if (!IsCpuBattingControlled && _cpuDifficulty == CpuDifficulty.Rookie && _runRequestedPending)
+            _runRequestedPending = false;
 
         if (contact.Kind == FieldingContactKind.Catch)
         {
