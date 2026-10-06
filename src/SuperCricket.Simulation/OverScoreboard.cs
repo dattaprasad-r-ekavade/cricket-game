@@ -53,10 +53,13 @@ public sealed class OverScoreboard
         if (result.Dismissal != DismissalKind.None)
         {
             Wickets++;
-            if (result.DismissedEnd == DismissedEnd.Striker)
-                Striker = NextBatter++;
-            else
-                NonStriker = NextBatter++;
+            if (Wickets < MaximumWickets)
+            {
+                if (result.DismissedEnd == DismissedEnd.Striker)
+                    Striker = NextBatter++;
+                else
+                    NonStriker = NextBatter++;
+            }
         }
 
         if (result.IsLegal)

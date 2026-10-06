@@ -191,7 +191,14 @@ try {
     Write-Output "PASS: repeated batting CSV hash $firstHash; wide-ball footwork contacts; invalid input rejected."
 
     if (!$SkipGame) {
+        $settingsPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'SuperCricket/settings.json'
+        $settingsHashBefore = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath).Hash } else { $null }
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--verify-live-match', 'artifacts/review-live-match.csv')
+        $settingsHashAfter = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath).Hash } else { $null }
+        if ($settingsHashBefore -ne $settingsHashAfter) { throw 'Game review modes modified saved user preferences.' }
+        Write-Output 'PASS: game review modes preserve saved user preferences.'
     }
     if (!$SkipCaptures) {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--profile-frames', '90')

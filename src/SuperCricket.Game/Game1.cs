@@ -39,6 +39,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
     private readonly bool _verifyGameplay;
+    private readonly string? _liveMatchReviewPath;
+    private bool IsReviewRun => _verifyGameplay || _liveMatchReviewPath is not null;
     private readonly int _profileFrameTarget;
     private readonly float? _captureRunUpTimeSeconds;
     private readonly float? _captureDeliveryTimeSeconds;
@@ -175,7 +177,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         float? captureFielderActionTimeSeconds = null,
         bool verifyGameplay = false,
         bool captureDebugOverlay = false,
-        int profileFrameCount = 0)
+        int profileFrameCount = 0,
+        string? liveMatchReviewPath = null)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
@@ -184,6 +187,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
         _capturePath = capturePath;
         _verifyGameplay = verifyGameplay;
+        _liveMatchReviewPath = liveMatchReviewPath;
         _profileFrameTarget = profileFrameCount;
         _profileWarmupFrameCount = Math.Min(60, profileFrameCount / 4);
         _profileWarmupRemaining = _profileWarmupFrameCount;
@@ -364,6 +368,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (_verifyGameplay)
         {
             RunGameplayReviewChecks();
+            Exit();
+        }
+        if (_liveMatchReviewPath is { } reviewPath)
+        {
+            RunLiveMatchReviewChecks(reviewPath);
             Exit();
         }
     }
@@ -1005,6 +1014,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void LoadGameSettings()
     {
+        if (IsReviewRun)
+        {
+            _gameSettings = new GameSettings();
+            _cpuDifficulty = _gameSettings.Difficulty;
+            _selectedOversPerInnings = _gameSettings.OversPerInnings;
+            return;
+        }
         try
         {
             _gameSettings = GameSettingsStore.Load(GameSettingsStore.DefaultPath);
@@ -1024,6 +1040,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void SaveGameSettings()
     {
+        if (IsReviewRun) return;
         try
         {
             _gameSettings.Difficulty = _cpuDifficulty;
@@ -1069,6 +1086,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void PlayAudio(CricketAudioCue cue)
     {
+        if (IsReviewRun) return;
         if (_audioUnavailable || _gameSettings.EffectsVolume <= 0f || !_audioCues.TryGetValue(cue, out var sound))
             return;
         try
@@ -1085,10 +1103,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
     }
 
-    private void StartNewMatch()
+    private void StartNewMatch(int? seed = null)
     {
         _match.Reset(_selectedOversPerInnings);
-        _matchBowlingSeed = Random.Shared.Next();
+        _matchBowlingSeed = seed ?? Random.Shared.Next();
         _nextDeliveryPresetIndex = 0;
         BeginDelivery();
     }

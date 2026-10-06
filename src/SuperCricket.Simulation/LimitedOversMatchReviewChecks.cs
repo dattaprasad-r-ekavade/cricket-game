@@ -75,7 +75,25 @@ public static class LimitedOversMatchReviewChecks
         Require(defended.IsMatchComplete && defended.ResultText == "Coastal XI wins by 3 runs",
             "the defending side's run margin was not reported when the chase ended on overs");
 
-        Console.WriteLine("PASS: two-innings match, bowler rotation, over limits, target chase, and results.");
+        var allOut = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings: 2);
+        for (var innings = 0; innings < 2; innings++)
+        {
+            for (var wicket = 0; wicket < OverScoreboard.MaximumWickets; wicket++)
+            {
+                var delivery = allOut.BeginDelivery(isNoBall: false);
+                delivery.ResolveIncoming(isWide: false, hitsWickets: true);
+                allOut.CompleteDelivery();
+                Require(allOut.StrikerPlayer.BattingOrder is >= 1 and <= 11 &&
+                    allOut.NonStrikerPlayer.BattingOrder is >= 1 and <= 11,
+                    "all-out assigned a nonexistent twelfth batter to a displayed end");
+            }
+            Require(allOut.IsInningsComplete && allOut.Wickets == 10 && allOut.LegalBalls == 10,
+                "the tenth wicket did not finish the innings");
+            RequireThrows(() => allOut.BeginDelivery(isNoBall: false), "an eleventh wicket could be started");
+            if (innings == 0) allOut.StartNextInnings();
+        }
+        Require(allOut.IsMatchComplete && allOut.ResultText == "Match tied", "two all-out innings did not finish the match");
+        Console.WriteLine("PASS: two-innings match, bowler rotation, over limits, target chase, results, and valid all-out identities.");
     }
 
     private static void CompleteDotBall(LimitedOversMatch match)

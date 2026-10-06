@@ -10,6 +10,13 @@ string? captureFielderAction = null;
 float? captureActionTimeSeconds = null;
 var captureDebugOverlay = false;
 var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
+var liveMatchReviewMode = args.Length > 0 && args[0] == "--verify-live-match";
+string? liveMatchReviewPath = null;
+if (liveMatchReviewMode)
+{
+    if (args.Length > 2) throw new ArgumentException(GetCaptureUsage());
+    liveMatchReviewPath = Path.GetFullPath(args.Length == 2 ? args[1] : Path.Combine("artifacts", "live-match-review.csv"));
+}
 var profileFrameCount = 0;
 var profileMode = args.Length > 0 && args[0] == "--profile-frames";
 if (profileMode)
@@ -18,7 +25,7 @@ if (profileMode)
         profileFrameCount is < 1 or > 36000)
         throw new ArgumentException(GetCaptureUsage());
 }
-if (args.Length > 0 && !verifyGameplay && !profileMode)
+if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode)
 {
     if (args[0] != "--capture-frame" || args.Length < 2)
     {
@@ -82,8 +89,9 @@ using var game = new SuperCricket.Game.Game1(
     captureActionTimeSeconds,
     verifyGameplay,
     captureDebugOverlay,
-    profileFrameCount);
+    profileFrameCount,
+    liveMatchReviewPath);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay";
+    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
