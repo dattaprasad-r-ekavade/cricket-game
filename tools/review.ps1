@@ -92,6 +92,9 @@ try {
     }
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting-practice', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/standard-pace.json')
+    Invoke-CheckedDotNet @($toolsDll, 'verify-cpu-batting', $batterPath, $bowlerPath, $shotsPath,
+        'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
+        $highlandRosterPath, $coastalRosterPath)
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')

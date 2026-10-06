@@ -103,6 +103,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
     private bool _deliveryComplete => _match.CurrentDelivery?.IsComplete == true;
+    private bool IsCpuBattingControlled => _match.InningsNumber == 2 && !_verifyGameplay;
     private bool _battedBall;
     private int _batterRuns => _match.CurrentDelivery?.BatterRuns ?? 0;
     private int _extraRuns => _match.CurrentDelivery?.ExtraRuns ?? 0;
@@ -114,6 +115,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}    bowler {_match.CurrentBowler.Name}";
     private bool _isRunning;
     private bool _runRequestedPending;
+    private CpuLiveBattingPlan? _cpuBattingPlan;
+    private bool _cpuShotStarted;
     private float _runElapsed;
     private float _runDurationSeconds = 1.35f;
     private bool _fielderThrowActive;
@@ -128,7 +131,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private NumericsVector3 _fielderThrowStart;
     private NumericsVector3 _fielderThrowTarget;
     private int _fielderThrowerIndex;
-    private const float NearBatterZ = -8.72f;
+    private const float NearBatterZ = BattingPracticeAnalyzer.BatterWicketLineZ;
     private const float FarBatterZ = 8.72f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
@@ -385,29 +388,35 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) SelectNextDelivery(2);
         if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
         if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
-        if (keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) CancelRun();
+        if (!IsCpuBattingControlled && keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) CancelRun();
         if (keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P))
         {
             _simulationPaused = !_simulationPaused;
         }
-        if (!_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
+        if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
             if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
                 StepBatterFootwork(1f);
             if (keyboard.IsKeyDown(Keys.E) && !_previousKeyboard.IsKeyDown(Keys.E))
                 StepBatterFootwork(-1f);
         }
-        if (!_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
+        if (!IsCpuBattingControlled && !_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
         {
             _playerAnimator.PlayNext();
         }
-        if (keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) StartShot("defence");
-        if (keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) StartShot("drive");
-        if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) StartShot("loft");
-        if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) StartRun();
+        if (!IsCpuBattingControlled)
+        {
+            if (keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) StartShot("defence");
+            if (keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) StartShot("drive");
+            if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) StartShot("loft");
+            if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) StartRun();
+        }
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
         var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
+        if (!_simulationPaused)
+            UpdateCpuBatting(flightElapsed);
         if (_captureTarget is null && !_simulationPaused)
         {
             _previousBatWorld = _currentBatWorld;
@@ -416,7 +425,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);
         }
-        var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused && _isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
             UpdateRun(elapsedSeconds);
         if (!_simulationPaused && _fielderThrowActive)
@@ -752,15 +760,21 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 ? "Match complete"
                 : _match.IsInningsComplete
                     ? "Innings complete; press N to start the chase"
-                    : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
+                    : IsCpuBattingControlled
+                        ? $"CPU batting: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}"
+                        : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
             var matchLines = new[]
             {
                 "SUPER CRICKET  /  SHORT MATCH",
                 ScoreStatusText,
                 batterText,
                 _match.IsMatchComplete ? "Match finished" : eventText,
-                "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
-                "N: ball/innings    R: restart    O: overs    P: pause    F1: stats"
+                IsCpuBattingControlled
+                    ? "CPU bats. Choose a bowling delivery."
+                    : "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
+                IsCpuBattingControlled
+                    ? "1-3: delivery    N: next ball    R: restart    O: overs at result    P: pause"
+                    : "N: ball/innings    R: restart    O: overs    P: pause    F1: stats"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 166), Color.White);
@@ -863,6 +877,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _footworkTransitionActive = false;
         _isRunning = false;
         _runRequestedPending = false;
+        _cpuBattingPlan = null;
+        _cpuShotStarted = false;
         _runElapsed = 0f;
         _fielderThrowActive = false;
         _fielderThrowBallReleased = false;
@@ -888,6 +904,42 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerReleased = false;
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
+
+        if (IsCpuBattingControlled)
+        {
+            _cpuBattingPlan = CpuLiveBattingPlanModel.Choose(
+                _match.StrikerPlayer,
+                _match.CurrentBowler,
+                _match.FieldingPlayers,
+                situation,
+                _activeFieldingTactic,
+                _deliveryPreset,
+                _playerAsset,
+                _bowlerAsset,
+                _shotSet,
+                CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5));
+            _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
+            _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
+            _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
+        }
+    }
+
+    private void UpdateCpuBatting(float flightElapsed)
+    {
+        if (!IsCpuBattingControlled || _cpuBattingPlan is not { } plan || _cpuShotStarted || _deliveryComplete || !_bowlerReleased)
+            return;
+
+        var upcomingSimulationTime = _ballFlight.CurrentFrame.TimeSeconds + _simulationAccumulator + flightElapsed;
+        if (upcomingSimulationTime < plan.InputDelaySeconds)
+            return;
+
+        StartShot(plan.Shot switch
+        {
+            CpuShotChoice.Defence => "defence",
+            CpuShotChoice.Drive => "drive",
+            _ => "loft"
+        });
+        _cpuShotStarted = true;
     }
 
     private int CreateBowlingDecisionSeed()

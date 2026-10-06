@@ -21,7 +21,8 @@ public readonly record struct BattingPracticeSample(
 public static class BattingPracticeAnalyzer
 {
     public const float MinimumInputDelaySeconds = -0.5f;
-    private const float BatterZ = -8.72f;
+    public const float BatterWicketLineZ = -8.72f;
+    private const float BatterZ = BatterWicketLineZ;
     private const float BatterX = -0.48f;
     private const float BatterGroundOffset = -0.025f;
     private const float MissPlaneOffsetMeters = 0.45f;
@@ -77,6 +78,51 @@ public static class BattingPracticeAnalyzer
         }
 
         return results;
+    }
+
+    public static IReadOnlyList<BattingPracticeSample> AnalyzeShot(
+        PlayerAsset batter,
+        PlayerAsset bowler,
+        BattingShotSet shotSet,
+        string shotName,
+        DeliveryPreset delivery,
+        float inputDelayStepSeconds = 0.025f)
+    {
+        ArgumentNullException.ThrowIfNull(shotSet);
+        if (string.IsNullOrWhiteSpace(shotName))
+            throw new ArgumentException("A shot name must not be empty.", nameof(shotName));
+
+        var shot = shotSet.Get(shotName);
+        var singleShot = new BattingShotSet
+        {
+            ContactPaddingMeters = shotSet.ContactPaddingMeters,
+            Shots = [shot]
+        };
+        return Analyze(batter, bowler, singleShot, delivery, inputDelayStepSeconds);
+    }
+
+    public static float GetWicketLineTimeSeconds(DeliveryPreset delivery)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        var ball = new BallFlightSimulator(delivery);
+        var previous = ball.CurrentFrame;
+        var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
+        for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
+        {
+            var frame = ball.Step();
+            if (previous.Position.Z > BatterWicketLineZ && frame.Position.Z <= BatterWicketLineZ)
+            {
+                var fraction = Math.Clamp(
+                    (previous.Position.Z - BatterWicketLineZ) / (previous.Position.Z - frame.Position.Z),
+                    0f,
+                    1f);
+                return previous.TimeSeconds + (frame.TimeSeconds - previous.TimeSeconds) * fraction;
+            }
+            if (frame.Position.Z <= BatterWicketLineZ)
+                return frame.TimeSeconds;
+            previous = frame;
+        }
+        return previous.TimeSeconds;
     }
 
     private static BattingPracticeSample SimulateOne(

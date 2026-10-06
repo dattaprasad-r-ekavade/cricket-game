@@ -117,6 +117,14 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "verify-cpu-batting")
+        {
+            if (arguments.Length != 8)
+                throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json>");
+            VerifyCpuBatting(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7]);
+            return 0;
+        }
+
         if (arguments[0] == "validate-team")
         {
             var team = TeamRosterAsset.Load(arguments[1]);
@@ -538,6 +546,25 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
 }
 
+static void VerifyCpuBatting(
+    string batterPath,
+    string bowlerPath,
+    string shotSetPath,
+    string standardDeliveryPath,
+    string wideDeliveryPath,
+    string battingTeamPath,
+    string fieldingTeamPath)
+{
+    CpuLiveBattingPlanReviewChecks.Run(
+        PlayerAsset.Load(batterPath),
+        PlayerAsset.Load(bowlerPath),
+        BattingShotSet.Load(shotSetPath),
+        DeliveryPreset.Load(standardDeliveryPath),
+        DeliveryPreset.Load(wideDeliveryPath),
+        TeamRosterAsset.Load(battingTeamPath),
+        TeamRosterAsset.Load(fieldingTeamPath));
+}
+
 static void SimulateMatchBatch(
     TeamRosterAsset firstTeam,
     TeamRosterAsset secondTeam,
@@ -630,6 +657,7 @@ static void PrintUsage()
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
     Console.WriteLine("  verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
+    Console.WriteLine("  verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
