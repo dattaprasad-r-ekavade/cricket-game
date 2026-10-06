@@ -19,6 +19,8 @@ public readonly record struct PhysicsMatchMetrics(
     int Boundaries,
     int RunIntents,
     int SafeRunAttempts,
+    int TwoRunPlans,
+    int TwoRunScores,
     int CompletedRuns,
     int RunOuts,
     int BowledDismissals,

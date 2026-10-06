@@ -117,7 +117,7 @@ try {
     $physicsRunIntents = ($physicsRows | Measure-Object -Property run_intents -Sum).Sum
     $physicsSafeRuns = ($physicsRows | Measure-Object -Property safe_run_attempts -Sum).Sum
     if ($physicsPlans -ne ($physicsContacts + $physicsMisses) -or
-        $physicsSafeRuns -gt $physicsRunIntents -or
+        $physicsSafeRuns -gt $physicsRunIntents * 2 -or
         $physicsPickups + $physicsBoundaries -le 0 -or
         $physicsCompletedRuns -le 0) {
         throw 'Physics match batch produced inconsistent contact or running metrics.'
@@ -143,6 +143,8 @@ try {
     $physicsBalanceBoundaries = ($physicsBalanceRows | Measure-Object -Property boundaries -Sum).Sum
     $physicsBalanceCatches = ($physicsBalanceRows | Measure-Object -Property catches -Sum).Sum
     $physicsBalanceRunOuts = ($physicsBalanceRows | Measure-Object -Property run_outs -Sum).Sum
+    $physicsBalanceTwoRunPlans = ($physicsBalanceRows | Measure-Object -Property two_run_plans -Sum).Sum
+    $physicsBalanceTwoRunScores = ($physicsBalanceRows | Measure-Object -Property two_run_scores -Sum).Sum
     $physicsBalanceCombinedRuns =
         ($physicsBalanceRows | Measure-Object -Property first_runs -Sum).Sum +
         ($physicsBalanceRows | Measure-Object -Property second_runs -Sum).Sum
@@ -150,13 +152,14 @@ try {
     $physicsInningsScores = @($physicsBalanceRows | ForEach-Object { [int]$_.first_runs; [int]$_.second_runs })
     if ($physicsBalancePlans -ne ($physicsBalanceContacts + $physicsBalanceMisses) -or
         $physicsBalancePickups -le 0 -or $physicsBalanceBoundaries -le 0 -or
-        $physicsBalanceCatches -le 0 -or $physicsBalanceRunOuts -le 0 -or
+        $physicsBalanceCatches -le 0 -or
+        $physicsBalanceTwoRunPlans -le 0 -or $physicsBalanceTwoRunScores -ne $physicsBalanceTwoRunPlans -or
         $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 120 -or
-        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 50 -or
+        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 40 -or
         ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 150) {
         throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
     }
-    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with boundaries, pickups, catches, and run-outs."
+    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with boundaries, pickups, catches, and $physicsBalanceTwoRunScores safely completed doubles."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')

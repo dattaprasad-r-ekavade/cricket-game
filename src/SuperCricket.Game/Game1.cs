@@ -116,6 +116,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}    bowler {_match.CurrentBowler.Name}";
     private bool _isRunning;
     private bool _runRequestedPending;
+    private int _cpuRunsRemaining;
+    private int _liveCompletedRunCrossings;
     private CpuLiveBattingPlan? _cpuBattingPlan;
     private bool _cpuShotStarted;
     private float _runElapsed;
@@ -477,7 +479,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     {
                         var fieldingPlayers = _match.FieldingPlayers;
                         var fieldingRatings = fieldingPlayers.Select(player => player.Fielding).ToArray();
-                        _runRequestedPending = CpuLiveRunningDecisionModel.Choose(
+                        _cpuRunsRemaining = CpuLiveRunningDecisionModel.Choose(
                             cpuPlan.AttemptRun,
                             _deliveryPreset,
                             ToNumerics(battingContact.Position),
@@ -486,7 +488,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                             fieldingRatings,
                             _runDurationSeconds,
                             _fielderPickupDurationSeconds,
-                            _fielderThrowDurationSeconds).AttemptRun;
+                            _fielderThrowDurationSeconds).PlannedRuns;
+                        _runRequestedPending = _cpuRunsRemaining > 0;
                     }
                     if (_runRequestedPending)
                         StartRun();
@@ -895,6 +898,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _footworkTransitionActive = false;
         _isRunning = false;
         _runRequestedPending = false;
+        _cpuRunsRemaining = 0;
+        _liveCompletedRunCrossings = 0;
         _cpuBattingPlan = null;
         _cpuShotStarted = false;
         _runElapsed = 0f;
@@ -1213,6 +1218,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
 
         _runRequestedPending = false;
+        if (IsCpuBattingControlled)
+        {
+            if (_cpuRunsRemaining <= 0)
+                return;
+            _cpuRunsRemaining--;
+        }
         _targetBatterFootworkOffsetX = 0f;
         _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
         _isRunning = true;
@@ -1226,10 +1237,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (_runRequestedPending)
         {
             _runRequestedPending = false;
+            if (IsCpuBattingControlled)
+                _cpuRunsRemaining = 0;
             return;
         }
         if (!_isRunning)
             return;
+        if (IsCpuBattingControlled)
+            _cpuRunsRemaining = 0;
         _isRunning = false;
         _runElapsed = 0f;
         _playerAnimator.Play("practice-stance", 0.12f);
@@ -1320,14 +1335,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         FinishDelivery();
     }
 
-    private void CompleteRun(bool recordScoring = true)
+    private void CompleteRun(bool recordScoring = true, bool allowNextRun = true)
     {
         if (recordScoring)
             CurrentDelivery.RecordCompletedRun();
+        _liveCompletedRunCrossings++;
         _isRunning = false;
         _runElapsed = 0f;
         _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
         _playerAnimator.Play("practice-stance", 0.12f);
+        if (allowNextRun && IsCpuBattingControlled && _cpuRunsRemaining > 0 && !_deliveryComplete)
+            StartRun();
     }
 
     private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
@@ -1372,6 +1390,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
         if (contact.Kind == FieldingContactKind.Catch)
         {
+            _cpuRunsRemaining = 0;
+            _runRequestedPending = false;
             StartFielderAction(contact.FielderIndex, "fielder-catch", holdAtEnd: true);
             if (!CurrentDelivery.ResolveCatch())
             {
@@ -1411,7 +1431,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             var runCompleted = _runElapsed / _runDurationSeconds >= 0.72f;
             var runOut = CurrentDelivery.ResolveRunAtStoppage(runCompleted);
             if (runCompleted)
-                CompleteRun(recordScoring: false);
+                CompleteRun(recordScoring: false, allowNextRun: false);
             else if (runOut)
             {
                 _shotOutcome = "OUT: run out while attempting a run";
@@ -1431,6 +1451,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
         _shotOutcome = crossing.ClearedInTheAir ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
+        _cpuRunsRemaining = 0;
+        _runRequestedPending = false;
         _isRunning = false;
         _ballFlight.StopAtContact(crossing.Position);
         FinishDelivery();
@@ -1444,6 +1466,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _match.CompleteDelivery();
         _isRunning = false;
         _runRequestedPending = false;
+        _cpuRunsRemaining = 0;
+        _liveCompletedRunCrossings = 0;
         _fielderThrowActive = false;
         _fielderSequencePhase = FielderSequencePhase.None;
         if (_dismissal != DismissalKind.None)
@@ -1599,15 +1623,22 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()
     {
+        var strikerStartsNear = _liveCompletedRunCrossings % 2 == 0;
+        var strikerStartZ = strikerStartsNear ? NearBatterZ : FarBatterZ;
+        var strikerEndZ = strikerStartsNear ? FarBatterZ : NearBatterZ;
+        var nonStrikerStartZ = strikerStartsNear ? FarBatterZ : NearBatterZ;
+        var nonStrikerEndZ = strikerStartsNear ? NearBatterZ : FarBatterZ;
         if (_isRunning)
         {
             var progress = MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f);
             return (
-                BatterWorld(MathHelper.Lerp(NearBatterZ, FarBatterZ, progress), true, _batterFootworkOffsetX),
-                BatterWorld(MathHelper.Lerp(FarBatterZ, NearBatterZ, progress), false));
+                BatterWorld(MathHelper.Lerp(strikerStartZ, strikerEndZ, progress), strikerStartsNear, _batterFootworkOffsetX),
+                BatterWorld(MathHelper.Lerp(nonStrikerStartZ, nonStrikerEndZ, progress), !strikerStartsNear));
         }
 
-        return (BatterWorld(NearBatterZ, true, _batterFootworkOffsetX), BatterWorld(FarBatterZ, false));
+        return (
+            BatterWorld(strikerStartZ, strikerStartsNear, _batterFootworkOffsetX),
+            BatterWorld(nonStrikerStartZ, !strikerStartsNear));
     }
 
     private static Matrix BatterWorld(float z, bool atNearEnd, float lateralOffsetX = 0f) =>

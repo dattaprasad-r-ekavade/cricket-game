@@ -14,14 +14,18 @@ public enum CpuLiveRunDecisionReason
 }
 
 public readonly record struct CpuLiveRunDecision(
-    bool AttemptRun,
+    int PlannedRuns,
     CpuLiveRunDecisionReason Reason,
-    float? EventTimeSeconds);
+    float? EventTimeSeconds)
+{
+    public bool AttemptRun => PlannedRuns > 0;
+}
 
 /// <summary>Checks a shot's real ball path against the live field before committing the CPU to a run.</summary>
 public static class CpuLiveRunningDecisionModel
 {
     public const float DefaultRunDurationSeconds = 1.35f;
+    public const int MaximumPlannedRuns = 2;
 
     public static CpuLiveRunDecision Choose(
         bool runIntent,
@@ -32,7 +36,8 @@ public static class CpuLiveRunningDecisionModel
         IReadOnlyList<int> fieldingRatings,
         float runDurationSeconds = DefaultRunDurationSeconds,
         float pickupAnimationDurationSeconds = 0.5f,
-        float throwAnimationDurationSeconds = 0.6f)
+        float throwAnimationDurationSeconds = 0.6f,
+        int maximumRunCount = MaximumPlannedRuns)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(fielderPositions);
@@ -44,10 +49,12 @@ public static class CpuLiveRunningDecisionModel
         if (!float.IsFinite(pickupAnimationDurationSeconds) || pickupAnimationDurationSeconds <= 0f ||
             !float.IsFinite(throwAnimationDurationSeconds) || throwAnimationDurationSeconds <= 0f)
             throw new ArgumentOutOfRangeException(nameof(pickupAnimationDurationSeconds), "Fielder pickup and throw durations must be finite and positive.");
+        if (maximumRunCount is < 1 or > MaximumPlannedRuns)
+            throw new ArgumentOutOfRangeException(nameof(maximumRunCount), $"Planned run count must be between 1 and {MaximumPlannedRuns}.");
         if (fielderPositions.Count != FieldingSide.FielderCount || fieldingRatings.Count != FieldingSide.FielderCount)
             throw new ArgumentException($"CPU running decisions require exactly {FieldingSide.FielderCount} fielding positions and ratings.");
         if (!runIntent)
-            return new CpuLiveRunDecision(false, CpuLiveRunDecisionReason.NoIntent, null);
+            return new CpuLiveRunDecision(0, CpuLiveRunDecisionReason.NoIntent, null);
 
         var errors = delivery.Validate();
         if (errors.Count > 0)
@@ -59,8 +66,9 @@ public static class CpuLiveRunningDecisionModel
         var ball = new BallFlightSimulator(delivery);
         ball.ApplyBatContact(contactPosition, outgoingVelocity);
         var previous = ball.CurrentFrame;
+        var maximumRunTime = runDurationSeconds * maximumRunCount;
         var maximumSteps = (int)MathF.Ceiling(
-            MathF.Min(runDurationSeconds, delivery.MaximumSimulationSeconds) / ball.FixedTimeStepSeconds) + 1;
+            MathF.Min(maximumRunTime, delivery.MaximumSimulationSeconds) / ball.FixedTimeStepSeconds) + 1;
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             fielding.Step(ball.FixedTimeStepSeconds, previous.Position);
@@ -68,12 +76,15 @@ public static class CpuLiveRunningDecisionModel
             if (fielding.TryFindContact(previous, current, out var contact))
             {
                 if (contact.Kind == FieldingContactKind.Catch)
-                    return new CpuLiveRunDecision(false, CpuLiveRunDecisionReason.FielderCanCollectBeforeRun, current.TimeSeconds);
+                    return new CpuLiveRunDecision(0, CpuLiveRunDecisionReason.FielderCanCollectBeforeRun, current.TimeSeconds);
 
-                var throwCanBeatRunner = current.TimeSeconds + pickupAnimationDurationSeconds + throwAnimationDurationSeconds < runDurationSeconds;
+                var safeRuns = CountCompletedRuns(
+                    current.TimeSeconds + pickupAnimationDurationSeconds + throwAnimationDurationSeconds,
+                    runDurationSeconds,
+                    maximumRunCount);
                 return new CpuLiveRunDecision(
-                    !throwCanBeatRunner,
-                    throwCanBeatRunner
+                    safeRuns,
+                    safeRuns == 0
                         ? CpuLiveRunDecisionReason.FielderCanCollectBeforeRun
                         : CpuLiveRunDecisionReason.SafeRunWindow,
                     current.TimeSeconds);
@@ -85,25 +96,52 @@ public static class CpuLiveRunningDecisionModel
                 delivery.FieldSurfaceHeightMeters,
                 delivery.BallRadiusMeters,
                 out _))
-                return new CpuLiveRunDecision(false, CpuLiveRunDecisionReason.BoundaryBeforeRun, current.TimeSeconds);
+            {
+                var safeRuns = CountCompletedRuns(current.TimeSeconds, runDurationSeconds, maximumRunCount);
+                return new CpuLiveRunDecision(
+                    safeRuns,
+                    safeRuns == 0 ? CpuLiveRunDecisionReason.BoundaryBeforeRun : CpuLiveRunDecisionReason.SafeRunWindow,
+                    current.TimeSeconds);
+            }
 
             if (current.Phase == BallMotionPhase.Settled)
             {
-                var safeAtStoppage = current.TimeSeconds >= runDurationSeconds * 0.72f;
+                var safeRunsAtStoppage = CountStoppageRuns(current.TimeSeconds, runDurationSeconds, maximumRunCount);
                 return new CpuLiveRunDecision(
-                    safeAtStoppage,
-                    safeAtStoppage
+                    safeRunsAtStoppage,
+                    safeRunsAtStoppage > 0
                         ? CpuLiveRunDecisionReason.SafeRunAtStoppage
                         : CpuLiveRunDecisionReason.BallStopsBeforeSafeCrossing,
                     current.TimeSeconds);
             }
 
             previous = current;
-            if (current.TimeSeconds >= runDurationSeconds)
-                return new CpuLiveRunDecision(true, CpuLiveRunDecisionReason.SafeRunWindow, current.TimeSeconds);
+            if (current.TimeSeconds >= maximumRunTime)
+                return new CpuLiveRunDecision(
+                    CountCompletedRuns(current.TimeSeconds, runDurationSeconds, maximumRunCount),
+                    CpuLiveRunDecisionReason.SafeRunWindow,
+                    current.TimeSeconds);
         }
 
-        return new CpuLiveRunDecision(true, CpuLiveRunDecisionReason.SafeRunWindow, previous.TimeSeconds);
+        var safeRunsAtEnd = CountStoppageRuns(previous.TimeSeconds, runDurationSeconds, maximumRunCount);
+        return new CpuLiveRunDecision(
+            safeRunsAtEnd,
+            safeRunsAtEnd > 0 ? CpuLiveRunDecisionReason.SafeRunAtStoppage : CpuLiveRunDecisionReason.BallStopsBeforeSafeCrossing,
+            previous.TimeSeconds);
+    }
+
+    private static int CountCompletedRuns(float elapsedSeconds, float runDurationSeconds, int maximumRunCount) =>
+        Math.Clamp((int)MathF.Floor(elapsedSeconds / runDurationSeconds + 0.00001f), 0, maximumRunCount);
+
+    private static int CountStoppageRuns(float elapsedSeconds, float runDurationSeconds, int maximumRunCount)
+    {
+        var completedRuns = CountCompletedRuns(elapsedSeconds, runDurationSeconds, maximumRunCount);
+        if (completedRuns >= maximumRunCount)
+            return maximumRunCount;
+        var elapsedInCurrentRun = elapsedSeconds - completedRuns * runDurationSeconds;
+        return elapsedInCurrentRun >= runDurationSeconds * 0.72f
+            ? completedRuns + 1
+            : completedRuns;
     }
 
     private static bool IsFinite(Vector3 value) =>

@@ -183,6 +183,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             trajectory.OutgoingFrames.Count < 2)
             throw new InvalidOperationException("A physics batting contact did not include its point, velocity, and flight frames.");
 
+        var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
+        var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
         var runDecision = CpuLiveRunningDecisionModel.Choose(
             decision.AttemptRun,
             delivery,
@@ -191,13 +193,22 @@ public static class PhysicsAutomatedMatchBatchSimulator
             fielding.Positions,
             fieldingRatings,
             CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
-            GetAnimationDuration(bowlerAsset, "fielder-pickup"),
-            GetAnimationDuration(bowlerAsset, "fielder-throw"));
+            pickupDuration,
+            throwDuration);
         telemetry.Contacts++;
-        if (decision.AttemptRun && runDecision.AttemptRun)
-            telemetry.SafeRunAttempts++;
+        if (runDecision.PlannedRuns > 1)
+            telemetry.TwoRunPlans++;
+        telemetry.SafeRunAttempts += runDecision.PlannedRuns;
         SimulateBattedBall(
-            match, session, delivery, trajectory, fielding, runDecision.AttemptRun, telemetry);
+            match,
+            session,
+            delivery,
+            trajectory,
+            fielding,
+            runDecision.PlannedRuns,
+            pickupDuration,
+            throwDuration,
+            telemetry);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
         if (session.Extra == DeliveryExtra.NoBall)
@@ -253,13 +264,15 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset delivery,
         BattingPracticeTrajectory trajectory,
         FieldingSide fielding,
-        bool runIntent,
+        int plannedRuns,
+        float pickupDuration,
+        float throwDuration,
         PhysicsMatchTelemetry telemetry)
     {
         var frames = trajectory.OutgoingFrames;
         var contactTime = trajectory.Sample.ContactTimeSeconds
             ?? throw new InvalidOperationException("A hit must include a contact time.");
-        var runActive = runIntent;
+        var completedRuns = 0;
         var previous = frames[0];
         for (var index = 1; index < frames.Count; index++)
         {
@@ -270,31 +283,40 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
             fielding.Step(deltaTime, previous.Position);
             var elapsedSinceContact = current.TimeSeconds - contactTime;
+            while (completedRuns < plannedRuns &&
+                elapsedSinceContact >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
+            {
+                session.RecordCompletedRun();
+                telemetry.CompletedRuns++;
+                completedRuns++;
+            }
             if (fielding.TryFindContact(previous, current, out var fieldingContact))
             {
-                if (runActive && elapsedSinceContact >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
-                {
-                    session.RecordCompletedRun();
-                    telemetry.CompletedRuns++;
-                    runActive = false;
-                }
                 if (fieldingContact.Kind == FieldingContactKind.Catch)
                 {
                     telemetry.Catches++;
                     session.ResolveCatch();
                 }
-                else if (runActive)
-                {
-                    telemetry.GroundPickups++;
-                    session.ResolveRunOut();
-                }
                 else
                 {
                     telemetry.GroundPickups++;
+                    var throwArrivalTime = current.TimeSeconds + pickupDuration + throwDuration;
+                    while (completedRuns < plannedRuns &&
+                        throwArrivalTime >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
+                    {
+                        session.RecordCompletedRun();
+                        telemetry.CompletedRuns++;
+                        completedRuns++;
+                    }
+                    if (completedRuns < plannedRuns)
+                    {
+                        session.ResolveRunOut();
+                        telemetry.RunOuts++;
+                    }
                 }
+                if (session.CompletedRuns >= 2)
+                    telemetry.TwoRunScores++;
                 match.CompleteDelivery();
-                if (session.Dismissal == DismissalKind.RunOut)
-                    telemetry.RunOuts++;
                 return;
             }
 
@@ -307,30 +329,35 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 out var boundary))
             {
                 telemetry.Boundaries++;
+                var elapsedInCurrentRun = elapsedSinceContact -
+                    completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
                 session.ResolveBoundary(
                     boundary.ClearedInTheAir,
-                    runActive && elapsedSinceContact >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds * 0.5f);
+                    completedRuns < plannedRuns &&
+                    elapsedInCurrentRun >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds * 0.5f);
+                if (session.CompletedRuns >= 2)
+                    telemetry.TwoRunScores++;
                 match.CompleteDelivery();
                 return;
             }
 
-            if (runActive && elapsedSinceContact >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
-            {
-                session.RecordCompletedRun();
-                telemetry.CompletedRuns++;
-                runActive = false;
-            }
-
             if (current.Phase == BallMotionPhase.Settled)
             {
-                if (runActive)
+                if (completedRuns < plannedRuns)
                 {
-                    var runReachedEnd = elapsedSinceContact /
+                    var elapsedInCurrentRun = elapsedSinceContact -
+                        completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
+                    var runReachedEnd = elapsedInCurrentRun /
                         CpuLiveRunningDecisionModel.DefaultRunDurationSeconds >= 0.72f;
                     session.ResolveRunAtStoppage(runReachedEnd);
                     if (runReachedEnd)
+                    {
                         telemetry.CompletedRuns++;
+                        completedRuns++;
+                    }
                 }
+                if (session.CompletedRuns >= 2)
+                    telemetry.TwoRunScores++;
                 match.CompleteDelivery();
                 if (session.Dismissal == DismissalKind.RunOut)
                     telemetry.RunOuts++;
@@ -369,6 +396,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         public int Boundaries { get; set; }
         public int RunIntents { get; set; }
         public int SafeRunAttempts { get; set; }
+        public int TwoRunPlans { get; set; }
+        public int TwoRunScores { get; set; }
         public int CompletedRuns { get; set; }
         public int RunOuts { get; set; }
         public int BowledDismissals { get; set; }
@@ -384,6 +413,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             Boundaries,
             RunIntents,
             SafeRunAttempts,
+            TwoRunPlans,
+            TwoRunScores,
             CompletedRuns,
             RunOuts,
             BowledDismissals,
