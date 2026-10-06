@@ -16,8 +16,10 @@ public sealed class OrbitCamera
     private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
-        ("Behind striker", MathHelper.Pi + 0.26f, 0.29f, 11.5f, 38f, new Vector3(0f, 0f, -3f), false),
-        ("Bowler end", 0.24f, 0.28f, 15f, 38f, new Vector3(0f, 0f, 1.8f), false),
+        // Role views keep both wickets and the delivery approach in frame. The close
+        // player-scale shot can still be reached with the in-match zoom controls.
+        ("Behind striker", MathHelper.Pi + 0.26f, 0.31f, 21f, 44f, new Vector3(0f, 0f, 0f), false),
+        ("Bowler end", 0.24f, 0.30f, 20f, 44f, new Vector3(0f, 0f, 0.8f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];

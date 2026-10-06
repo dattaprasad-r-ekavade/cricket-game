@@ -11,6 +11,7 @@ public partial class Game1
 {
     private const float BounceSpotFeedbackDurationSeconds = 4.5f;
     private const float ContactFeedbackDurationSeconds = 4f;
+    private const float LiveFeedbackBannerDurationSeconds = 7f;
     private const float PitchMapLateralHalfExtentMeters = 9f;
     private const float PitchMapLengthMarginMeters = 2f;
     private float _deliverySpeedKilometersPerHour;
@@ -18,6 +19,7 @@ public partial class Game1
     private Vector3? _activeBowlingTargetPosition;
     private float _bounceSpotFeedbackRemainingSeconds;
     private float _contactFeedbackRemainingSeconds;
+    private float _liveFeedbackBannerRemainingSeconds;
     private float? _contactFeedbackQuality;
     private bool _contactFeedbackIsMiss;
     private float? _shotInputDelaySeconds;
@@ -157,18 +159,20 @@ public partial class Game1
         float remaining;
 
         if (IsHumanBowling && _activeBowlingTargetPosition is { } target &&
-            _firstBouncePosition is { } landing && _bounceSpotFeedbackRemainingSeconds > 0f)
+            _firstBouncePosition is { } landing && _liveFeedbackBannerRemainingSeconds > 0f)
         {
             var summary = GetBowlingFeedbackSummary(target, landing);
             title = summary.Title;
             var aimDistance = Vector2.Distance(new Vector2(target.X, target.Z), new Vector2(landing.X, landing.Z));
             detail = $"{summary.Detail} | {aimDistance:0.0} m from your aim";
             accent = _gameSettings.HighContrast ? Color.Yellow : new Color(74, 224, 255);
-            remaining = _bounceSpotFeedbackRemainingSeconds;
+            title = $"YOUR BOWLING | {title}";
+            remaining = _liveFeedbackBannerRemainingSeconds;
         }
-        else if (!IsHumanBowling && _contactFeedbackRemainingSeconds > 0f)
+        else if (!IsHumanBowling && _liveFeedbackBannerRemainingSeconds > 0f &&
+            (_contactFeedbackQuality is not null || _contactFeedbackIsMiss) && _chosenShot is not null)
         {
-            title = GetContactFeedbackLabel();
+            title = $"YOUR BATTING | {GetContactFeedbackLabel()}";
             if (title.Length == 0)
                 return;
             var timing = GetBattingTimingText();
@@ -179,22 +183,24 @@ public partial class Game1
                 _ => ""
             };
             var shotLabel = _chosenShot?.Name ?? "Shot";
-            var qualityLabel = $"{_contactFeedbackQuality!.Value:P0} contact";
+            var qualityLabel = _contactFeedbackQuality is { } quality
+                ? $"{quality:P0} contact"
+                : "no contact";
             detail = _contactFeedbackIsMiss
                 ? "Your swing missed the ball"
                 : string.IsNullOrWhiteSpace(timingDetail)
                     ? $"{shotLabel} | {qualityLabel}"
                     : $"{shotLabel} | {timingDetail} | {qualityLabel}";
             accent = GetContactFeedbackColor();
-            remaining = _contactFeedbackRemainingSeconds;
+            remaining = _liveFeedbackBannerRemainingSeconds;
         }
         else if (!IsHumanBowling && _firstBouncePosition is { } bounce &&
-            _bounceSpotFeedbackRemainingSeconds > 0f)
+            _liveFeedbackBannerRemainingSeconds > 0f)
         {
-            title = $"PITCHED | {GetPitchLengthLabel(bounce).ToUpperInvariant()}";
+            title = $"YOUR DELIVERY | {GetPitchLengthLabel(bounce).ToUpperInvariant()}";
             detail = $"{GetPitchLineLabel(bounce)} | {MathF.Abs(bounce.Z - NearBatterZ):0.0} m from you";
             accent = _gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74);
-            remaining = _bounceSpotFeedbackRemainingSeconds;
+            remaining = _liveFeedbackBannerRemainingSeconds;
         }
         else
         {
@@ -202,18 +208,20 @@ public partial class Game1
         }
 
         var viewport = GraphicsDevice.Viewport;
-        var titleScale = _gameSettings.LargeText ? 1.9f : 1.75f;
-        var detailScale = _gameSettings.LargeText ? 1.28f : 1.16f;
-        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 760 : 660);
-        var textWidth = panelWidth - 54;
+        var titleScale = _gameSettings.LargeText ? 1.32f : 1.22f;
+        var detailScale = _gameSettings.LargeText ? 1.02f : 0.94f;
+        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 470 : 430);
+        var textWidth = panelWidth - 42;
         var detailLines = WrapFeedbackLines(new[] { detail }, textWidth, detailScale);
-        var lineSpacing = (int)MathF.Round(25 * detailScale);
-        var panelHeight = Math.Max(_gameSettings.LargeText ? 126 : 116,
-            30 + 38 + detailLines.Count * lineSpacing);
+        var lineSpacing = (int)MathF.Round(23 * detailScale);
+        var panelHeight = Math.Max(_gameSettings.LargeText ? 92 : 84,
+            22 + 32 + detailLines.Count * lineSpacing);
         var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
         var hudBottom = 20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f);
-        var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);
-        var panelY = Math.Min((int)MathF.Ceiling(hudBottom + 12f), viewport.Height - panelHeight - 20);
+        var panelX = Math.Max(20, viewport.Width - panelWidth - 20);
+        var panelY = panelX > viewport.Width * 0.67f
+            ? 20
+            : Math.Min((int)MathF.Ceiling(hudBottom + 12f), viewport.Height - panelHeight - 20);
         panelY = Math.Max(20, panelY);
         var panel = new Rectangle(panelX, panelY, panelWidth, panelHeight);
         var fade = Math.Clamp(remaining / 0.32f, 0f, 1f);
@@ -222,10 +230,10 @@ public partial class Game1
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
         _spriteBatch.Draw(_feedbackMapPixel, panel, background);
-        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 9, panel.Height), accent);
-        DrawOverlayText(title, new Vector2(panel.X + 24, panel.Y + 9), accent, titleScale);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 7, panel.Height), accent);
+        DrawOverlayText(title, new Vector2(panel.X + 17, panel.Y + 7), accent, titleScale);
         for (var index = 0; index < detailLines.Count; index++)
-            DrawOverlayText(detailLines[index], new Vector2(panel.X + 24, panel.Y + 53 + index * lineSpacing),
+            DrawOverlayText(detailLines[index], new Vector2(panel.X + 17, panel.Y + 39 + index * lineSpacing),
                 Color.White, detailScale);
         _spriteBatch.End();
     }
@@ -542,6 +550,7 @@ public partial class Game1
         _contactFeedbackQuality = _contactQuality;
         _contactFeedbackIsMiss = false;
         _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds * 0.82f;
+        _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds * 0.82f;
         _match.CompleteDelivery();
         _shotResolved = true;
         _simulationPaused = true;

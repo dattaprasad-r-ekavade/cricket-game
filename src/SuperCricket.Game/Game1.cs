@@ -702,6 +702,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 {
                     _firstBouncePosition = ToXna(frame.Position);
                     _bounceSpotFeedbackRemainingSeconds = BounceSpotFeedbackDurationSeconds;
+                    _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                 }
                 if (_chosenShot is not null && !_shotResolved &&
                     TryBatContact(
@@ -727,6 +728,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     _contactFeedbackQuality = impact.ContactQuality;
                     _contactFeedbackIsMiss = false;
                     _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
+                    _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                     _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
@@ -760,6 +762,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     _contactFeedbackQuality = null;
                     _contactFeedbackIsMiss = true;
                     _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
+                    _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
                 }
 
@@ -817,6 +820,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _bounceSpotFeedbackRemainingSeconds = MathF.Max(0f, _bounceSpotFeedbackRemainingSeconds - elapsedSeconds);
             _contactFeedbackRemainingSeconds = MathF.Max(0f, _contactFeedbackRemainingSeconds - elapsedSeconds);
+            _liveFeedbackBannerRemainingSeconds = MathF.Max(0f, _liveFeedbackBannerRemainingSeconds - elapsedSeconds);
         }
 
         _frameTimeMilliseconds = gameTime.ElapsedGameTime.TotalMilliseconds;
@@ -1486,6 +1490,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _firstBouncePosition = null;
         _bounceSpotFeedbackRemainingSeconds = 0f;
         _contactFeedbackRemainingSeconds = 0f;
+        _liveFeedbackBannerRemainingSeconds = 0f;
         _contactFeedbackQuality = null;
         _contactFeedbackIsMiss = false;
         _activeBowlingTargetPosition = IsCpuBattingControlled && !_developerMode

@@ -41,8 +41,8 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 11.5f) < 0.001f,
-            "the batting delivery did not start with the closer shoulder-offset behind-striker camera");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 21f) < 0.001f,
+            "the batting delivery did not start with the wide behind-striker view that keeps the run-up in frame");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
@@ -145,13 +145,13 @@ public partial class Game1
             MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 11.5f) < 0.001f &&
-            MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 3f) < 0.001f &&
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 21f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f && MathF.Abs(ballCamera.Target.Z) < 0.001f &&
             ballCamera.Yaw > MathHelper.Pi && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 15f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f &&
+            MathF.Abs(ballCamera.Distance - 20f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Yaw > 0f &&
-            MathF.Abs(ballCamera.Target.Z - 1.8f) < 0.001f,
-            "batting and bowling cameras did not use closer shoulder-offset pitch framing");
+            MathF.Abs(ballCamera.Target.Z - 0.8f) < 0.001f,
+            "batting and bowling cameras did not use wide, elevated, pitch-centred role framing");
         var keyboardZoomDistance = ballCamera.Distance;
         var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
         ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));
@@ -203,16 +203,21 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: human role cameras use closer, zoomed pitch framing; batting and bowling feedback is role-specific.");
+        Console.WriteLine("PASS: human role cameras use wide, pitch-centred run-up framing with keyboard zoom; live feedback is role-labelled.");
 
         Reset();
         for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
         Require(_firstBouncePosition is not null && _bounceSpotFeedbackRemainingSeconds > 0f,
             "the first ball bounce did not start a longer in-world pitch marker");
+        Require(_liveFeedbackBannerRemainingSeconds <= LiveFeedbackBannerDurationSeconds &&
+            _liveFeedbackBannerRemainingSeconds > LiveFeedbackBannerDurationSeconds - 0.02f,
+            "the live feedback banner did not start its longer visibility window at the bounce");
         var bounceMarkerRemaining = _bounceSpotFeedbackRemainingSeconds;
         Tick(0.1f);
         Require(_bounceSpotFeedbackRemainingSeconds < bounceMarkerRemaining && _bounceSpotFeedbackRemainingSeconds > 0f,
             "the in-world pitch marker did not fade with elapsed game time");
+        Require(_liveFeedbackBannerRemainingSeconds > _bounceSpotFeedbackRemainingSeconds,
+            "the readable live feedback banner expired before the shorter world-space bounce marker");
         Tick(BounceSpotFeedbackDurationSeconds);
         Require(_bounceSpotFeedbackRemainingSeconds == 0f,
             "the in-world pitch marker persisted past its visibility window");
