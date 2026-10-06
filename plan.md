@@ -50,7 +50,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 20 — Sweep the moving bat against the ball and derive shot outcomes from swing velocity and sweet-spot contact; add a local batting analyzer.
 - [x] Step 21 — Calibrate shot timing from exported batter/bowler clips against full delivery presets with a repeatable batting-practice sweep.
 - [x] Step 22 — Review and regression-test gameplay, fix pause/scoring/analyzer defects, and add one repeatable review command.
-- [ ] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
+- [x] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
 - [ ] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
 - [ ] Step 25 — Add batter footwork or leave so the wide preset can find contact.
 - [ ] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
@@ -226,6 +226,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Phase 2 positioning is open: the batter stays at the crease and the wide practice sweep has no contacts.
 - Recorded current assumptions above and queued Steps 23–26. Full findings: `docs/reviews/2026-10-06-planning.md`.
 
+### Step 23 notes
+
+- Added graphics-independent `MatchState` and `DeliverySession` types. The game now asks Simulation to begin and finish deliveries; Simulation owns batter/extra/completed runs, legality, catches, run-outs, boundary run allowances, dismissals, and scorecard updates.
+- Kept ball-flight contact detection, fielder movement, authored throw timing, UI text, and animations in the game host. No render code moved into Simulation.
+- Added `verify-match` checks for delivery lifecycle, wide/no-ball legality, caught scoring, boundaries with a run in progress, and no-ball run-outs; added the command to `tools/review.ps1` and the tool guide.
+- Release build and game update regressions pass. The remaining geometric catch/boundary heuristics and throw travel are Step 24 work.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -280,7 +287,7 @@ Build a Field Lab to place players, inspect interception predictions and reachab
 
 **Gate:** play six legal deliveries, resolve extras and supported dismissals, update score and striker correctly, and return to a stable state after every ball.
 
-**Open after Step 22:** the over plays and the sample scenario finishes 10/2. Catch eligibility, throw travel, receiving, and run-out still use heuristics. Dedicated scenarios are Step 24; moving resolution out of `Game1` is Step 23. Do not start Phase 5 until those land.
+**Open after Step 23:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Catch eligibility, boundary crossing, throw travel, receiving, and run-out detection still use heuristics. Dedicated fielding and rules scenarios are Step 24. Do not start Phase 5 until those land.
 
 ## Phase 4 — Demonstrate the visual target
 

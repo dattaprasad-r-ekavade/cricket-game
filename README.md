@@ -21,7 +21,7 @@ The match scene uses metres in world space and includes a procedural stadium pre
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application
-- `src/SuperCricket.Simulation` — graphics-independent ball-flight, batting-impact, fielding, and over-scoring simulation
+- `src/SuperCricket.Simulation` — graphics-independent ball flight, batting impact, fielding, delivery resolution, and match state
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating content, analyzing batting and field coverage, and replaying scenarios
 - `assets` — editable delivery and field presets plus Blender-authored batter and bowler source/export
@@ -47,6 +47,7 @@ dotnet run --project src/SuperCricket.Tools -- verify-batting-practice assets/ch
 dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
+dotnet run --project src/SuperCricket.Tools -- verify-match
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.

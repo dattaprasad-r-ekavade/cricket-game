@@ -17,11 +17,12 @@ public partial class Game1
         {
             if (!condition) throw new InvalidOperationException($"Gameplay review failed: {message}");
         }
-        void Reset()
+        void Reset(int deliveryPresetIndex = 0)
         {
             _previousKeyboard = default;
-            _nextDeliveryPresetIndex = 0;
-            StartNewOver();
+            _nextDeliveryPresetIndex = deliveryPresetIndex;
+            _match.Reset();
+            BeginDelivery();
         }
 
         Reset();
@@ -63,7 +64,7 @@ public partial class Game1
             "paused throw advanced or resolved delivery");
         Tick(0f, Keys.P);
         for (var step = 0; step < 150 && !_deliveryComplete; step++) Tick(1f / 120f);
-        Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _scoreboard.Wickets == 1,
+        Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _match.Wickets == 1,
             "resumed pickup/throw did not finish as a run-out");
         Console.WriteLine("PASS: pickup/throw pause and authored throw completion.");
 
@@ -74,17 +75,15 @@ public partial class Game1
             Require(_deliveryComplete && _dismissal == DismissalKind.Bowled, "unplayed delivery failed to resolve bowled");
             if (delivery < 5) BeginDelivery();
         }
-        Require(_scoreboard.IsOverComplete && _scoreboard.LegalBalls == 6 && _scoreboard.Wickets == 6,
+        Require(_match.IsOverComplete && _match.LegalBalls == 6 && _match.Wickets == 6,
             "six legal deliveries did not complete the over");
         Console.WriteLine("PASS: six bowled deliveries complete an over.");
 
         foreach (var presetIndex in new[] { 1, 2 })
         {
-            Reset();
-            _nextDeliveryPresetIndex = presetIndex;
-            BeginDelivery();
+            Reset(presetIndex);
             for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-            Require(_deliveryComplete && _scoreboard.Runs == 1 && _scoreboard.LegalBalls == 0 && _scoreboard.Wickets == 0,
+            Require(_deliveryComplete && _match.Runs == 1 && _match.LegalBalls == 0 && _match.Wickets == 0,
                 "wide/no-ball did not award one extra without a legal ball or bowled wicket");
         }
         Console.WriteLine("PASS: wide and no-ball gameplay scoring.");
@@ -108,44 +107,39 @@ public partial class Game1
         {
             Reset();
             _battedBall = true;
-            _batterRuns = 1;
-            _completedRuns = 1;
+            CurrentDelivery.RecordCompletedRun();
             ResolveSettledBall(new BallFlightFrame(2f, new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 3f, 0f),
                 NumericsVector3.Zero, boundaryRuns == 6 ? 0 : 1, BallMotionPhase.Settled));
-            Require(_scoreboard.Runs == boundaryRuns && _scoreboard.Striker == 1 && _scoreboard.NonStriker == 2,
+            Require(_match.Runs == boundaryRuns && _match.Striker == 1 && _match.NonStriker == 2,
                 "boundary incorrectly added an earlier run or changed strike");
         }
         Console.WriteLine("PASS: four/six scoring replaces earlier completed runs and restores ends.");
 
         Reset();
         _battedBall = true;
-        _batterRuns = 4;
-        _completedRuns = 4;
+        for (var run = 0; run < 4; run++)
+            CurrentDelivery.RecordCompletedRun();
         _isRunning = true;
         _runElapsed = _runDurationSeconds * 0.6f;
         ResolveSettledBall(new BallFlightFrame(2f, new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 0.1f, 0f),
             NumericsVector3.Zero, 1, BallMotionPhase.Settled));
-        Require(_scoreboard.Runs == 5 && _scoreboard.Striker == 2,
+        Require(_match.Runs == 5 && _match.Striker == 2,
             "boundary failed to preserve the greater running allowance including a crossed run");
         Console.WriteLine("PASS: running allowance greater than the boundary allowance.");
 
         Reset();
         _battedBall = true;
-        _batterRuns = 1;
-        _completedRuns = 1;
+        CurrentDelivery.RecordCompletedRun();
         ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.Catch));
-        Require(_scoreboard.Runs == 0 && _scoreboard.Wickets == 1 && _scoreboard.Striker == 3 && _scoreboard.NonStriker == 2,
+        Require(_match.Runs == 0 && _match.Wickets == 1 && _match.Striker == 3 && _match.NonStriker == 2,
             "catch retained completed runs or replaced the wrong batter");
         Console.WriteLine("PASS: a legal catch voids completed runs and replaces the striker.");
 
-        Reset();
-        _nextDeliveryPresetIndex = 2;
-        BeginDelivery();
+        Reset(2);
         _battedBall = true;
-        _batterRuns = 1;
-        _completedRuns = 1;
+        CurrentDelivery.RecordCompletedRun();
         ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.Catch));
-        Require(_scoreboard.Runs == 2 && _scoreboard.Wickets == 0 && _scoreboard.LegalBalls == 0 && _scoreboard.Striker == 2,
+        Require(_match.Runs == 2 && _match.Wickets == 0 && _match.LegalBalls == 0 && _match.Striker == 2,
             "no-ball catch incorrectly voided runs or dismissed the striker");
         Console.WriteLine("PASS: no-ball catch retains completed runs plus the penalty.");
         Console.WriteLine("Gameplay review checks passed.");

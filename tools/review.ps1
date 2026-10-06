@@ -20,6 +20,7 @@ try {
     Invoke-CheckedDotNet @($toolsDll, 'validate-shots', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
+    Invoke-CheckedDotNet @($toolsDll, 'verify-match')
     foreach ($presetName in @('standard', 'wide', 'no-ball')) {
         $deliveryPath = "assets/deliveries/$presetName-pace.json"
         Invoke-CheckedDotNet @($toolsDll, 'validate', $deliveryPath)

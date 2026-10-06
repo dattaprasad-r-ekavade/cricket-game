@@ -15,6 +15,9 @@ namespace SuperCricket.Game;
 
 public partial class Game1 : Microsoft.Xna.Framework.Game
 {
+    private DeliverySession CurrentDelivery => _match.CurrentDelivery
+        ?? throw new InvalidOperationException("No delivery is active.");
+
     private enum FielderSequencePhase
     {
         None,
@@ -64,7 +67,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly string?[] _fielderActionClips = new string?[FieldingSide.FielderCount];
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
-    private OverScoreboard _scoreboard = new();
+    private readonly MatchState _match = new();
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
@@ -79,13 +82,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _showDebugOverlay;
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
-    private bool _deliveryComplete;
+    private bool _deliveryComplete => _match.CurrentDelivery?.IsComplete == true;
     private bool _battedBall;
-    private int _batterRuns;
-    private int _extraRuns;
-    private int _completedRuns;
-    private DeliveryExtra _extraType;
-    private DismissalKind _dismissal;
+    private int _batterRuns => _match.CurrentDelivery?.BatterRuns ?? 0;
+    private int _extraRuns => _match.CurrentDelivery?.ExtraRuns ?? 0;
+    private int _completedRuns => _match.CurrentDelivery?.CompletedRuns ?? 0;
+    private DeliveryExtra _extraType => _match.CurrentDelivery?.Extra ?? DeliveryExtra.None;
+    private DismissalKind _dismissal => _match.CurrentDelivery?.Dismissal ?? DismissalKind.None;
     private bool _isRunning;
     private bool _runRequestedPending;
     private float _runElapsed;
@@ -330,7 +333,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             StartNewOver();
         }
         if (keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N) &&
-            _deliveryComplete && !_scoreboard.IsOverComplete)
+            _deliveryComplete && !_match.IsOverComplete)
         {
             BeginDelivery();
         }
@@ -576,7 +579,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             var matchLines = new[]
             {
                 "SUPER CRICKET  /  ONE-OVER MATCH",
-                $"{_scoreboard.Runs}/{_scoreboard.Wickets}    {_scoreboard.OversText} overs    legal balls {_scoreboard.LegalBalls}/6",
+                $"{_match.Runs}/{_match.Wickets}    {_match.OversText} overs    legal balls {_match.LegalBalls}/6",
                 eventText,
                 "F1: debug    V: camera view    N: next ball"
             };
@@ -596,7 +599,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             "SUPER CRICKET  /  ONE-OVER MATCH",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
-            $"Over {_scoreboard.OversText}    {_scoreboard.Runs}/{_scoreboard.Wickets}    Striker {_scoreboard.Striker}    legal balls {_scoreboard.LegalBalls}/6",
+            $"Over {_match.OversText}    {_match.Runs}/{_match.Wickets}    Striker {_match.Striker}    legal balls {_match.LegalBalls}/6",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
@@ -622,31 +625,26 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void StartNewOver()
     {
-        _scoreboard.Reset();
+        _match.Reset();
         _nextDeliveryPresetIndex = 0;
         BeginDelivery();
     }
 
     private void BeginDelivery()
     {
-        if (_scoreboard.IsOverComplete)
+        if (_match.IsOverComplete)
             return;
 
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         _deliveryPreset = _deliveryPresets[_activeDeliveryPresetIndex];
+        _match.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;
         _shotResolved = false;
-        _deliveryComplete = false;
         _battedBall = false;
-        _batterRuns = 0;
-        _extraRuns = 0;
-        _completedRuns = 0;
-        _extraType = DeliveryExtra.None;
-        _dismissal = DismissalKind.None;
         _isRunning = false;
         _runRequestedPending = false;
         _runElapsed = 0f;
@@ -940,7 +938,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _fielderActionHoldAtEnd[_fielderThrowerIndex] = false;
         if (_isRunning)
         {
-            _dismissal = DismissalKind.RunOut;
+            CurrentDelivery.ResolveRunOut();
             _shotOutcome = $"OUT: fielder {_fielderThrowerIndex + 1} threw to the wicketkeeper";
         }
         else
@@ -950,10 +948,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         FinishDelivery();
     }
 
-    private void CompleteRun()
+    private void CompleteRun(bool recordScoring = true)
     {
-        _batterRuns++;
-        _completedRuns++;
+        if (recordScoring)
+            CurrentDelivery.RecordCompletedRun();
         _isRunning = false;
         _runElapsed = 0f;
         _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
@@ -963,32 +961,29 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
     {
         var contact = ToXna(wicketLinePosition);
-        if (_deliveryPreset.IsNoBall)
+        var resolution = CurrentDelivery.ResolveIncoming(
+            isWide: MathF.Abs(contact.X) > _deliveryPreset.PitchWidthMeters / 2f + 0.55f,
+            hitsWickets: MathF.Abs(contact.X) <= 0.12f + _deliveryPreset.BallRadiusMeters &&
+                contact.Y >= 0f && contact.Y <= PracticeGround.WicketHeight + _deliveryPreset.BallRadiusMeters);
+        switch (resolution)
         {
-            _extraRuns = 1;
-            _extraType = DeliveryExtra.NoBall;
-            _shotOutcome = "NO-BALL: one penalty run, delivery not counted";
-            FinishDelivery();
-        }
-        else if (MathF.Abs(contact.X) > _deliveryPreset.PitchWidthMeters / 2f + 0.55f)
-        {
-            _extraRuns = 1;
-            _extraType = DeliveryExtra.Wide;
-            _shotOutcome = "WIDE: one extra run, delivery not counted";
-            FinishDelivery();
-        }
-        else if (MathF.Abs(contact.X) <= 0.12f + _deliveryPreset.BallRadiusMeters &&
-                 contact.Y >= 0f && contact.Y <= PracticeGround.WicketHeight + _deliveryPreset.BallRadiusMeters)
-        {
-            _dismissal = DismissalKind.Bowled;
-            _shotOutcome = "OUT: bowled";
-            FinishDelivery();
-        }
-        else
-        {
-            if (_chosenShot is null)
-                _shotOutcome = "DOT: missed the stumps";
-            FinishDelivery();
+            case IncomingDeliveryResolution.NoBall:
+                _shotOutcome = "NO-BALL: one penalty run, delivery not counted";
+                FinishDelivery();
+                break;
+            case IncomingDeliveryResolution.Wide:
+                _shotOutcome = "WIDE: one extra run, delivery not counted";
+                FinishDelivery();
+                break;
+            case IncomingDeliveryResolution.Bowled:
+                _shotOutcome = "OUT: bowled";
+                FinishDelivery();
+                break;
+            default:
+                if (_chosenShot is null)
+                    _shotOutcome = "DOT: missed the stumps";
+                FinishDelivery();
+                break;
         }
 
         _ballFlight.StopAtContact(wicketLinePosition);
@@ -1006,17 +1001,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (contact.Kind == FieldingContactKind.Catch)
         {
             StartFielderAction(contact.FielderIndex, "fielder-catch", holdAtEnd: true);
-            if (_deliveryPreset.IsNoBall)
+            if (!CurrentDelivery.ResolveCatch())
             {
-                _extraRuns = 1;
-                _extraType = DeliveryExtra.NoBall;
                 _shotOutcome = $"NO-BALL: fielder {contact.FielderIndex + 1} caught it; one penalty run";
             }
             else
             {
-                _batterRuns = 0;
-                _completedRuns = 0;
-                _dismissal = DismissalKind.Caught;
                 _shotOutcome = $"OUT: caught by fielder {contact.FielderIndex + 1}";
             }
         }
@@ -1037,11 +1027,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _shotOutcome = $"Fielder {contact.FielderIndex + 1} collected the ball";
         }
 
-        if (_deliveryPreset.IsNoBall && _extraType == DeliveryExtra.None)
-        {
-            _extraRuns = 1;
-            _extraType = DeliveryExtra.NoBall;
-        }
         _ballFlight.StopAtContact(ToNumerics(contact.Position));
         if (!_fielderThrowActive)
             FinishDelivery();
@@ -1053,20 +1038,18 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (_battedBall && horizontalDistance >= _deliveryPreset.FieldBoundaryRadiusMeters - 0.001f)
         {
             var isSix = frame.BounceCount == 0 && frame.Position.Y > _deliveryPreset.FieldSurfaceHeightMeters + 1f;
-            var boundaryRuns = isSix ? 6 : 4;
-            var runningRuns = _completedRuns + (_isRunning && _runElapsed >= _runDurationSeconds * 0.5f ? 1 : 0);
-            _batterRuns = Math.Max(boundaryRuns, runningRuns);
-            _completedRuns = runningRuns > boundaryRuns ? runningRuns : 0;
+            CurrentDelivery.ResolveBoundary(isSix, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
             _shotOutcome = isSix ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
             _isRunning = false;
         }
         else if (_isRunning)
         {
-            if (_runElapsed / _runDurationSeconds >= 0.72f)
-                CompleteRun();
-            else if (!_deliveryPreset.IsNoBall)
+            var runCompleted = _runElapsed / _runDurationSeconds >= 0.72f;
+            var runOut = CurrentDelivery.ResolveRunAtStoppage(runCompleted);
+            if (runCompleted)
+                CompleteRun(recordScoring: false);
+            else if (runOut)
             {
-                _dismissal = DismissalKind.RunOut;
                 _shotOutcome = "OUT: run out while attempting a run";
             }
             else
@@ -1075,11 +1058,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             }
         }
 
-        if (_deliveryPreset.IsNoBall && _extraType == DeliveryExtra.None)
-        {
-            _extraRuns = 1;
-            _extraType = DeliveryExtra.NoBall;
-        }
         if (_shotOutcome.StartsWith("Choose", StringComparison.Ordinal))
             _shotOutcome = _battedBall ? "DOT: field held the shot" : "DOT ball";
         FinishDelivery();
@@ -1090,17 +1068,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (_deliveryComplete)
             return;
 
-        var isLegal = _extraType is not (DeliveryExtra.Wide or DeliveryExtra.NoBall);
-        var result = new DeliveryResult(
-            _batterRuns,
-            _extraRuns,
-            _completedRuns,
-            isLegal,
-            _extraType,
-            _dismissal,
-            DismissedEnd.Striker);
-        _scoreboard.RecordDelivery(result);
-        _deliveryComplete = true;
+        _match.CompleteDelivery();
         _isRunning = false;
         _runRequestedPending = false;
         _fielderThrowActive = false;
