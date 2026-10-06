@@ -74,6 +74,7 @@ public sealed class TeamRosterAsset
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var orders = new HashSet<int>();
         var wicketkeepers = 0;
+        var bowlingOptions = 0;
         for (var index = 0; index < Players.Count; index++)
         {
             var player = Players[index];
@@ -93,14 +94,23 @@ public sealed class TeamRosterAsset
                 errors.Add($"Roster player '{player.Name}' has an unsupported role.");
             if (string.Equals(player.Role, "Wicketkeeper", StringComparison.OrdinalIgnoreCase))
                 wicketkeepers++;
+            if (string.Equals(player.Role, "Bowler", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(player.Role, "AllRounder", StringComparison.OrdinalIgnoreCase))
+                bowlingOptions++;
             if (player.Timing is < 0 or > 100)
                 errors.Add($"Roster player '{player.Name}' timing must be between 0 and 100.");
             if (player.Power is < 0 or > 100)
                 errors.Add($"Roster player '{player.Name}' power must be between 0 and 100.");
+            if (player.Bowling is < 0 or > 100)
+                errors.Add($"Roster player '{player.Name}' bowling skill must be between 0 and 100.");
+            if (player.Fielding is < 0 or > 100)
+                errors.Add($"Roster player '{player.Name}' fielding skill must be between 0 and 100.");
         }
 
         if (wicketkeepers != 1)
             errors.Add("A team roster must have exactly one wicketkeeper.");
+        if (bowlingOptions == 0)
+            errors.Add("A team roster must have at least one bowler or all-rounder.");
         return errors;
     }
 
@@ -131,7 +141,9 @@ public sealed class TeamRosterAsset
                 BattingOrder = order,
                 Role = order == 1 ? "Wicketkeeper" : order <= 4 ? "Batter" : order <= 7 ? "AllRounder" : "Bowler",
                 Timing = 50,
-                Power = 50
+                Power = 50,
+                Bowling = order <= 4 ? 35 : order <= 7 ? 65 : 82,
+                Fielding = order == 1 ? 90 : order <= 4 ? 60 : order <= 7 ? 68 : 55
             }).ToList()
         };
     }
@@ -158,4 +170,6 @@ public sealed class TeamPlayerData
     public string Role { get; set; } = string.Empty;
     public int Timing { get; set; } = 50;
     public int Power { get; set; } = 50;
+    public int Bowling { get; set; } = 50;
+    public int Fielding { get; set; } = 50;
 }

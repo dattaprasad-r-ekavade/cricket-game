@@ -109,7 +109,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private DismissalKind _dismissal => _match.CurrentDelivery?.Dismissal ?? DismissalKind.None;
     private string ScoreStatusText => _match.IsMatchComplete
         ? _match.ResultText
-        : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}";
+        : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}    bowler {_match.CurrentBowler.Name}";
     private bool _isRunning;
     private bool _runRequestedPending;
     private float _runElapsed;
@@ -827,6 +827,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         _deliveryPreset = _deliveryPresets[_activeDeliveryPresetIndex];
+        ConfigureFieldingRatingsForCurrentSide();
         _match.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _simulationAccumulator = 0f;
@@ -864,6 +865,15 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerReleased = false;
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
+    }
+
+    private void ConfigureFieldingRatingsForCurrentSide()
+    {
+        var players = _match.FieldingPlayers;
+        var ratings = new int[players.Count];
+        for (var index = 0; index < players.Count; index++)
+            ratings[index] = players[index].Fielding;
+        _fieldingSide.ConfigureFieldingRatings(ratings);
     }
 
     private float UpdateBowler(float elapsedSeconds)

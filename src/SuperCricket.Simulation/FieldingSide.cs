@@ -34,6 +34,9 @@ public sealed class FieldingSide
     public const float FieldingRadiusMeters = 0.68f;
     public const float MinimumCatchHeightAboveGroundMeters = 0.72f;
     public const int FielderCount = 10;
+    private readonly float[] _moveSpeeds = Enumerable.Repeat(MoveSpeedMetersPerSecond, FielderCount).ToArray();
+    private readonly float[] _reactionTimes = Enumerable.Repeat(ReactionSeconds, FielderCount).ToArray();
+    private readonly float[] _pickupRadii = Enumerable.Repeat(FieldingRadiusMeters, FielderCount).ToArray();
     private int _activeChaser = -1;
     private float _reactionRemaining;
 
@@ -70,6 +73,35 @@ public sealed class FieldingSide
         return ReactionSeconds + MathF.Max(0f, distance - FieldingRadiusMeters) / MoveSpeedMetersPerSecond;
     }
 
+    public static float EstimateReachTime(Vector3 start, Vector3 target, int fieldingRating)
+    {
+        ValidateFieldingRating(fieldingRating, nameof(fieldingRating));
+        if (!IsFinite(start) || !IsFinite(target))
+            throw new ArgumentException("Reach estimates require finite positions.");
+        var moveSpeed = GetMoveSpeed(fieldingRating);
+        var reactionTime = GetReactionTime(fieldingRating);
+        var pickupRadius = GetPickupRadius(fieldingRating);
+        var distance = MathF.Sqrt(HorizontalDistanceSquared(start, target));
+        return reactionTime + MathF.Max(0f, distance - pickupRadius) / moveSpeed;
+    }
+
+    public void ConfigureFieldingRatings(IReadOnlyList<int> fieldingRatings)
+    {
+        ArgumentNullException.ThrowIfNull(fieldingRatings);
+        if (fieldingRatings.Count != FielderCount)
+            throw new ArgumentException($"A fielding side requires exactly {FielderCount} fielding ratings.", nameof(fieldingRatings));
+        for (var index = 0; index < fieldingRatings.Count; index++)
+            ValidateFieldingRating(fieldingRatings[index], nameof(fieldingRatings));
+
+        for (var index = 0; index < fieldingRatings.Count; index++)
+        {
+            var rating = fieldingRatings[index];
+            _moveSpeeds[index] = GetMoveSpeed(rating);
+            _reactionTimes[index] = GetReactionTime(rating);
+            _pickupRadii[index] = GetPickupRadius(rating);
+        }
+    }
+
     public void Step(float deltaTime, Vector3 ballPosition)
     {
         if (!float.IsFinite(deltaTime) || deltaTime < 0f || !IsFinite(ballPosition))
@@ -79,18 +111,19 @@ public sealed class FieldingSide
         if (_activeChaser < 0)
         {
             var chaser = 0;
-            var nearestDistanceSquared = float.PositiveInfinity;
+            var fastestReachTime = float.PositiveInfinity;
             for (var index = 0; index < _positions.Length; index++)
             {
-                var distanceSquared = HorizontalDistanceSquared(_positions[index], target);
-                if (distanceSquared < nearestDistanceSquared)
+                var reachDistance = MathF.Sqrt(HorizontalDistanceSquared(_positions[index], target));
+                var reachTime = _reactionTimes[index] + MathF.Max(0f, reachDistance - _pickupRadii[index]) / _moveSpeeds[index];
+                if (reachTime < fastestReachTime)
                 {
                     chaser = index;
-                    nearestDistanceSquared = distanceSquared;
+                    fastestReachTime = reachTime;
                 }
             }
             _activeChaser = chaser;
-            _reactionRemaining = ReactionSeconds;
+            _reactionRemaining = _reactionTimes[chaser];
         }
 
         if (_reactionRemaining > 0f)
@@ -105,7 +138,7 @@ public sealed class FieldingSide
         if (distance <= 0.0001f)
             return;
 
-        var travel = MathF.Min(distance, MoveSpeedMetersPerSecond * deltaTime);
+        var travel = MathF.Min(distance, _moveSpeeds[_activeChaser] * deltaTime);
         var moved = new Vector3(delta.X / distance * travel, 0f, delta.Z / distance * travel);
         var next = current + moved;
         var boundaryRadius = MathF.Sqrt(next.X * next.X + next.Z * next.Z);
@@ -131,7 +164,8 @@ public sealed class FieldingSide
                 ? 0f
                 : Math.Clamp(Vector2.Dot(point - start, segment) / denominator, 0f, 1f);
             var closest = Vector2.Lerp(start, end, fraction);
-            if (Vector2.DistanceSquared(closest, point) > FieldingRadiusMeters * FieldingRadiusMeters || fraction >= bestFraction)
+            var pickupRadius = _pickupRadii[index];
+            if (Vector2.DistanceSquared(closest, point) > pickupRadius * pickupRadius || fraction >= bestFraction)
                 continue;
 
             var ballHeight = previous.Position.Y + (current.Position.Y - previous.Position.Y) * fraction;
@@ -166,4 +200,14 @@ public sealed class FieldingSide
 
     private static bool IsFinite(Vector3 value) =>
         float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
+
+    private static float GetMoveSpeed(int rating) => MoveSpeedMetersPerSecond * (0.75f + rating * 0.005f);
+    private static float GetReactionTime(int rating) => 0.22f - rating * 0.0016f;
+    private static float GetPickupRadius(int rating) => 0.50f + rating * 0.0036f;
+
+    private static void ValidateFieldingRating(int rating, string parameterName)
+    {
+        if (rating is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(parameterName, "Fielding ratings must be between 0 and 100.");
+    }
 }

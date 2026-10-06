@@ -29,6 +29,19 @@ public static class TeamRosterReviewChecks
         invalidRating.Players[0].Power = 101;
         Require(invalidRating.Validate().Any(error => error.Contains("power", StringComparison.OrdinalIgnoreCase)),
             "a rating above 100 was accepted");
+        var invalidBowlingRating = TeamRosterAsset.CreatePlaceholder("Invalid Bowling XI");
+        invalidBowlingRating.Players[7].Bowling = -1;
+        Require(invalidBowlingRating.Validate().Any(error => error.Contains("bowling skill", StringComparison.OrdinalIgnoreCase)),
+            "a negative bowling rating was accepted");
+        var invalidFieldingRating = TeamRosterAsset.CreatePlaceholder("Invalid Fielding XI");
+        invalidFieldingRating.Players[0].Fielding = 101;
+        Require(invalidFieldingRating.Validate().Any(error => error.Contains("fielding skill", StringComparison.OrdinalIgnoreCase)),
+            "a fielding rating above 100 was accepted");
+        var noBowlingOptions = TeamRosterAsset.CreatePlaceholder("No Bowling XI");
+        foreach (var player in noBowlingOptions.Players.Where(player => !string.Equals(player.Role, "Wicketkeeper", StringComparison.OrdinalIgnoreCase)))
+            player.Role = "Batter";
+        Require(noBowlingOptions.Validate().Any(error => error.Contains("at least one bowler", StringComparison.OrdinalIgnoreCase)),
+            "a team without a bowler or all-rounder was accepted");
         var invalidColor = TeamRosterAsset.CreatePlaceholder("Invalid Color XI");
         invalidColor.PrimaryKitColorHex = "blue";
         Require(invalidColor.Validate().Any(error => error.Contains("#RRGGBB", StringComparison.OrdinalIgnoreCase)),
@@ -77,7 +90,7 @@ public static class TeamRosterReviewChecks
         RequireThrows(() => BattingImpactModel.Calculate(incoming, Vector3.Zero, Vector2.Zero, shot, invalidRating.Players[0]),
             "batting impact accepted an out-of-range player rating");
 
-        Console.WriteLine("PASS: team roster validation, batting order, and player timing/power attributes.");
+        Console.WriteLine("PASS: roster validation, batting order, and player batting/bowling/fielding ratings.");
     }
 
     private static void RequireThrows(Action action, string message)

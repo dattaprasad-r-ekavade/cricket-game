@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–30 rules, positioning, live-overlay, first match-loop, roster, team-kit palette, and headless match-batch gates are complete; live opponent control, settings, accessibility, and playtesting work remains open in Phase 5.
+- Steps 23–31 rules, positioning, live-overlay, first match-loop, roster skills, team-kit palette, and headless match-batch gates are complete; live opponent control, settings, accessibility, and playtesting work remains open in Phase 5.
 - Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -58,8 +58,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 28 — Add validated fictional team rosters, batting-order identities, and timing/power attributes.
 - [x] Step 29 — Add validated team kit palettes and apply the batting/fielding team's colors to the shared player model.
 - [x] Step 30 — Add seeded headless match batches and inspectable scorecard exports across supported overs lengths.
+- [x] Step 31 — Add bowling/fielding player ratings, over-based bowler rotation, and skill-based field movement.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–30 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–31 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -290,6 +291,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `verify-match-batch` coverage for deterministic replay, 1/2/5/10-over innings, valid scores and wicket limits, completed match results, and unsupported inputs. Added `simulate-match-batch` to export per-match scorecards as CSV.
 - The full code-only Release review passed. A separate 1,000-match, 10-over batch completed; all 1,000 CSV rows had valid wicket/ball bounds and a result. This is a rules-state and stuck-match stress tool using a seeded synthetic outcome model; it does not exercise ball physics, live opponent control, field positions, animation, or gameplay balance.
 
+### Step 31 notes
+
+- Added validated 0–100 bowling and fielding ratings to all 22 roster players. Teams must include a bowler or all-rounder. The strongest available bowler/all-rounder opens each innings' rotation, and the match changes bowler at each over; the HUD names the current bowler.
+- The fielding side excludes its current bowler, assigns the wicketkeeper to the wicketkeeper position, and maps each remaining player's fielding rating to reaction time, movement speed, and pickup radius. Rating 50 preserves the former constants.
+- Release build and full code-only review passed with zero warnings or errors. Checks cover rating validation, role assignment, strongest bowler and over rotation, neutral fielding baseline, skill-based movement/pickup, match rules, and headless match batches. No game host or GUI was run.
+- Bowling skill currently chooses the rotation order. Skill-driven delivery accuracy/variation, tactical opponent decisions, and calibration through gameplay remain open.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -364,7 +372,7 @@ Build roster and tuning editors around validated files. Run automated matches to
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
 
-**Current progress (Step 30):** the first match implementation has fictional team rosters, batting-order identities, timing/power effects, validated kit palettes, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. Headless review now also replays seeded synthetic full matches at every supported length and exports scorecards. GUI gameplay and palette appearance remain deferred by the current instruction. Phase 5 remains open for live opponent decisions, bowling/fielding attributes, difficulty/settings, controller mapping, accessibility, save requirements, gameplay-grounded automated batches, and human playtesting.
+**Current progress (Step 31):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, validated kit palettes, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. Headless review replays seeded synthetic matches at every supported length and exports scorecards. GUI gameplay and palette appearance remain deferred by the current instruction. Phase 5 remains open for skill-driven bowling outcomes, live opponent decisions for delivery/shot/running/field placement, difficulty/settings, controller mapping, accessibility, save requirements, gameplay-grounded automated batches, and human playtesting.
 
 ## Phase 6 — Stabilize and choose expansion
 

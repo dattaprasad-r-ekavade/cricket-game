@@ -5,16 +5,16 @@
   "primaryKitColorHex": "#1575B8",
   "accentKitColorHex": "#F2BB46",
   "players": [
-    { "id": "coastal-01", "name": "Mira Sen", "battingOrder": 1, "role": "Wicketkeeper", "timing": 76, "power": 52 },
-    { "id": "coastal-02", "name": "Rian Das", "battingOrder": 2, "role": "Batter", "timing": 82, "power": 65 },
-    { "id": "coastal-03", "name": "Ishaan Rao", "battingOrder": 3, "role": "Batter", "timing": 74, "power": 70 },
-    { "id": "coastal-04", "name": "Tara Nair", "battingOrder": 4, "role": "Batter", "timing": 72, "power": 78 },
-    { "id": "coastal-05", "name": "Dev Malik", "battingOrder": 5, "role": "AllRounder", "timing": 65, "power": 73 },
-    { "id": "coastal-06", "name": "Neel Dutta", "battingOrder": 6, "role": "AllRounder", "timing": 62, "power": 69 },
-    { "id": "coastal-07", "name": "Anika Bose", "battingOrder": 7, "role": "AllRounder", "timing": 60, "power": 58 },
-    { "id": "coastal-08", "name": "Kabir Shah", "battingOrder": 8, "role": "Bowler", "timing": 48, "power": 61 },
-    { "id": "coastal-09", "name": "Zoya Iyer", "battingOrder": 9, "role": "Bowler", "timing": 42, "power": 54 },
-    { "id": "coastal-10", "name": "Arin Roy", "battingOrder": 10, "role": "Bowler", "timing": 38, "power": 50 },
-    { "id": "coastal-11", "name": "Kavi Menon", "battingOrder": 11, "role": "Bowler", "timing": 35, "power": 47 }
+    { "id": "coastal-01", "name": "Mira Sen", "battingOrder": 1, "role": "Wicketkeeper", "timing": 76, "power": 52, "bowling": 28, "fielding": 94 },
+    { "id": "coastal-02", "name": "Rian Das", "battingOrder": 2, "role": "Batter", "timing": 82, "power": 65, "bowling": 31, "fielding": 66 },
+    { "id": "coastal-03", "name": "Ishaan Rao", "battingOrder": 3, "role": "Batter", "timing": 74, "power": 70, "bowling": 27, "fielding": 70 },
+    { "id": "coastal-04", "name": "Tara Nair", "battingOrder": 4, "role": "Batter", "timing": 72, "power": 78, "bowling": 32, "fielding": 64 },
+    { "id": "coastal-05", "name": "Dev Malik", "battingOrder": 5, "role": "AllRounder", "timing": 65, "power": 73, "bowling": 74, "fielding": 76 },
+    { "id": "coastal-06", "name": "Neel Dutta", "battingOrder": 6, "role": "AllRounder", "timing": 62, "power": 69, "bowling": 68, "fielding": 73 },
+    { "id": "coastal-07", "name": "Anika Bose", "battingOrder": 7, "role": "AllRounder", "timing": 60, "power": 58, "bowling": 65, "fielding": 79 },
+    { "id": "coastal-08", "name": "Kabir Shah", "battingOrder": 8, "role": "Bowler", "timing": 48, "power": 61, "bowling": 84, "fielding": 57 },
+    { "id": "coastal-09", "name": "Zoya Iyer", "battingOrder": 9, "role": "Bowler", "timing": 42, "power": 54, "bowling": 91, "fielding": 63 },
+    { "id": "coastal-10", "name": "Arin Roy", "battingOrder": 10, "role": "Bowler", "timing": 38, "power": 50, "bowling": 80, "fielding": 60 },
+    { "id": "coastal-11", "name": "Kavi Menon", "battingOrder": 11, "role": "Bowler", "timing": 35, "power": 47, "bowling": 86, "fielding": 58 }
   ]
 }

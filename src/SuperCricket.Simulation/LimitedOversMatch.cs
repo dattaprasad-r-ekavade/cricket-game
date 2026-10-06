@@ -18,6 +18,8 @@ public sealed class LimitedOversMatch
 {
     private readonly TeamRosterAsset _firstTeam;
     private readonly TeamRosterAsset _secondTeam;
+    private readonly TeamPlayerData[] _firstBowlingOptions;
+    private readonly TeamPlayerData[] _secondBowlingOptions;
     private MatchState _innings = null!;
     private MatchInningsResult? _firstInnings;
     private MatchInningsResult? _secondInnings;
@@ -30,6 +32,8 @@ public sealed class LimitedOversMatch
         _firstTeam = TeamRosterAsset.CreatePlaceholder(firstTeamName);
         _secondTeam = TeamRosterAsset.CreatePlaceholder(secondTeamName);
         ValidateTeams(_firstTeam, _secondTeam);
+        _firstBowlingOptions = GetBowlingOptions(_firstTeam);
+        _secondBowlingOptions = GetBowlingOptions(_secondTeam);
         Reset(oversPerInnings);
     }
 
@@ -41,6 +45,8 @@ public sealed class LimitedOversMatch
 
         _firstTeam = firstTeam;
         _secondTeam = secondTeam;
+        _firstBowlingOptions = GetBowlingOptions(firstTeam);
+        _secondBowlingOptions = GetBowlingOptions(secondTeam);
         Reset(oversPerInnings);
     }
 
@@ -54,6 +60,32 @@ public sealed class LimitedOversMatch
     public int InningsNumber { get; private set; }
     public TeamRosterAsset BattingTeam => InningsNumber == 1 ? _firstTeam : _secondTeam;
     public TeamRosterAsset FieldingTeam => InningsNumber == 1 ? _secondTeam : _firstTeam;
+    public TeamPlayerData CurrentBowler
+    {
+        get
+        {
+            var options = InningsNumber == 1 ? _secondBowlingOptions : _firstBowlingOptions;
+            var completedOvers = Math.Min(
+                _innings.LegalBalls / OverScoreboard.BallsPerOver,
+                OversPerInnings - 1);
+            return options[completedOvers % options.Length];
+        }
+    }
+    public IReadOnlyList<TeamPlayerData> FieldingPlayers
+    {
+        get
+        {
+            var bowlerId = CurrentBowler.Id;
+            var wicketkeeper = FieldingTeam.Players.Single(player =>
+                string.Equals(player.Role, "Wicketkeeper", StringComparison.OrdinalIgnoreCase));
+            var fielders = FieldingTeam.Players
+                .Where(player => player.Id != bowlerId && !ReferenceEquals(player, wicketkeeper))
+                .OrderBy(player => player.BattingOrder)
+                .ToList();
+            fielders.Add(wicketkeeper);
+            return fielders.AsReadOnly();
+        }
+    }
     public string BattingTeamName => BattingTeam.Name;
     public MatchState CurrentInnings => _innings;
     public DeliverySession? CurrentDelivery => _innings.CurrentDelivery;
@@ -154,4 +186,11 @@ public sealed class LimitedOversMatch
         if (string.Equals(firstTeam.Name, secondTeam.Name, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("The two teams must have different names.", nameof(secondTeam));
     }
+
+    private static TeamPlayerData[] GetBowlingOptions(TeamRosterAsset team) => team.Players
+        .Where(player => string.Equals(player.Role, "Bowler", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(player.Role, "AllRounder", StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(player => player.Bowling)
+        .ThenBy(player => player.BattingOrder)
+        .ToArray();
 }

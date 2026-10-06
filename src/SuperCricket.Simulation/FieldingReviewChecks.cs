@@ -25,6 +25,41 @@ public static class FieldingReviewChecks
             groundPickup.Kind == FieldingContactKind.GroundPickup,
             "a ball at the ground after a bounce was not resolved as a pickup");
 
+        var target = new Vector3(10f, -0.08f, 0f);
+        var defaultReach = FieldingSide.EstimateReachTime(Vector3.Zero, target);
+        var averageReach = FieldingSide.EstimateReachTime(Vector3.Zero, target, 50);
+        var lowSkillReach = FieldingSide.EstimateReachTime(Vector3.Zero, target, 0);
+        var highSkillReach = FieldingSide.EstimateReachTime(Vector3.Zero, target, 100);
+        Require(MathF.Abs(defaultReach - averageReach) < 0.0001f && highSkillReach < averageReach && averageReach < lowSkillReach,
+            "fielding ratings did not preserve the neutral baseline or improve estimated reach time");
+
+        var lowSkillFielders = new FieldingSide();
+        lowSkillFielders.ConfigureStartingPositions(startingPositions);
+        lowSkillFielders.ConfigureFieldingRatings(Enumerable.Repeat(0, FieldingSide.FielderCount).ToArray());
+        var highSkillRatings = Enumerable.Repeat(0, FieldingSide.FielderCount).ToArray();
+        highSkillRatings[0] = 100;
+        var highSkillFielders = new FieldingSide();
+        highSkillFielders.ConfigureStartingPositions(startingPositions);
+        highSkillFielders.ConfigureFieldingRatings(highSkillRatings);
+        var closeBall = Frame(0.8f, -0.04f, 0f, bounceCount: 1);
+        Require(!lowSkillFielders.TryFindContact(closeBall, closeBall, out _) &&
+            highSkillFielders.TryFindContact(closeBall, closeBall, out var skilledPickup) &&
+            skilledPickup.Kind == FieldingContactKind.GroundPickup,
+            "fielder skill did not change the reachable pickup radius");
+        for (var frame = 0; frame < 4; frame++)
+        {
+            lowSkillFielders.Step(0.1f, new Vector3(6f, -0.08f, 0f));
+            highSkillFielders.Step(0.1f, new Vector3(6f, -0.08f, 0f));
+        }
+        var lowSkillTravel = Vector3.Distance(startingPositions[0], lowSkillFielders.Positions[0]);
+        var highSkillTravel = Vector3.Distance(startingPositions[0], highSkillFielders.Positions[0]);
+        Require(highSkillTravel > lowSkillTravel,
+            "higher fielding skill did not improve movement speed and reaction time");
+        var invalidRatings = Enumerable.Repeat(50, FieldingSide.FielderCount).ToArray();
+        invalidRatings[3] = 101;
+        RequireThrows(() => lowSkillFielders.ConfigureFieldingRatings(invalidRatings),
+            "an out-of-range fielding rating was accepted");
+
         var highPrevious = Frame(-0.3f, 2.6f, 0f, bounceCount: 0);
         var highCurrent = Frame(0.3f, 2.6f, 0f, bounceCount: 0);
         Require(!fielders.TryFindContact(highPrevious, highCurrent, out _),
@@ -55,7 +90,7 @@ public static class FieldingReviewChecks
         Require(!BoundaryResolver.TryFindCrossing(airborneStart, insideEnd, boundaryRadius, fieldSurface, ballRadius, out _),
             "a ball that stayed inside the rope produced a boundary crossing");
 
-        Console.WriteLine("PASS: low catches, ground pickups, and airborne/rope-skim boundary classification.");
+        Console.WriteLine("PASS: low catches, ground pickups, rating-based fielding, and airborne/rope-skim boundary classification.");
     }
 
     private static BallFlightFrame Frame(float x, float y, float z, int bounceCount) =>
@@ -65,5 +100,18 @@ public static class FieldingReviewChecks
     {
         if (!condition)
             throw new InvalidOperationException($"Fielding check failed: {message}");
+    }
+
+    private static void RequireThrows(Action action, string message)
+    {
+        try
+        {
+            action();
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return;
+        }
+        throw new InvalidOperationException($"Fielding check failed: {message}");
     }
 }

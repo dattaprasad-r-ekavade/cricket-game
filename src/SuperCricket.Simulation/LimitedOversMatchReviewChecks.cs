@@ -10,18 +10,34 @@ public static class LimitedOversMatchReviewChecks
         firstTeam.PrimaryKitColorHex = "#1575B8";
         var secondTeam = TeamRosterAsset.CreatePlaceholder("Highland XI");
         secondTeam.PrimaryKitColorHex = "#8F2443";
+        secondTeam.Players[7].Bowling = 82;
+        secondTeam.Players[8].Bowling = 94;
+        secondTeam.Players[9].Bowling = 77;
+        secondTeam.Players[10].Bowling = 88;
         var chase = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings: 2);
         Require(chase.FirstTeamName == "Coastal XI" && chase.BattingTeamName == "Coastal XI",
             "the match did not begin with the first fictional team batting");
         Require(ReferenceEquals(chase.BattingTeam, firstTeam) && ReferenceEquals(chase.FieldingTeam, secondTeam),
             "the first innings assigned the wrong teams to the batting and fielding sides");
+        var openingBowler = chase.CurrentBowler;
+        var openingFielders = chase.FieldingPlayers;
+        Require(ReferenceEquals(openingBowler, secondTeam.Players[8]) && openingFielders.Count == FieldingSide.FielderCount &&
+            !openingFielders.Contains(openingBowler) &&
+            ReferenceEquals(openingFielders[openingFielders.Count - 1], secondTeam.Players[0]),
+            "the strongest bowler or wicketkeeper was assigned to the wrong fielding role");
         RequireThrows(chase.StartNextInnings, "the second innings started before the first was complete");
 
         var firstBall = chase.BeginDelivery(isNoBall: false);
         firstBall.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
         chase.CompleteDelivery();
-        for (var ball = 1; ball < OverScoreboard.BallsPerOver * 2; ball++)
+        for (var ball = 1; ball < OverScoreboard.BallsPerOver; ball++)
             CompleteDotBall(chase);
+        Require(ReferenceEquals(chase.CurrentBowler, secondTeam.Players[10]),
+            "bowling ability did not order the over-to-over bowler rotation");
+        for (var ball = OverScoreboard.BallsPerOver; ball < OverScoreboard.BallsPerOver * 2; ball++)
+            CompleteDotBall(chase);
+        Require(ReferenceEquals(chase.CurrentBowler, secondTeam.Players[10]),
+            "the completed innings did not retain the bowler from its final over");
 
         Require(chase.IsInningsComplete && !chase.IsMatchComplete && chase.FirstInnings is { Runs: 4, LegalBalls: 12 } first &&
             first.OversText == "2.0" && chase.Target == null,
@@ -59,7 +75,7 @@ public static class LimitedOversMatchReviewChecks
         Require(defended.IsMatchComplete && defended.ResultText == "Coastal XI wins by 3 runs",
             "the defending side's run margin was not reported when the chase ended on overs");
 
-        Console.WriteLine("PASS: two-innings match, over limits, target chase, and match results.");
+        Console.WriteLine("PASS: two-innings match, bowler rotation, over limits, target chase, and results.");
     }
 
     private static void CompleteDotBall(LimitedOversMatch match)
