@@ -34,7 +34,7 @@ The match scene uses metres in world space and includes a procedural stadium pre
 
 ## Delivery tools
 
-Run the current review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, an over, extras, boundaries, catches, and the pickup/throw sequence.
+Run the current review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, an over, extras, boundaries, catches, and pickup/throw run-outs. `verify-fielding` covers low catches, ground pickups, and airborne versus rope-skim boundary crossings.
 
 ```powershell
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
@@ -48,6 +48,7 @@ dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/prac
 dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
 dotnet run --project src/SuperCricket.Tools -- verify-match
+dotnet run --project src/SuperCricket.Tools -- verify-fielding
 ```
 
 The simulation command writes a CSV trajectory to `artifacts/standard-pace-trajectory.csv` by default. `analyze-field` estimates the fastest fielder to each point in the outfield on a 2 m grid and writes a coverage CSV; pass an output path and optional grid spacing in metres to change its defaults.

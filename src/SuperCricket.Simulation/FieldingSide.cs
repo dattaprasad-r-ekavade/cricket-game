@@ -32,6 +32,7 @@ public sealed class FieldingSide
     public const float MoveSpeedMetersPerSecond = 7.5f;
     public const float ReactionSeconds = 0.14f;
     public const float FieldingRadiusMeters = 0.68f;
+    public const float MinimumCatchHeightAboveGroundMeters = 0.72f;
     public const int FielderCount = 10;
     private int _activeChaser = -1;
     private float _reactionRemaining;
@@ -148,7 +149,8 @@ public sealed class FieldingSide
             return false;
         }
 
-        var kind = current.BounceCount == 0 && bestPosition.Y > 1.35f
+        var fielderGroundHeight = _positions[bestIndex].Y;
+        var kind = current.BounceCount == 0 && bestPosition.Y > fielderGroundHeight + MinimumCatchHeightAboveGroundMeters
             ? FieldingContactKind.Catch
             : FieldingContactKind.GroundPickup;
         contact = new FieldingContact(bestIndex, bestPosition, kind);

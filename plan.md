@@ -51,7 +51,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 21 — Calibrate shot timing from exported batter/bowler clips against full delivery presets with a repeatable batting-practice sweep.
 - [x] Step 22 — Review and regression-test gameplay, fix pause/scoring/analyzer defects, and add one repeatable review command.
 - [x] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
-- [ ] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
+- [x] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
 - [ ] Step 25 — Add batter footwork or leave so the wide preset can find contact.
 - [ ] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
 
@@ -231,7 +231,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added graphics-independent `MatchState` and `DeliverySession` types. The game now asks Simulation to begin and finish deliveries; Simulation owns batter/extra/completed runs, legality, catches, run-outs, boundary run allowances, dismissals, and scorecard updates.
 - Kept ball-flight contact detection, fielder movement, authored throw timing, UI text, and animations in the game host. No render code moved into Simulation.
 - Added `verify-match` checks for delivery lifecycle, wide/no-ball legality, caught scoring, boundaries with a run in progress, and no-ball run-outs; added the command to `tools/review.ps1` and the tool guide.
-- Release build and game update regressions pass. The remaining geometric catch/boundary heuristics and throw travel are Step 24 work.
+- Release build and game update regressions pass. Step 24 adds swept boundary-crossing classification, low-catch checks, and a returning-throw run-out scenario.
+
+### Step 24 notes
+
+- Added `BoundaryResolver` to find the segment crossing on the circular rope. The game now resolves four/six scoring at the crossing point; a ball that has bounced before crossing or skims the ground scores four.
+- Lowered the catch threshold to a reachable height above each fielder's ground position. Swept-contact scenarios distinguish a low airborne catch, a ball picked up after a bounce, and a ball above reach.
+- Added repeatable `verify-fielding` scenarios for those contacts and boundary cases, plus a real game-update scenario that completes pickup and throw while the runner is approaching the far crease.
+- Release build, fielding checks, and gameplay regressions pass. Fielder movement, receiving, and throw travel remain simplified and should be playtested during short-match work.
 
 ## Technical foundation
 
@@ -287,7 +294,7 @@ Build a Field Lab to place players, inspect interception predictions and reachab
 
 **Gate:** play six legal deliveries, resolve extras and supported dismissals, update score and striker correctly, and return to a stable state after every ball.
 
-**Open after Step 23:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Catch eligibility, boundary crossing, throw travel, receiving, and run-out detection still use heuristics. Dedicated fielding and rules scenarios are Step 24. Do not start Phase 5 until those land.
+**Open after Step 24:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Low catches, ground pickups, airborne and rope-skim boundary crossings, and a throw while the runner approaches the crease now have repeatable checks. Fielder movement, throw travel, receiving, and wicket-breaking still use simplified rules. Do not start Phase 5 until Steps 23–26 land.
 
 ## Phase 4 — Demonstrate the visual target
 

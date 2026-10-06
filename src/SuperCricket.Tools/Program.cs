@@ -12,7 +12,7 @@ static int Run(string[] arguments)
 {
     if (arguments.Length == 0 ||
         arguments[0] is "help" or "--help" or "-h" ||
-        arguments.Length < 2 && arguments[0] != "verify-match")
+        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-fielding"))
     {
         PrintUsage();
         return arguments.Length < 2 ? 2 : 0;
@@ -122,6 +122,14 @@ static int Run(string[] arguments)
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match");
             MatchStateReviewChecks.Run();
+            return 0;
+        }
+
+        if (arguments[0] == "verify-fielding")
+        {
+            if (arguments.Length != 1)
+                throw new ArgumentException("Usage: verify-fielding");
+            FieldingReviewChecks.Run();
             return 0;
         }
 
@@ -500,6 +508,7 @@ static void PrintUsage()
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  verify-match");
+    Console.WriteLine("  verify-fielding");
 }
 
 internal sealed class OverScenarioDocument

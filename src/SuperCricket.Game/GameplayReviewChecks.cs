@@ -69,6 +69,18 @@ public partial class Game1
         Console.WriteLine("PASS: pickup/throw pause and authored throw completion.");
 
         Reset();
+        _battedBall = true;
+        CurrentDelivery.RecordCompletedRun();
+        _isRunning = true;
+        _runElapsed = 0.15f;
+        ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.GroundPickup));
+        for (var step = 0; step < 180 && !_deliveryComplete; step++) Tick(1f / 120f);
+        Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _match.Runs == 1 &&
+            _match.Wickets == 1 && _match.LegalBalls == 1,
+            "the authored throw failed to run out a batter still short of the far crease after the turn");
+        Console.WriteLine("PASS: pickup and return throw resolve a run-out while the batter is turning.");
+
+        Reset();
         for (var delivery = 0; delivery < 6; delivery++)
         {
             for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
@@ -108,8 +120,10 @@ public partial class Game1
             Reset();
             _battedBall = true;
             CurrentDelivery.RecordCompletedRun();
-            ResolveSettledBall(new BallFlightFrame(2f, new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 3f, 0f),
-                NumericsVector3.Zero, boundaryRuns == 6 ? 0 : 1, BallMotionPhase.Settled));
+            ResolveBoundaryCrossing(new BoundaryCrossing(
+                1f,
+                new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 3f, 0f),
+                boundaryRuns == 6));
             Require(_match.Runs == boundaryRuns && _match.Striker == 1 && _match.NonStriker == 2,
                 "boundary incorrectly added an earlier run or changed strike");
         }
@@ -121,8 +135,10 @@ public partial class Game1
             CurrentDelivery.RecordCompletedRun();
         _isRunning = true;
         _runElapsed = _runDurationSeconds * 0.6f;
-        ResolveSettledBall(new BallFlightFrame(2f, new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 0.1f, 0f),
-            NumericsVector3.Zero, 1, BallMotionPhase.Settled));
+        ResolveBoundaryCrossing(new BoundaryCrossing(
+            1f,
+            new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 0.1f, 0f),
+            false));
         Require(_match.Runs == 5 && _match.Striker == 2,
             "boundary failed to preserve the greater running allowance including a crossed run");
         Console.WriteLine("PASS: running allowance greater than the boundary allowance.");

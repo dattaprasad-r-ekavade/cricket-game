@@ -426,6 +426,19 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     frame = _ballFlight.CurrentFrame;
                 }
 
+                if (!_deliveryComplete && _battedBall &&
+                    BoundaryResolver.TryFindCrossing(
+                        previousFrame,
+                        frame,
+                        _deliveryPreset.FieldBoundaryRadiusMeters,
+                        _deliveryPreset.FieldSurfaceHeightMeters,
+                        _deliveryPreset.BallRadiusMeters,
+                        out var boundaryCrossing))
+                {
+                    ResolveBoundaryCrossing(boundaryCrossing);
+                    frame = _ballFlight.CurrentFrame;
+                }
+
                 if (!_deliveryComplete && !_fielderThrowActive && frame.Phase == BallMotionPhase.Settled)
                 {
                     ResolveSettledBall(frame);
@@ -1034,15 +1047,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void ResolveSettledBall(BallFlightFrame frame)
     {
-        var horizontalDistance = MathF.Sqrt(frame.Position.X * frame.Position.X + frame.Position.Z * frame.Position.Z);
-        if (_battedBall && horizontalDistance >= _deliveryPreset.FieldBoundaryRadiusMeters - 0.001f)
-        {
-            var isSix = frame.BounceCount == 0 && frame.Position.Y > _deliveryPreset.FieldSurfaceHeightMeters + 1f;
-            CurrentDelivery.ResolveBoundary(isSix, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
-            _shotOutcome = isSix ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
-            _isRunning = false;
-        }
-        else if (_isRunning)
+        if (_isRunning)
         {
             var runCompleted = _runElapsed / _runDurationSeconds >= 0.72f;
             var runOut = CurrentDelivery.ResolveRunAtStoppage(runCompleted);
@@ -1060,6 +1065,15 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
         if (_shotOutcome.StartsWith("Choose", StringComparison.Ordinal))
             _shotOutcome = _battedBall ? "DOT: field held the shot" : "DOT ball";
+        FinishDelivery();
+    }
+
+    private void ResolveBoundaryCrossing(BoundaryCrossing crossing)
+    {
+        CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
+        _shotOutcome = crossing.ClearedInTheAir ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
+        _isRunning = false;
+        _ballFlight.StopAtContact(crossing.Position);
         FinishDelivery();
     }
 
