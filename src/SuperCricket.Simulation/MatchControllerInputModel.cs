@@ -15,7 +15,8 @@ public enum MatchControllerButtons
     DPadUp = 1 << 8,
     DPadDown = 1 << 9,
     DPadLeft = 1 << 10,
-    DPadRight = 1 << 11
+    DPadRight = 1 << 11,
+    LeftStick = 1 << 12
 }
 
 [Flags]
@@ -47,7 +48,8 @@ public enum MatchControllerActions
     AimOffSide = 1 << 22,
     AimLegSide = 1 << 23,
     AimLong = 1 << 24,
-    AimShort = 1 << 25
+    AimShort = 1 << 25,
+    CycleCamera = 1 << 26
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -65,6 +67,7 @@ public static class MatchControllerInputModel
         var actions = MatchControllerActions.None;
         if (Has(pressed, MatchControllerButtons.Back)) actions |= MatchControllerActions.Exit;
         if (Has(pressed, MatchControllerButtons.Start)) actions |= MatchControllerActions.Pause;
+        if (Has(pressed, MatchControllerButtons.LeftStick)) actions |= MatchControllerActions.CycleCamera;
 
         if (isPaused)
         {

@@ -537,7 +537,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (IsCpuBattingControlled && !_developerMode && !_simulationPaused &&
             (KeyPressed(Keys.C) || ControllerPressed(MatchControllerActions.CycleDelivery)))
             CycleNextDelivery();
-        if (KeyPressed(Keys.V)) _camera.CyclePreset();
+        if (KeyPressed(Keys.V) || ControllerPressed(MatchControllerActions.CycleCamera)) _camera.CyclePreset();
         if (_developerMode && KeyPressed(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
         if (_developerMode && !IsCpuBattingControlled && !_simulationPaused &&
             ((keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) ||
@@ -1067,33 +1067,37 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var gamePad = _lastInputWasGamePad;
         var pause = gamePad ? "Start: pause" : "P: pause";
+        var camera = gamePad ? "L3: camera" : "V: camera";
+        string WithCamera(string hint) => $"{hint}    {camera}";
         if (_match.IsMatchComplete)
             return gamePad
-                ? $"A: replay    LB: difficulty    RB: overs    {pause}"
-                : $"R: replay    D: difficulty    O: overs    {pause}";
+                ? WithCamera($"A: replay    LB: difficulty    RB: overs    {pause}")
+                : WithCamera($"R: replay    D: difficulty    O: overs    {pause}");
         if (_match.IsInningsComplete)
-            return gamePad ? $"RB: start the chase    {pause}" : $"N: start the chase    {pause}";
+            return gamePad
+                ? WithCamera($"RB: start the chase    {pause}")
+                : WithCamera($"N: start the chase    {pause}");
         if (IsCpuBattingControlled)
         {
             var aim = gamePad ? "Next pitch: D-pad / left stick aim" : "Next pitch: arrows aim";
             var changeDelivery = gamePad ? "LB: delivery" : "C: delivery";
             var nextDelivery = gamePad ? "RB: bowl next" : "N: bowl next";
-            return _deliveryComplete
+            return WithCamera(_deliveryComplete
                 ? $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name})    {nextDelivery}    {pause}"
-                : $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name}; next ball)    {pause}";
+                : $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name}; next ball)    {pause}");
         }
         if (_deliveryComplete)
-            return gamePad ? $"RB: next ball    {pause}" : $"N: next ball    {pause}";
+            return WithCamera(gamePad ? $"RB: next ball    {pause}" : $"N: next ball    {pause}");
         if (_isRunning)
         {
             var run = gamePad ? "B" : "Enter";
-            return $"{run}: request another run    hold {run}: turn back    {pause}";
+            return WithCamera($"{run}: request another run    hold {run}: turn back    {pause}");
         }
         if (_battedBall)
-            return gamePad ? $"B: run    {pause}" : $"Enter: run    {pause}";
+            return WithCamera(gamePad ? $"B: run    {pause}" : $"Enter: run    {pause}");
         return gamePad
-            ? $"Left stick: aim    A: ground / defend    Y: loft    {pause}"
-            : $"Left / Right: aim    Space: ground / defend    Shift: loft    {pause}";
+            ? WithCamera($"Left stick: aim    A: ground / defend    Y: loft    {pause}")
+            : WithCamera($"Left / Right: aim    Space: ground / defend    Shift: loft    {pause}");
     }
 
     private void DrawDebugOverlay()
@@ -1193,7 +1197,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             "GamePad batting: left stick aim | A ground/defend | Y loft",
             "Running: Enter/B starts; tap again for another; hold to turn back",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "V: camera | R/A replay | D/LB difficulty | O/RB overs when match ends",
+            "V/L3: camera | R/A replay | D/LB difficulty | O/RB overs when match ends",
             $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
             $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
             _settingsStatusMessage ?? (_audioUnavailable
@@ -1236,6 +1240,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (state.IsButtonDown(Buttons.DPadDown)) buttons |= MatchControllerButtons.DPadDown;
         if (state.IsButtonDown(Buttons.DPadLeft)) buttons |= MatchControllerButtons.DPadLeft;
         if (state.IsButtonDown(Buttons.DPadRight)) buttons |= MatchControllerButtons.DPadRight;
+        if (state.IsButtonDown(Buttons.LeftStick)) buttons |= MatchControllerButtons.LeftStick;
         return buttons;
     }
 

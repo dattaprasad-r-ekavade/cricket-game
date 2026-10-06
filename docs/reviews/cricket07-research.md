@@ -30,8 +30,8 @@ EA's diary and the PC review both describe the field radar and simple running pr
 
 Step 51 applies the strongest visual lessons to the current build:
 
-- The batting default is now a closer broadcast angle (28 m instead of 54 m), while behind-striker, bowler-end, and square-leg views are also closer. The role selects a batting or bowling camera at each new delivery, and ball-follow takes over after contact.
+- Step 53 tightens the broadcast default to 22 m; behind-striker, bowler-end, and square-leg views are 16 m, 18 m, and 27 m. The role selects a batting or bowling camera at each new delivery, V / left-stick click cycles views, and ball-follow takes over after contact.
 - A completed delivery keeps a result card visible until the next ball. It reports release speed, measured pitch line and length, shot/contact quality, runs or wicket, and—when the player bowled—the intended target and actual landing error.
 - Release captures cover both batting and bowling card layouts. Human keyboard retest is still required to confirm the framing and feedback are legible during play; controller feedback remains untested.
 
-The next Cricket 07-inspired gaps are the batting timing aid and guided nets, clearer pitch-point visualization from the close reverse camera, and a fielding/run-availability cue. Bowling should gain an understandable pace/accuracy decision without bringing back a twitchy target control. The result card presently reports contact quality, but does not claim an early/perfect/late timing label until timing has been calibrated against actual swings.
+The next Cricket 07-inspired gaps are the batting timing aid and guided nets, clearer pitch-point visualization from the close reverse camera, and a fielding/run-availability cue. Bowling should gain an understandable pace/accuracy decision without bringing back a twitchy target control. Step 52 calibrates the result-card timing band against analyzer-measured best-contact delays; human playtesting still needs to confirm that the labels are understandable and helpful.

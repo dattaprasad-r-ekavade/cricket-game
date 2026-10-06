@@ -7,14 +7,15 @@ public static class MatchControllerInputReviewChecks
         var playerButtons = MatchControllerButtons.A | MatchControllerButtons.X |
             MatchControllerButtons.Y | MatchControllerButtons.B | MatchControllerButtons.LeftShoulder |
             MatchControllerButtons.RightShoulder | MatchControllerButtons.Start | MatchControllerButtons.Back |
-            MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadRight;
+            MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadRight | MatchControllerButtons.LeftStick;
         var battingActions = MatchControllerInputModel.ReadPressedActions(
             playerButtons, MatchControllerButtons.None, isCpuBattingControlled: false, isMatchComplete: false);
         Require(HasAll(battingActions,
                 MatchControllerActions.Exit | MatchControllerActions.Pause |
                 MatchControllerActions.Defend | MatchControllerActions.Loft |
                 MatchControllerActions.Run | MatchControllerActions.NextBall |
-                MatchControllerActions.AimOffSide | MatchControllerActions.AimLegSide) &&
+                MatchControllerActions.AimOffSide | MatchControllerActions.AimLegSide |
+                MatchControllerActions.CycleCamera) &&
             !HasAny(battingActions, MatchControllerActions.SelectStandardDelivery |
                 MatchControllerActions.SelectWideDelivery | MatchControllerActions.SelectNoBallDelivery |
                 MatchControllerActions.SelectYorkerDelivery | MatchControllerActions.Drive |
@@ -30,13 +31,14 @@ public static class MatchControllerInputReviewChecks
         var pausedButtons = MatchControllerButtons.X | MatchControllerButtons.Y |
             MatchControllerButtons.A | MatchControllerButtons.B | MatchControllerButtons.DPadLeft |
             MatchControllerButtons.Start | MatchControllerButtons.LeftShoulder |
-            MatchControllerButtons.RightShoulder;
+            MatchControllerButtons.RightShoulder | MatchControllerButtons.LeftStick;
         var pausedActions = MatchControllerInputModel.ReadPressedActions(
             pausedButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
             isMatchComplete: false, isPaused: true);
         Require(HasAll(pausedActions, MatchControllerActions.Pause |
                 MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText |
-                MatchControllerActions.DecreaseEffectsVolume | MatchControllerActions.IncreaseEffectsVolume) &&
+                MatchControllerActions.DecreaseEffectsVolume | MatchControllerActions.IncreaseEffectsVolume |
+                MatchControllerActions.CycleCamera) &&
             !HasAny(pausedActions, MatchControllerActions.Defend | MatchControllerActions.Drive |
                 MatchControllerActions.Run | MatchControllerActions.SelectStandardDelivery),
             "paused controller inputs did not expose settings without triggering match actions");

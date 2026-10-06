@@ -41,13 +41,18 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Broadcast" && MathF.Abs(_camera.Distance - 28f) < 0.001f,
+        Require(_camera.PresetName == "Broadcast" && MathF.Abs(_camera.Distance - 22f) < 0.001f,
             "the batting delivery did not start with the closer broadcast camera");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
-            "the normal batting HUD did not show the compact directional two-shot controls");
+            "the normal batting HUD did not show compact shot controls and the camera shortcut");
+        _lastInputWasGamePad = true;
+        Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
+            "the normal GamePad HUD did not show the camera shortcut");
+        _lastInputWasGamePad = false;
         Tick(0f, Keys.Space);
         Require(_chosenShot?.Name == "defence", "a neutral ground shot did not use the defensive clip");
 
@@ -135,12 +140,13 @@ public partial class Game1
         Require(ballCamera.Target.X is > 2f and < 6f && ballCamera.Target.Z is < -4f and > -12f,
             "ball-follow camera did not ease toward the moving ball");
         ballCamera.SelectPreset("broadcast");
-        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 28f) < 0.001f &&
+        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 22f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && ballCamera.Distance < 22f &&
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 16f) < 0.001f &&
             ballCamera.Yaw > 3f && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 24f) < 0.001f && ballCamera.Yaw == 0f,
+            MathF.Abs(ballCamera.Distance - 18f) < 0.001f && ballCamera.Yaw == 0f &&
+            MathF.Abs(ballCamera.Target.Z - 2.5f) < 0.001f,
             "close batting and bowling camera angles were not available at readable distances");
         Console.WriteLine("PASS: closer broadcast, behind-striker, and bowler-end views frame the pitch; ball-follow tracks the delivery.");
 

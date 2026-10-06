@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 52 adds analyzer-calibrated early/perfect/late batting feedback to Step 51's result card. Release captures and automated checks pass; the owner still needs to retest the camera and feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), and [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 53 tightens the default camera framing and makes camera cycling visible on keyboard and GamePad. Release captures and automated checks pass; the owner still needs to retest camera readability and batting feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), and [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -73,8 +73,9 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - Immediate in-world feedback: a bat-contact flash or sound sting scaled by quality, ball trail colour by speed, and the pitch spot marked briefly.
 
 **A4d — Gameplay cameras**
-- [x] Replace the distant default framing with a closer batting broadcast and closer behind-striker, bowler-end, and square-leg views.
+- [x] Tighten the default broadcast to 22 m, behind-striker to 16 m, bowler-end to 18 m, and square-leg to 27 m; frame the bowler-end target marker centrally.
 - [x] Select batting/bowling camera by player role for each delivery and follow the ball after bat contact.
+- [x] Show the camera shortcut in phase prompts; V cycles views on keyboard and left-stick click cycles views on GamePad.
 - [ ] Confirm batting, bowling, and fielding readability in a human keyboard retest; controller retest remains open.
 
 **Gate:** a new player understands the controls without the README within one over, can explain why a shot was early or late, and can describe the last delivery (pace, line, length) from the on-screen feedback. Phase 2's "repeated delivery practice is enjoyable" is answered yes or no with evidence.

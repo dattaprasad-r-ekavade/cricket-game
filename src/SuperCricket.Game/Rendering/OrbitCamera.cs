@@ -13,10 +13,10 @@ public sealed class OrbitCamera
     private const float MaxElevation = 1.25f;
     private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target, bool FollowsBall)[] _presets =
     [
-        ("Broadcast", 0.34f, 0.36f, 28f, new Vector3(0f, 0f, -1f), false),
-        ("Behind striker", MathHelper.Pi, 0.28f, 21f, new Vector3(0f, 0f, -2.5f), false),
-        ("Bowler end", 0f, 0.30f, 24f, new Vector3(0f, 0f, -1f), false),
-        ("Square leg", MathHelper.PiOver2, 0.36f, 34f, Vector3.Zero, false),
+        ("Broadcast", 0.34f, 0.36f, 22f, new Vector3(0f, 0f, -1f), false),
+        ("Behind striker", MathHelper.Pi, 0.28f, 16f, new Vector3(0f, 0f, -2.5f), false),
+        ("Bowler end", 0f, 0.30f, 18f, new Vector3(0f, 0f, 2.5f), false),
+        ("Square leg", MathHelper.PiOver2, 0.36f, 27f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 9f, Vector3.Zero, true)
     ];
     private int _presetIndex;
