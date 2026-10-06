@@ -41,8 +41,8 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Broadcast" && MathF.Abs(_camera.Distance - 22f) < 0.001f,
-            "the batting delivery did not start with the closer broadcast camera");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 13f) < 0.001f,
+            "the batting delivery did not start with the closer behind-striker camera");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
@@ -131,7 +131,7 @@ public partial class Game1
 
         var ballCamera = new OrbitCamera();
         Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
-            MathF.Abs(ballCamera.Distance - 9f) < 0.001f,
+            MathF.Abs(ballCamera.Distance - 8f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 43f) < 0.001f,
             "ball-follow camera preset was not selectable at its readable tracking distance");
         ballCamera.FollowBall(new Vector3(2f, 1f, -4f), 0f);
         Require(ballCamera.Target == new Vector3(2f, 1f, -4f),
@@ -140,14 +140,20 @@ public partial class Game1
         Require(ballCamera.Target.X is > 2f and < 6f && ballCamera.Target.Z is < -4f and > -12f,
             "ball-follow camera did not ease toward the moving ball");
         ballCamera.SelectPreset("broadcast");
-        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 22f) < 0.001f &&
+        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 20f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 16f) < 0.001f &&
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 13f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 40f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 3.5f) < 0.001f &&
             ballCamera.Yaw > 3f && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 18f) < 0.001f && ballCamera.Yaw == 0f &&
+            MathF.Abs(ballCamera.Distance - 18f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 40f) < 0.001f &&
+            ballCamera.Yaw == 0f &&
             MathF.Abs(ballCamera.Target.Z - 2.5f) < 0.001f,
-            "close batting and bowling camera angles were not available at readable distances");
+            "zoomed batting and bowling cameras did not use their close pitch framing");
+        Require(GetRoleCameraPreset(isHumanBowling: false) == "behind-striker" &&
+            GetRoleCameraPreset(isHumanBowling: true) == "bowler-end",
+            "delivery camera selection did not put each human role in its view of the pitch");
         var mapPlot = new Rectangle(100, 200, 120, 100);
         var mapCenter = MapPitchPosition(Vector3.Zero, mapPlot, PracticeGround.PitchLength);
         var bowlerMapPoint = MapPitchPosition(new Vector3(0f, 0f, PracticeGround.WicketOffset),
@@ -159,6 +165,14 @@ public partial class Game1
             bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
             MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
             "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
+        var accurateBowlingFeedback = GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(0.3f, 0f, -4.5f));
+        var missedBowlingFeedback = GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(1.3f, 0f, -4.5f));
+        Require(accurateBowlingFeedback.Title == "ON TARGET" &&
+            accurateBowlingFeedback.Detail.Contains("good length", StringComparison.Ordinal) &&
+            missedBowlingFeedback.Title.EndsWith("M FROM AIM", StringComparison.Ordinal),
+            "live bowling feedback did not explain aim accuracy and the landing length");
         var slowTrail = GetBallTrailColor(8f);
         var mediumTrail = GetBallTrailColor(22f);
         var fastTrail = GetBallTrailColor(36f);
@@ -173,27 +187,26 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: tighter cameras, pitch-map projection, contact labels, and speed-colour mapping are readable.");
+        Console.WriteLine("PASS: human role cameras use closer, zoomed pitch framing; batting and bowling feedback is role-specific.");
 
         Reset();
         for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
         Require(_firstBouncePosition is not null && _bounceSpotFeedbackRemainingSeconds > 0f,
-            "the first ball bounce did not start a brief in-world pitch marker");
+            "the first ball bounce did not start a longer in-world pitch marker");
         var bounceMarkerRemaining = _bounceSpotFeedbackRemainingSeconds;
         Tick(0.1f);
         Require(_bounceSpotFeedbackRemainingSeconds < bounceMarkerRemaining && _bounceSpotFeedbackRemainingSeconds > 0f,
             "the in-world pitch marker did not fade with elapsed game time");
         Tick(BounceSpotFeedbackDurationSeconds);
         Require(_bounceSpotFeedbackRemainingSeconds == 0f,
-            "the in-world pitch marker persisted past its short visibility window");
-        Console.WriteLine("PASS: actual bounce feedback appears at impact and fades after its short display window.");
+            "the in-world pitch marker persisted past its visibility window");
+        Console.WriteLine("PASS: actual bounce feedback remains visible long enough to follow the pitch event.");
 
         Reset();
         var feedbackBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
             ?? throw new InvalidOperationException("The standard delivery has no pitch bounce for the feedback review.");
         _firstBouncePosition = new Vector3(feedbackBounce.Position.X, feedbackBounce.Position.Y, feedbackBounce.Position.Z);
         _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
-        _activeBowlingTargetPosition = _firstBouncePosition.Value + new Vector3(0.5f, 0f, 0f);
         _chosenShot = _shotSet.Get("drive");
         _contactQuality = 0.91f;
         var idealDriveInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(_deliveryPreset.Name, _chosenShot.Name);
@@ -217,21 +230,39 @@ public partial class Game1
         CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
         _match.CompleteDelivery();
         var feedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
-        Require(feedbackLines.Count == 4 && feedbackLines[0].Contains("FOUR", StringComparison.Ordinal) &&
+        Require(feedbackLines.Count == 3 && feedbackLines[0].Contains("YOUR BATTING RESULT", StringComparison.Ordinal) &&
+            feedbackLines[0].Contains("FOUR", StringComparison.Ordinal) &&
             feedbackLines[1].Contains("km/h", StringComparison.Ordinal) &&
             feedbackLines[1].Contains("good length", StringComparison.Ordinal) &&
+            feedbackLines[2].Contains("YOUR SHOT", StringComparison.Ordinal) &&
             feedbackLines[2].Contains("drive", StringComparison.Ordinal) &&
             feedbackLines[2].Contains("middled", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("timing PERFECT", StringComparison.Ordinal) &&
-            feedbackLines[3].Contains("0.5 m from aim", StringComparison.Ordinal),
-            "the delivery result card did not explain pace, pitch, contact, timing, runs, and bowling accuracy");
+            feedbackLines[2].Contains("timing PERFECT", StringComparison.Ordinal),
+            "the batting result card did not put pace, pitch, contact, timing, and runs in the player's focus");
         var early = BattingTimingFeedbackModel.Assess(0.12f, 0.25f, 0.075f);
         var perfect = BattingTimingFeedbackModel.Assess(0.30f, 0.25f, 0.075f);
         var late = BattingTimingFeedbackModel.Assess(0.42f, 0.25f, 0.075f);
         Require(early.Band == BattingTimingBand.Early && perfect.Band == BattingTimingBand.Perfect &&
             late.Band == BattingTimingBand.Late && MathF.Abs(late.OffsetFromIdealSeconds - 0.17f) < 0.001f,
             "calibrated batting timing did not distinguish early, perfect, and late inputs");
-        Console.WriteLine("PASS: completed-ball feedback reports pace, pitch line/length, contact, calibrated timing, score, and bowling target error.");
+        Reset();
+        PrepareBowlingTargetCapture();
+        var bowlingBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
+            ?? throw new InvalidOperationException("The CPU batting target delivery has no bounce for the feedback review.");
+        _firstBouncePosition = new Vector3(bowlingBounce.Position.X, bowlingBounce.Position.Y, bowlingBounce.Position.Z);
+        _activeBowlingTargetPosition = _firstBouncePosition.Value + new Vector3(0.5f, 0f, 0f);
+        _chosenShot = _shotSet.Get("drive");
+        _contactQuality = 0.81f;
+        CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
+        _match.CompleteDelivery();
+        var bowlingFeedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
+        Require(bowlingFeedbackLines.Count == 4 &&
+            bowlingFeedbackLines[0].Contains("YOUR BOWLING RESULT", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[2].Contains("YOUR BOWL", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[2].Contains("0.5 m", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[3].Contains("BATTER", StringComparison.Ordinal),
+            "the bowling result card did not foreground the human player's aim and landing feedback");
+        Console.WriteLine("PASS: completed-ball feedback foregrounds the human player's role, result, pitch, and aim accuracy.");
 
         Reset();
         Tick(0f, Keys.J);
