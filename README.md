@@ -29,7 +29,8 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export players, add the fielder lower legs, and author fielding actions
 - `tools/prepare_texture.py` — resize and feather generated square texture tiles for repeat sampling
-- `plan.md` — milestone plan and progress record
+- `plan.md` — milestone plan, current assumptions, and progress record
+- `docs/reviews` — dated gameplay and planning reviews
 
 ## Delivery tools
 

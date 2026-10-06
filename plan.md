@@ -14,6 +14,18 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 Visual fidelity depends on assets, rigging, animation, lighting, and camera work as well as rendering code. Prove animated characters early rather than treating polygon count as a proxy for quality.
 
+### Current assumptions (after the first over)
+
+Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning.md`.
+
+- Windows, offline, fictional teams, and one stadium still hold. The playable slice is one over; the first release candidate remains a short limited-overs match.
+- Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
+- Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
+- CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
+- Do not start innings until delivery resolution lives in Simulation and fielding/rules scenarios cover the known heuristics.
+- Next batting work is footwork or leave so a wide can be played. Do not add a fourth named shot first.
+- A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
+
 ## Progress
 
 - [x] Step 1 — Bootstrap the Windows MonoGame application, pin the SDK and runtime versions, and verify a clean build.
@@ -38,8 +50,12 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 20 — Sweep the moving bat against the ball and derive shot outcomes from swing velocity and sweet-spot contact; add a local batting analyzer.
 - [x] Step 21 — Calibrate shot timing from exported batter/bowler clips against full delivery presets with a repeatable batting-practice sweep.
 - [x] Step 22 — Review and regression-test gameplay, fix pause/scoring/analyzer defects, and add one repeatable review command.
+- [ ] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
+- [ ] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
+- [ ] Step 25 — Add batter footwork or leave so the wide preset can find contact.
+- [ ] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–26 are the next work package from the 6 October 2026 planning review; they come before Phase 5 innings.
 
 ### Step 1 notes
 
@@ -203,6 +219,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - The full review command passed: Release build with zero warnings/errors, all shipped player/shot/field/delivery validators, shared simulation diagnostics, rules scenario (10/2 in 1.0 overs), invalid-step rejection, and gameplay checks. Two standard sweeps had SHA256 `CF01930726FE8ACE1671C625E3888C961533BD893A9AE332B36E05994D3B4F5A`. Standard/no-ball contact windows now contain 25/18/17 contacts for defence/drive/loft; the wide sweep has none. This removed one false late-input contact per shot.
 - Captured start, bowler follow-through, and three fielder actions through the DirectX renderer, and visually reviewed start/catch/throw/follow-through. Detailed findings, evidence, and remaining limitations are recorded in `docs/reviews/2026-10-06.md`. Art remains visibly primitive; fielding/collision heuristics, full-match playtesting, and GPU performance validation remain wider roadmap work.
 
+### Planning review notes (6 October 2026)
+
+- Reviewed plan versus code after Step 22. The first-over gates for Phases 0–3 hold at prototype depth; Phase 4 is started; Phases 5–6 are not started.
+- Delivery resolution still lives on `Game1` (~1,300 lines). `OverScoreboard` cannot represent an innings. Fielding chase, catch height, throw arc, and run-out cuts are simplified heuristics.
+- Phase 2 positioning is open: the batter stays at the crease and the wide practice sweep has no contacts.
+- Recorded current assumptions above and queued Steps 23–26. Full findings: `docs/reviews/2026-10-06-planning.md`.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -229,6 +252,8 @@ Build `content validate` to catch missing textures, unsupported materials, scale
 
 **Gate:** a clean checkout builds and displays the same animated player without manual repair of exported assets. Record a short capture of the intended look.
 
+**Open after Step 22:** the running scene and asset contract exist. The written batting/bowling/camera brief, visual reference board, and named hardware floor are still missing; current assumptions above stand in until those are written.
+
 ## Phase 1 — Bowling and ball simulation
 
 Build a practice delivery with a placeholder bowler. Add release position/velocity, gravity, drag, tunable swing/spin, pitch bounce with tangential response, rolling, ground and wicket contacts, and initial pace and spin deliveries. Show release speed, bounce point, and trajectory.
@@ -245,6 +270,8 @@ Keep contact authored and tunable: determine eligibility from ball and bat posit
 
 **Gate:** the player can intentionally defend, drive, and loft; timing and positioning differences are clear; contact aligns from both gameplay and replay cameras. Repeated delivery practice is enjoyable before expanding the shot catalogue.
 
+**Open after Step 22:** defence, drive, and loft work on a standard ball. Positioning is still missing, so wides have no practice-sweep contacts. Footwork or leave is Step 25.
+
 ## Phase 3 — Fielding and a complete over
 
 Add wicketkeeper, non-striker, and a small functional field. Implement interception, movement limits, pickup, catch, throw, receiving, wicket breaks, running, turning, cancellation, and run-outs. Add boundaries, extras supported by the bowling mechanics, strike changes, and over progression.
@@ -253,6 +280,8 @@ Build a Field Lab to place players, inspect interception predictions and reachab
 
 **Gate:** play six legal deliveries, resolve extras and supported dismissals, update score and striker correctly, and return to a stable state after every ball.
 
+**Open after Step 22:** the over plays and the sample scenario finishes 10/2. Catch eligibility, throw travel, receiving, and run-out still use heuristics. Dedicated scenarios are Step 24; moving resolution out of `Game1` is Step 23. Do not start Phase 5 until those land.
+
 ## Phase 4 — Demonstrate the visual target
 
 Create one cohesive representative art set: stadium, pitch, outfield, stands, restrained crowd, polished rig with kit and equipment, and the animations needed for the full over. Add textured materials, sunlight, ambient lighting, a measured shadow solution, restrained post-processing, readable ball presentation, and mesh detail reduction where profiling supports it. Add broadcast delivery, ball-follow, fielding, and replay camera presets, plus impact and crowd audio and a readable scoreboard.
@@ -260,6 +289,8 @@ Create one cohesive representative art set: stadium, pitch, outfield, stands, re
 Build a Stadium and Presentation panel for placement, camera bookmarks, lighting presets, and capture. Begin with Blender-authored layout and overrides; expand into a dedicated editor only when iteration needs it.
 
 **Gate:** capture an entire over at the intended visual level, with consistent movement and cameras. Measure CPU/GPU frame times and animation cost with the full fielding side on the target hardware. Aim for stable 60 fps at the agreed resolution and tune from measurements.
+
+**Open after Step 22:** stadium, cameras, light, ground textures, static crowd, and skinned fielders are in. The short-match visual bar is a readable stylized prototype. A richer rig, kit textures, audio, post-process, and GPU timing stay in this phase; they are not a reason to delay Steps 23–25.
 
 ## Phase 5 — Complete short match
 
@@ -282,7 +313,7 @@ Package a reproducible release candidate, test on another machine, profile repre
 5. Replay and capture commands: reproduce defects and support visual review.
 6. Stadium, roster, and presentation editors: speed production after formats settle.
 
-Use one shared in-game debug UI shell. Hot-reload tuning data first; reload models and shaders once resource replacement is safe. Start with an explicit local CLI that returns structured results for commands such as validating content, running scenarios, comparing metrics, and capturing a frame. Add a service/MCP interface only when a repeated AI workflow justifies it. Keep output paths, errors, and changes reviewable.
+The CLI is the lab for items 1–5 (`validate`, `simulate`, `analyze-*`, `verify-*`, `--capture-frame`, `tools/review.ps1`). Do not build a second in-game editor for the same jobs. The remaining in-game need is the F1 overlay for contact, sweet-spot, and release markers (Step 26). Hot-reload tuning data first; reload models and shaders once resource replacement is safe. Add a service/MCP interface only when a repeated AI workflow justifies it. Keep output paths, errors, and changes reviewable.
 
 ## AI-assisted workflow
 
@@ -296,9 +327,9 @@ Keep focused scenarios for fast-ball collision, known bounce, early/late/missed 
 
 ## Effort estimate and first package
 
-For one developer working substantially full-time with AI assistance, allow roughly 3–6 months for a convincing playable slice and 9–18+ months for a polished small game. This is an uncertain planning estimate; experience, asset availability, animation, and scope can move it substantially. Re-estimate after the first animated import and playable over. Part-time work stretches the calendar estimate.
+For one developer working substantially full-time with AI assistance, allow roughly 3–6 months for a convincing playable slice and 9–18+ months for a polished small game. This is an uncertain planning estimate; experience, asset availability, animation, and scope can move it substantially. The first animated import and playable over are done; re-estimate the short-match calendar after Steps 23–25. Part-time work stretches the calendar estimate.
 
-Initial work package:
+Initial work package (complete):
 
 1. Scaffold the solution, pin dependencies, and establish build/run commands.
 2. Render the ground, pitch, ball, controllable camera, and debug measurements.
@@ -306,7 +337,7 @@ Initial work package:
 4. Implement fixed-step ball flight, pitch collision, and trajectory visualization.
 5. Save and replay one delivery preset through an initial Delivery Lab.
 
-The initial milestone is an animated practice delivery with a reliable asset pipeline and observable simulation.
+The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. The current milestone is a stable one-over loop whose scoring and fielding can survive a short match; that is Steps 23–26 before Phase 5.
 
 ## References
 
@@ -314,3 +345,5 @@ The initial milestone is an animated practice delivery with a reliable asset pip
 - [MonoGame configurable effects](https://docs.monogame.net/articles/getting_to_know/whatis/graphics/WhatIs_ConfigurableEffect.html)
 - [MonoGame 3.8.5 release](https://monogame.net/blog/2026-07-15-3.8.5-release-2026/)
 - [glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.pdf)
+- Gameplay review: `docs/reviews/2026-10-06.md`
+- Planning review: `docs/reviews/2026-10-06-planning.md`
