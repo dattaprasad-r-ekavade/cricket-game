@@ -77,7 +77,8 @@ public static class CpuShotPlacementModel
         float intendedAim,
         int batterTiming,
         int batterPower,
-        int seed)
+        int seed,
+        CpuDifficulty difficulty = CpuDifficulty.Standard)
     {
         if (!float.IsFinite(intendedAim) || intendedAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(intendedAim), "Shot direction must be between -1 and 1.");
@@ -87,7 +88,8 @@ public static class CpuShotPlacementModel
             throw new ArgumentOutOfRangeException(nameof(batterPower), "Batter power must be between 0 and 100.");
 
         var placementSkill = (batterTiming * 0.65f + batterPower * 0.35f) / 100f;
-        var maximumAimError = 0.45f + (1f - placementSkill) * 0.90f;
+        var maximumAimError = (0.45f + (1f - placementSkill) * 0.90f) *
+            CpuDifficultyModel.GetTuning(difficulty).ShotPlacementErrorMultiplier;
         var random = new Random(seed);
         var aimError = ((float)random.NextDouble() * 2f - 1f) * maximumAimError;
         return Math.Clamp(intendedAim + aimError, -1f, 1f);

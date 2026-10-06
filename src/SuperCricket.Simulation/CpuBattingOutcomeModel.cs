@@ -29,7 +29,8 @@ public static class CpuBattingOutcomeModel
         TeamPlayerData bowler,
         IReadOnlyList<TeamPlayerData> fielders,
         BowlingSituation situation,
-        FieldingTactic fieldingTactic)
+        FieldingTactic fieldingTactic,
+        CpuDifficulty difficulty = CpuDifficulty.Standard)
     {
         ArgumentNullException.ThrowIfNull(striker);
         ArgumentNullException.ThrowIfNull(bowler);
@@ -51,6 +52,7 @@ public static class CpuBattingOutcomeModel
         }
 
         var ballsRemaining = Math.Max(1, situation.OversPerInnings * OverScoreboard.BallsPerOver - situation.LegalBalls);
+        var difficultyTuning = CpuDifficultyModel.GetTuning(difficulty);
         var requiredRate = situation.Target is { } target
             ? Math.Max(0, target - situation.Runs) / (float)ballsRemaining
             : 0f;
@@ -58,7 +60,10 @@ public static class CpuBattingOutcomeModel
         var timing = striker.Timing / 100f;
         var power = striker.Power / 100f;
         var fielding = totalFielding / (fielders.Count * 100f);
-        var aggression = Math.Clamp(0.28f + pressure * 0.48f + (power - 0.5f) * 0.24f, 0.12f, 0.92f);
+        var aggression = Math.Clamp(
+            0.28f + pressure * 0.48f + (power - 0.5f) * 0.24f + difficultyTuning.BattingAggressionOffset,
+            0.12f,
+            0.92f);
         if (situation.Target is null && situation.Wickets >= 7)
             aggression *= 0.78f;
 
@@ -73,6 +78,7 @@ public static class CpuBattingOutcomeModel
         wicketChance += pressure * 0.025f + bowler.Bowling / 100f * 0.025f + fielding * 0.012f;
         if (fieldingTactic == FieldingTactic.AttackWickets)
             wicketChance += 0.02f;
+        wicketChance *= difficultyTuning.BattingWicketChanceMultiplier;
 
         var boundaryChance = shot switch
         {
@@ -84,11 +90,14 @@ public static class CpuBattingOutcomeModel
         boundaryChance -= bowler.Bowling / 100f * 0.015f + fielding * 0.05f;
         if (fieldingTactic == FieldingTactic.ProtectBoundary)
             boundaryChance -= 0.055f;
+        boundaryChance *= difficultyTuning.BattingBoundaryChanceMultiplier;
 
         var oneRunChance = 0.50f + aggression * 0.12f - fielding * 0.08f;
         if (fieldingTactic == FieldingTactic.ProtectBoundary)
             oneRunChance -= 0.04f;
+        oneRunChance *= difficultyTuning.BattingRunChanceMultiplier;
         var runOutChance = 0.008f + (1f - timing) * 0.012f + fielding * 0.012f;
+        runOutChance *= difficultyTuning.BattingRunOutChanceMultiplier;
         var boundaryClearedChance = shot == CpuShotChoice.Loft ? 0.78f - fielding * 0.18f : 0f;
 
         return new CpuBattingDecision(
@@ -98,8 +107,8 @@ public static class CpuBattingOutcomeModel
             Math.Clamp(wicketChance, 0f, 0.85f),
             Math.Clamp(boundaryChance, 0f, 0.85f),
             Math.Clamp(oneRunChance, 0f, 0.90f),
-            Math.Clamp(0.16f + aggression * 0.06f, 0f, 0.5f),
-            Math.Clamp(0.03f + aggression * 0.07f, 0f, 0.5f),
+            Math.Clamp((0.16f + aggression * 0.06f) * difficultyTuning.BattingRunChanceMultiplier, 0f, 0.5f),
+            Math.Clamp((0.03f + aggression * 0.07f) * difficultyTuning.BattingRunChanceMultiplier, 0f, 0.5f),
             Math.Clamp(runOutChance, 0f, 0.1f),
             Math.Clamp(boundaryClearedChance, 0f, 1f));
     }

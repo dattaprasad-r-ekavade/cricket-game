@@ -63,6 +63,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
     private int _matchBowlingSeed;
+    private CpuDifficulty _cpuDifficulty = CpuDifficulty.Standard;
     private DeliveryPreset _deliveryPreset = null!;
     private BattingShotSet _shotSet = null!;
     private BallFlightSimulator _ballFlight = null!;
@@ -386,6 +387,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             var currentIndex = Array.IndexOf(OversChoices, _selectedOversPerInnings);
             _selectedOversPerInnings = OversChoices[(currentIndex + 1) % OversChoices.Length];
+            StartNewMatch();
+        }
+        if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D) && _match.IsMatchComplete)
+        {
+            _cpuDifficulty = CpuDifficultyModel.Next(_cpuDifficulty);
             StartNewMatch();
         }
         if (keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) SelectNextDelivery(0);
@@ -786,16 +792,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
             var matchLines = new[]
             {
-                "SUPER CRICKET  /  SHORT MATCH",
+                $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}",
                 ScoreStatusText,
                 batterText,
                 _match.IsMatchComplete ? "Match finished" : eventText,
-                IsCpuBattingControlled
-                    ? "CPU bats. Choose a bowling delivery."
-                    : "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
-                IsCpuBattingControlled
-                    ? "1-3: delivery    N: next ball    R: restart    O: overs at result    P: pause"
-                    : "N: ball/innings    R: restart    O: overs    P: pause    F1: stats"
+                _match.IsMatchComplete
+                    ? "D: next CPU difficulty    O: next overs    R: replay"
+                    : IsCpuBattingControlled
+                        ? $"CPU batting ({_cpuDifficulty}). Choose a bowling delivery."
+                        : "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
+                _match.IsMatchComplete
+                    ? "Choose another match to continue."
+                    : IsCpuBattingControlled
+                        ? "1-3: delivery    N: next ball    R: restart    P: pause"
+                        : "N: ball/innings    R: restart    P: pause    F1: stats"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 166), Color.White);
@@ -811,7 +821,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
-            $"SUPER CRICKET  /  SHORT MATCH    seed {_matchBowlingSeed}",
+            $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}    seed {_matchBowlingSeed}",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
             $"{ScoreStatusText}    Striker {_match.StrikerPlayer.Name}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
@@ -879,7 +889,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 _match.CurrentBowler.Bowling,
                 _match.StrikerPlayer.Power,
                 situation,
-                CreateBowlingDecisionSeed()).Delivery;
+                CreateBowlingDecisionSeed(),
+                _cpuDifficulty).Delivery;
         }
         else
         {
@@ -941,7 +952,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 _bowlerAsset,
                 _shotSet,
                 CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
-                _fieldingSide.Positions);
+                _fieldingSide.Positions,
+                _cpuDifficulty);
             _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
             _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;

@@ -20,8 +20,16 @@ public static class CpuBattingOutcomeReviewChecks
             striker, bowler, fielders, situation, FieldingTactic.Balanced);
         var replay = CpuBattingOutcomeModel.Choose(
             striker, bowler, fielders, situation, FieldingTactic.Balanced);
+        var rookie = CpuBattingOutcomeModel.Choose(
+            striker, bowler, fielders, situation, FieldingTactic.Balanced, CpuDifficulty.Rookie);
+        var pro = CpuBattingOutcomeModel.Choose(
+            striker, bowler, fielders, situation, FieldingTactic.Balanced, CpuDifficulty.Pro);
         Require(balanced == replay,
             "identical CPU batting inputs produced different strategies");
+        Require(rookie.Aggression < balanced.Aggression && balanced.Aggression < pro.Aggression &&
+            rookie.BoundaryChance < balanced.BoundaryChance && balanced.BoundaryChance < pro.BoundaryChance &&
+            rookie.OneRunChance < balanced.OneRunChance && balanced.OneRunChance < pro.OneRunChance,
+            "CPU batting difficulty did not tune aggression, boundary, and running chances in the expected direction");
         Require(balanced.Shot == CpuShotChoice.Loft && balanced.Aggression > 0.64f,
             "a high-power batter did not choose an aggressive shot under a high chase rate");
 
@@ -31,8 +39,15 @@ public static class CpuBattingOutcomeReviewChecks
         var lateWicketsSituation = new BowlingSituation(0, 2, 0, 8, Target: null);
         var defensive = CpuBattingOutcomeModel.Choose(
             defensiveBatter, bowler, fielders, lateWicketsSituation, FieldingTactic.AttackWickets);
+        var rookieDefensive = CpuBattingOutcomeModel.Choose(
+            defensiveBatter, bowler, fielders, lateWicketsSituation, FieldingTactic.AttackWickets, CpuDifficulty.Rookie);
+        var proDefensive = CpuBattingOutcomeModel.Choose(
+            defensiveBatter, bowler, fielders, lateWicketsSituation, FieldingTactic.AttackWickets, CpuDifficulty.Pro);
         Require(defensive.Shot == CpuShotChoice.Defence && defensive.Aggression < balanced.Aggression,
             "a low-power team protecting late wickets did not choose a controlled shot");
+        Require(rookieDefensive.Shot == CpuShotChoice.Defence && defensive.Shot == proDefensive.Shot &&
+            rookieDefensive.WicketChance > defensive.WicketChance && defensive.WicketChance > proDefensive.WicketChance,
+            "CPU difficulty did not tune dismissal risk while preserving a defensive shot");
 
         bowler.Bowling = 100;
         var strongBowling = CpuBattingOutcomeModel.Choose(

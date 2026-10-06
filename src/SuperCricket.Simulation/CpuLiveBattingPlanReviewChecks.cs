@@ -95,6 +95,7 @@ public static class CpuLiveBattingPlanReviewChecks
 
                     if (delivery == standardDelivery && testCase.Shot == CpuShotChoice.Drive)
                     {
+                        VerifyTimingDifficulty(striker, outcome, delivery, samples);
                         var formation = FieldPlacementModel.Choose(
                             fieldPreset, testCase.Situation, striker.Power);
                         var placedPlan = CpuLiveBattingPlanModel.Choose(
@@ -185,10 +186,55 @@ public static class CpuLiveBattingPlanReviewChecks
             .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(0f, 90, 90, seed)));
         var developingError = Enumerable.Range(0, 64)
             .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(0f, 25, 25, seed)));
+        var rookieError = Enumerable.Range(0, 64)
+            .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(
+                0f, 75, 70, seed, CpuDifficulty.Rookie)));
+        var standardError = Enumerable.Range(0, 64)
+            .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(
+                0f, 75, 70, seed, CpuDifficulty.Standard)));
+        var proError = Enumerable.Range(0, 64)
+            .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(
+                0f, 75, 70, seed, CpuDifficulty.Pro)));
         var repeatedAim = CpuShotPlacementModel.ApplyExecutionError(0.25f, 75, 70, 4817);
         Require(developingError > skilledError &&
+            rookieError > standardError && standardError > proError &&
             repeatedAim == CpuShotPlacementModel.ApplyExecutionError(0.25f, 75, 70, 4817),
-            "placement execution did not scale with batting skill and remain deterministic");
+            "placement execution did not scale with batting skill/difficulty and remain deterministic");
+    }
+
+    private static void VerifyTimingDifficulty(
+        TeamPlayerData striker,
+        CpuBattingDecision outcome,
+        DeliveryPreset delivery,
+        IReadOnlyList<BattingPracticeSample> samples)
+    {
+        var originalTiming = striker.Timing;
+        striker.Timing = 50;
+        try
+        {
+            var bestDelay = samples
+                .Where(sample => sample.ContactQuality.HasValue && sample.ContactTimeSeconds.HasValue)
+                .OrderByDescending(sample => sample.ContactQuality)
+                .ThenBy(sample => MathF.Abs(sample.FootworkOffsetMeters))
+                .First().InputDelaySeconds;
+            double AverageError(CpuDifficulty difficulty) => Enumerable.Range(0, 96)
+                .Average(seed => MathF.Abs(CpuLiveBattingPlanModel.ChooseFromSamples(
+                    striker, outcome, delivery, samples, seed, difficulty: difficulty).InputDelaySeconds - bestDelay));
+
+            var rookieError = AverageError(CpuDifficulty.Rookie);
+            var standardError = AverageError(CpuDifficulty.Standard);
+            var proError = AverageError(CpuDifficulty.Pro);
+            var repeatedRookiePlan = CpuLiveBattingPlanModel.ChooseFromSamples(
+                striker, outcome, delivery, samples, 4817, difficulty: CpuDifficulty.Rookie);
+            Require(rookieError > standardError && standardError > proError &&
+                repeatedRookiePlan == CpuLiveBattingPlanModel.ChooseFromSamples(
+                    striker, outcome, delivery, samples, 4817, difficulty: CpuDifficulty.Rookie),
+                "timing difficulty did not tune CPU timing error or remain deterministic");
+        }
+        finally
+        {
+            striker.Timing = originalTiming;
+        }
     }
 
     private static void Require(bool condition, string message)

@@ -7,16 +7,32 @@ public static class BowlingDecisionReviewChecks
 {
     public static void Run()
     {
+        Require(CpuDifficultyModel.Next(CpuDifficulty.Rookie) == CpuDifficulty.Standard &&
+            CpuDifficultyModel.Next(CpuDifficulty.Standard) == CpuDifficulty.Pro &&
+            CpuDifficultyModel.Next(CpuDifficulty.Pro) == CpuDifficulty.Rookie,
+            "CPU difficulty did not cycle in the expected order");
+        RequireThrows(() => CpuDifficultyModel.GetTuning((CpuDifficulty)99),
+            "an unknown CPU difficulty was accepted");
+
         var stock = CreateStockDelivery();
         var situation = new BowlingSituation(LegalBalls: 4, OversPerInnings: 2, Runs: 5, Wickets: 1, Target: 18);
         var first = BowlingDecisionModel.ChooseDelivery(stock, 76, 68, situation, seed: 20261006);
         var replay = BowlingDecisionModel.ChooseDelivery(stock, 76, 68, situation, seed: 20261006);
+        var rookie = BowlingDecisionModel.ChooseDelivery(
+            stock, 76, 68, situation, seed: 20261006, difficulty: CpuDifficulty.Rookie);
+        var pro = BowlingDecisionModel.ChooseDelivery(
+            stock, 76, 68, situation, seed: 20261006, difficulty: CpuDifficulty.Pro);
         Require(first.Variation == replay.Variation &&
             NearlyEqual(first.Delivery.ReleaseVelocity.ToVector3(), replay.Delivery.ReleaseVelocity.ToVector3()) &&
             first.Delivery.LateralAccelerationMetersPerSecondSquared == replay.Delivery.LateralAccelerationMetersPerSecondSquared,
             "a bowling decision did not replay from its seed");
         Require(first.Delivery.Validate().Count == 0 && !first.Delivery.IsNoBall,
             "a legal CPU bowling decision created an invalid or illegal stock delivery");
+        Require(rookie.Variation == first.Variation && pro.Variation == first.Variation &&
+            rookie.AccuracySpreadVelocityX > first.AccuracySpreadVelocityX &&
+            first.AccuracySpreadVelocityX > pro.AccuracySpreadVelocityX &&
+            rookie.Delivery.Validate().Count == 0 && pro.Delivery.Validate().Count == 0,
+            "difficulty changed the bowling tactic or failed to tune valid bowling accuracy");
         Require(!ReferenceEquals(first.Delivery.ReleasePosition, stock.ReleasePosition) &&
             !ReferenceEquals(first.Delivery.ReleaseVelocity, stock.ReleaseVelocity),
             "a CPU delivery shared mutable release vectors with its stock preset");

@@ -33,7 +33,8 @@ public static class BowlingDecisionModel
         int bowlingRating,
         int strikerPower,
         BowlingSituation situation,
-        int seed)
+        int seed,
+        CpuDifficulty difficulty = CpuDifficulty.Standard)
     {
         ArgumentNullException.ThrowIfNull(stockDelivery);
         if (bowlingRating is < 0 or > 100)
@@ -47,12 +48,13 @@ public static class BowlingDecisionModel
         if (stockDelivery.IsNoBall)
             throw new ArgumentException("The CPU bowling model requires a legal stock delivery.", nameof(stockDelivery));
 
+        var difficultyTuning = CpuDifficultyModel.GetTuning(difficulty);
         var random = new Random(seed);
         var pressure = GetPressure(situation);
         var variation = SelectVariation(random.NextDouble(), strikerPower, situation.Wickets, pressure);
         var intendedLineX = GetIntendedLineVelocity(variation);
         var skill = bowlingRating / 100f;
-        var accuracySpread = 0.85f - skill * 0.65f;
+        var accuracySpread = (0.85f - skill * 0.65f) * difficultyTuning.BowlingAccuracySpreadMultiplier;
         var accuracyError = ((float)random.NextDouble() * 2f - 1f) * accuracySpread;
         var paceJitter = ((float)random.NextDouble() * 2f - 1f) * 0.035f;
         var paceScale = 0.92f + skill * 0.10f + paceJitter;

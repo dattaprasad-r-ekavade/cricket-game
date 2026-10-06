@@ -27,14 +27,15 @@ public static class CpuLiveBattingPlanModel
         PlayerAsset bowlerAsset,
         BattingShotSet shotSet,
         int seed,
-        IReadOnlyList<Vector3>? fieldingPositions = null)
+        IReadOnlyList<Vector3>? fieldingPositions = null,
+        CpuDifficulty difficulty = CpuDifficulty.Standard)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(batterAsset);
         ArgumentNullException.ThrowIfNull(bowlerAsset);
         ArgumentNullException.ThrowIfNull(shotSet);
         ArgumentNullException.ThrowIfNull(fielders);
-        var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic);
+        var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic, difficulty);
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)
             throw new ArgumentException($"Invalid CPU batting delivery: {string.Join(" ", deliveryErrors)}", nameof(delivery));
@@ -54,7 +55,7 @@ public static class CpuLiveBattingPlanModel
             InputDelayStepSeconds,
             striker);
         var authoredShot = shotSet.Get(shotName);
-        var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim);
+        var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, difficulty);
         if (fieldingPositions is null)
             return plan;
 
@@ -69,7 +70,8 @@ public static class CpuLiveBattingPlanModel
             horizontalAim,
             striker.Timing,
             striker.Power,
-            seed ^ unchecked((int)0x4cf5ad43));
+            seed ^ unchecked((int)0x4cf5ad43),
+            difficulty);
         return plan with { HorizontalAim = executedAim };
     }
 
@@ -79,7 +81,8 @@ public static class CpuLiveBattingPlanModel
         DeliveryPreset delivery,
         IReadOnlyList<BattingPracticeSample> samples,
         int seed,
-        float horizontalAim = 0f)
+        float horizontalAim = 0f,
+        CpuDifficulty difficulty = CpuDifficulty.Standard)
     {
         ArgumentNullException.ThrowIfNull(striker);
         ArgumentNullException.ThrowIfNull(delivery);
@@ -106,7 +109,8 @@ public static class CpuLiveBattingPlanModel
             // Lower timing ratings add a repeatable input error around the best physical timing.
             // The selected analyzer sample then predicts the actual contact or miss from that timing.
             var timingSkill = striker.Timing / 100f;
-            var maximumTimingError = (1f - timingSkill) * 0.16f;
+            var maximumTimingError = (1f - timingSkill) * 0.16f *
+                CpuDifficultyModel.GetTuning(difficulty).BattingTimingErrorMultiplier;
             var timingError = (float)(random.NextDouble() * 2.0 - 1.0) * maximumTimingError;
             var desiredInputDelay = Math.Clamp(
                 bestContact.InputDelaySeconds + timingError,
