@@ -38,3 +38,7 @@ The scene uses Godot Forward+ on the desktop trial, 2× MSAA, a four-split shado
 This proves that the shared delivery and batting simulation can drive a Godot presentation, glTF animation import works, and the needed shadow/post-processing features are available on the chosen desktop renderer. It does not establish Cricket 07 visual fidelity or keyboard playability. The batter is still the 13-bone prototype; the stadium is procedural; there is no bowler animation, completed match, authored stadium asset, performance comparison, or human playtest of the Godot scene.
 
 Milestone B3 remains: compare the inspected Godot captures and development time with the MonoGame build, then record the engine decision. Step 57's revised MonoGame cameras and feedback still await the owner's keyboard retest; GamePad remains untested.
+
+## B3 correction — Step 60
+
+The boundary result described above was not a valid batting benchmark: the shared drive's negative-Z impulse pointed back behind the striker at `Z=-8.45 m`. The earlier B2 result image and its “FOUR” card are historical, and must not be treated as correct shot behavior. Step 60 corrected the shared simulation direction and CPU placement probes. The same standard-pace front-foot drive now leaves contact toward positive Z and settles inside the rope; fresh, correctly labelled images are `artifacts/godot-b3-contact.png`, `godot-b3-result.png`, and `godot-b3-wide.png`. Step 60 records the B3 engine decision and comparison. The MonoGame keyboard retest and GamePad test remain open.

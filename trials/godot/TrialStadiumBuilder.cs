@@ -18,7 +18,7 @@ public static class TrialStadiumBuilder
         AddBoundaryRope(stadium, preset.FieldBoundaryRadiusMeters);
         AddPitch(stadium, preset);
         AddStands(stadium);
-        AddSightScreens(stadium);
+        AddSightScreens(stadium, preset.FieldBoundaryRadiusMeters + 7f);
         AddScoreboard(stadium);
         AddFloodlights(stadium);
     }
@@ -199,7 +199,7 @@ public static class TrialStadiumBuilder
         AddMesh(root, "RoofInnerRim", CreateOvalRing(92.1f, 78.1f, 93.2f, 79.2f, 20.6f, 21.6f), ConcreteMaterial(new Color(0.59f, 0.62f, 0.56f)));
     }
 
-    private static void AddSightScreens(Node3D root)
+    private static void AddSightScreens(Node3D root, float distanceFromCenter)
     {
         var screenMaterial = new StandardMaterial3D
         {
@@ -207,7 +207,7 @@ public static class TrialStadiumBuilder
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             Roughness = 0.88f
         };
-        foreach (var z in new[] { -26f, 26f })
+        foreach (var z in new[] { -distanceFromCenter, distanceFromCenter })
         {
             var screen = AddBox(root, "BowlerSightScreen", new Vector3(16f, 5.6f, 0.5f), new Vector3(0f, 3.2f, z), screenMaterial);
             screen.RotationDegrees = new Vector3(0f, z < 0f ? 0f : 180f, 0f);

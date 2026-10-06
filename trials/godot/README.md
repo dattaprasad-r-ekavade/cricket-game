@@ -1,8 +1,8 @@
 # Godot .NET presentation trial
 
-This side project compares Godot 4 with the existing MonoGame host. It references the unchanged, graphics-free `SuperCricket.Simulation` and `SuperCricket.Content` projects; the main game stays on MonoGame while the engine decision is open.
+This side project compares Godot 4 with the existing MonoGame host. It references the shared, graphics-free `SuperCricket.Simulation` and `SuperCricket.Content` projects. The B3 decision keeps MonoGame as the shipping host; Godot remains a presentation trial until it can run a human-playable over with camera and feedback parity.
 
-The B2 scene builds an oval stadium and pitch procedurally, imports the Blender practice batter as glTF/GLB, plays its authored stance and front-foot drive, and replays the shared incoming and outgoing ball simulation. A role camera frames the striker, a wide camera shows the stadium, and a ball-follow camera takes over after contact. The scene has a persistent delivery/contact/result card, a shadow-casting sun, procedural sky, filmic tone mapping, fog, and glow.
+The scene builds an oval stadium and pitch procedurally, imports the Blender practice batter as glTF/GLB, plays its authored stance and front-foot drive, and replays the shared incoming and outgoing ball simulation. A role camera frames the striker, a wide camera shows the stadium, and a higher ball-follow camera takes over after contact. The scene has a persistent delivery/contact/result card, a shadow-casting sun, procedural sky, filmic tone mapping, fog, and glow. The straight-shot axis and CPU placement probes are shared with the MonoGame game and point from the striker toward positive Z.
 
 ## Requirements and run
 
@@ -33,8 +33,8 @@ Generate fixed review captures from the repository root:
 & "$env:LOCALAPPDATA\GodotTrials\4.7.2-mono\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe" --path trials/godot -- --capture=wide
 ```
 
-Each run saves a 1440×900 PNG under the ignored repository `artifacts/` directory. `contact` stops on the calibrated bat-contact feedback, `result` stops after the shared simulation resolves the drive as a boundary, and `wide` captures the oval stadium.
+Each run saves a 1440×900 PNG under the ignored repository `artifacts/` directory as `godot-b3-{contact,result,wide}.png`. `contact` stops on the calibrated bat-contact feedback, `result` stops after the shared simulation resolves the drive (currently an in-play ground shot), and `wide` captures the oval stadium.
 
 ## Scope
 
-The 13-bone batter and procedural stadium are proof assets for B2, not final production art. This trial has one batting delivery and shot; it does not yet include human bowling, a complete match, a production character rig, authored stadium art, or the B3 engine comparison. See [`docs/steps/step-58-godot-trial-visuals.md`](../../docs/steps/step-58-godot-trial-visuals.md) for what was built and verified.
+The 13-bone batter and procedural stadium are proof assets, not final production art. This trial has one deterministic batting delivery and shot; it does not yet include human bowling, a complete match, a production character rig, authored stadium art, or human playtesting. See [`docs/steps/step-58-godot-trial-visuals.md`](../../docs/steps/step-58-godot-trial-visuals.md) and the B3 engine comparison at [`docs/reviews/godot-engine-comparison.md`](../../docs/reviews/godot-engine-comparison.md).

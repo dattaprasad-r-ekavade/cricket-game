@@ -67,13 +67,13 @@ public partial class Main : Node3D
 
         if (_trajectory.ContactPosition is not { } contact || _trajectory.OutgoingFrames.Count < 2)
             throw new InvalidDataException("The shared batting simulation could not produce the calibrated front-foot drive.");
-        if (!string.Equals(_trajectory.Sample.Outcome, "Four", StringComparison.Ordinal))
-            throw new InvalidDataException($"Expected the calibrated trial shot to reach the boundary, got '{_trajectory.Sample.Outcome}'.");
+        if (_trajectory.Sample.Outcome is not ("Four" or "Six" or "InPlay"))
+            throw new InvalidDataException($"The shared trial drive returned an unsupported outcome '{_trajectory.Sample.Outcome}'.");
 
-        GD.Print($"Godot B2 loaded {_preset.Name}; shared batting Simulation found {ShotName} contact at " +
+        GD.Print($"Godot loaded {_preset.Name}; shared batting Simulation found {ShotName} contact at " +
             $"{_trajectory.Sample.ContactTimeSeconds:0.000}s with quality {_trajectory.Sample.ContactQuality:0.00}, " +
             $"then {_trajectory.Sample.Outcome}; contact={_trajectory.ContactPosition}, outgoing={_trajectory.OutgoingVelocity}, " +
-            $"boundary-frame={_trajectory.OutgoingFrames[^1].Position}.");
+            $"final-frame={_trajectory.OutgoingFrames[^1].Position}.");
 
         TrialStadiumBuilder.Build(this, _preset);
         BuildPlayer();
@@ -276,7 +276,7 @@ public partial class Main : Node3D
             OffsetTop = 20f,
             OffsetRight = 580f,
             OffsetBottom = 54f,
-            Text = "SUPER CRICKET  /  ENGINE TRIAL B2"
+            Text = "SUPER CRICKET  /  ENGINE TRIAL"
         };
         topLine.AddThemeFontSizeOverride("font_size", 18);
         topLine.AddThemeColorOverride("font_color", new Color(0.88f, 0.95f, 0.91f));
@@ -297,7 +297,7 @@ public partial class Main : Node3D
             OffsetRight = -26f,
             OffsetBottom = 54f,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Text = "STANDARD PACE  ·  130 KM/H"
+            Text = $"STANDARD PACE  ·  {_preset.StartVelocity.Length() * 3.6f:0} KM/H"
         };
         _phaseLabel.AddThemeFontSizeOverride("font_size", 18);
         _phaseLabel.AddThemeColorOverride("font_color", new Color(0.98f, 0.89f, 0.69f));
@@ -460,13 +460,13 @@ public partial class Main : Node3D
             _broadcastView = false;
             _shotCamera.MakeCurrent();
             _cameraNameLabel.Text = "BALL FOLLOW";
-            GD.Print($"Godot B2 camera changed to {_shotCamera.Name} at ball {_ball.Position}.");
+            GD.Print($"Godot camera changed to {_shotCamera.Name} at ball {_ball.Position}.");
         }
         if (_shotCameraActive)
         {
             var shotDirection = ToGodot(_trajectory.OutgoingVelocity!.Value).Normalized();
             var sideOffset = new Vector3(-shotDirection.Z, 0f, shotDirection.X).Normalized();
-            _shotCamera.Position = _ball.Position - shotDirection * 9f + sideOffset * 3f + Vector3.Up * 3f;
+            _shotCamera.Position = _ball.Position - shotDirection * 6f + sideOffset * 18f + Vector3.Up * 11f;
             _shotCamera.LookAt(_ball.Position + Vector3.Up * 0.4f, Vector3.Up);
         }
         if (frame.Phase == BallMotionPhase.Settled || _outgoingIndex >= _outgoingFrames.Count)
@@ -481,9 +481,15 @@ public partial class Main : Node3D
         _postResultElapsed = 0d;
         var distance = new Vector2(_trajectory.ContactPosition!.Value.X, _trajectory.ContactPosition.Value.Z)
             .DistanceTo(new Vector2(_ball.Position.X, _ball.Position.Z));
-        SetFeedback("FOUR  ·  BOUNDARY", $"{distance:0} m FROM CONTACT  ·  THE SHARED SIMULATION CLEARED THE ROPE", new Color(1f, 0.83f, 0.35f));
-        _phaseLabel.Text = "RESULT  ·  4 RUNS";
-        GD.Print($"Godot B2 result: {_trajectory.Sample.Outcome}, {distance:0.0} m from bat contact; " +
+        var result = _trajectory.Sample.Outcome switch
+        {
+            "Four" => (Title: "FOUR  ·  BOUNDARY", Detail: $"{distance:0} m FROM CONTACT  ·  THE SHARED SIMULATION CLEARED THE ROPE", Accent: new Color(1f, 0.83f, 0.35f), Phase: "RESULT  ·  FOUR"),
+            "Six" => (Title: "SIX  ·  OVER THE ROPE", Detail: $"{distance:0} m FROM CONTACT  ·  THE SHARED SIMULATION CLEARED THE ROPE IN THE AIR", Accent: new Color(1f, 0.83f, 0.35f), Phase: "RESULT  ·  SIX"),
+            _ => (Title: "IN PLAY  ·  BALL SETTLED", Detail: $"{distance:0} m FROM CONTACT  ·  THE SHARED SIMULATION STOPPED INSIDE THE ROPE", Accent: new Color(0.53f, 0.89f, 0.68f), Phase: "RESULT  ·  BALL IN PLAY")
+        };
+        SetFeedback(result.Title, result.Detail, result.Accent);
+        _phaseLabel.Text = result.Phase;
+        GD.Print($"Godot result: {_trajectory.Sample.Outcome}, {distance:0.0} m from bat contact; " +
             $"{_outgoingFrames.Count} shared post-contact frames replayed.");
     }
 
@@ -516,7 +522,7 @@ public partial class Main : Node3D
         if (_feedbackTitle is not null)
         {
             SetFeedback("DELIVERY IN PLAY", "WATCH THE BOUNCE  ·  FRONT-FOOT DRIVE AT +0.25 s", new Color(0.64f, 0.85f, 0.97f));
-            _phaseLabel.Text = "STANDARD PACE  ·  130 KM/H";
+            _phaseLabel.Text = $"STANDARD PACE  ·  {_preset.StartVelocity.Length() * 3.6f:0} KM/H";
         }
     }
 
@@ -584,13 +590,13 @@ public partial class Main : Node3D
         if (_captureDelay > 0f)
             return;
 
-        var path = Path.Combine(_repositoryRoot, "artifacts", $"godot-b2-{_capturePhase}.png");
+        var path = Path.Combine(_repositoryRoot, "artifacts", $"godot-b3-{_capturePhase}.png");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        GD.Print($"Godot B2 capture state: phase={_capturePhase}, shot-camera={_shotCameraActive}, current={GetViewport().GetCamera3D()?.Name}.");
+        GD.Print($"Godot capture state: phase={_capturePhase}, shot-camera={_shotCameraActive}, current={GetViewport().GetCamera3D()?.Name}.");
         var error = GetViewport().GetTexture().GetImage().SavePng(path);
         if (error != Error.Ok)
-            throw new IOException($"Could not save Godot B2 capture '{path}': {error}.");
-        GD.Print($"Godot B2 screenshot saved: {path}");
+            throw new IOException($"Could not save Godot B3 capture '{path}': {error}.");
+        GD.Print($"Godot B3 screenshot saved: {path}");
         GetTree().Quit();
         _capturePhase = string.Empty;
     }

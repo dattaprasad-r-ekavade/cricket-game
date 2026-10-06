@@ -42,7 +42,7 @@ public static class BattingImpactModel
         var horizontalAim = Math.Clamp(shot.HorizontalAim + offset.X * 0.12f, -1f, 1f);
         var launchAngle = Math.Clamp(shot.LaunchAngleDegrees + offset.Y * 10f, -5f, 70f);
         var launchRadians = launchAngle * (MathF.PI / 180f);
-        var horizontalDirection = Vector3.Normalize(new Vector3(horizontalAim, 0f, -1f));
+        var horizontalDirection = GetHorizontalShotDirection(horizontalAim);
         var shotDirection = new Vector3(
             horizontalDirection.X * MathF.Cos(launchRadians),
             MathF.Sin(launchRadians),
@@ -60,6 +60,14 @@ public static class BattingImpactModel
         var outgoingHorizontalSpeed = new Vector2(outgoingVelocity.X, outgoingVelocity.Z).Length();
         var actualLaunchAngle = MathF.Atan2(outgoingVelocity.Y, outgoingHorizontalSpeed) * (180f / MathF.PI);
         return new BattingImpactResult(outgoingVelocity, quality, actualLaunchAngle);
+    }
+
+    /// <summary>Returns a shot direction relative to the striker-end coordinate system.</summary>
+    public static Vector3 GetHorizontalShotDirection(float horizontalAim)
+    {
+        if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
+            throw new ArgumentOutOfRangeException(nameof(horizontalAim), "Shot direction must be between -1 and 1.");
+        return Vector3.Normalize(new Vector3(horizontalAim, 0f, 1f));
     }
 
     private static Vector3 ClampMagnitude(Vector3 value, float maximum)

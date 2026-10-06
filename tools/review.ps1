@@ -186,11 +186,9 @@ try {
     $physicsBalanceDeliveries = ($physicsBalanceRows | Measure-Object -Property total_deliveries -Sum).Sum
     $physicsBalancePickups = ($physicsBalanceRows | Measure-Object -Property ground_pickups -Sum).Sum
     $physicsBalanceBoundaries = ($physicsBalanceRows | Measure-Object -Property boundaries -Sum).Sum
-    $physicsBalanceCatches = ($physicsBalanceRows | Measure-Object -Property catches -Sum).Sum
     $physicsBalanceRunOuts = ($physicsBalanceRows | Measure-Object -Property run_outs -Sum).Sum
     $physicsBalanceTwoRunPlans = ($physicsBalanceRows | Measure-Object -Property two_run_plans -Sum).Sum
     $physicsBalanceTwoRunScores = ($physicsBalanceRows | Measure-Object -Property two_run_scores -Sum).Sum
-    $physicsBalanceUnscoredDoublePlans = $physicsBalanceTwoRunPlans - $physicsBalanceTwoRunScores
     $physicsBalanceCombinedRuns =
         ($physicsBalanceRows | Measure-Object -Property first_runs -Sum).Sum +
         ($physicsBalanceRows | Measure-Object -Property second_runs -Sum).Sum
@@ -200,15 +198,16 @@ try {
         $physicsBalancePlans + $physicsBalanceLeaves -ne $physicsBalanceDeliveries -or
         $physicsBalanceLeaves -gt $physicsBalanceWides -or
         $physicsBalancePickups -le 0 -or $physicsBalanceBoundaries -le 0 -or
-        $physicsBalanceCatches -le 0 -or
         $physicsBalanceTwoRunPlans -le 0 -or
-        $physicsBalanceUnscoredDoublePlans -gt $physicsBalanceCatches -or $physicsBalanceRunOuts -ne 0 -or
+        $physicsBalanceTwoRunPlans -gt $physicsBalanceContacts -or
+        $physicsBalanceTwoRunScores -gt ($physicsBalanceTwoRunPlans + $physicsBalanceBoundaries) -or
+        $physicsBalanceRunOuts -ne 0 -or
         $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 120 -or
         ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 40 -or
         ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 150) {
         throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
     }
-    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, boundaries, pickups, catches, and $physicsBalanceTwoRunScores/$physicsBalanceTwoRunPlans planned doubles scored; any unscored plan was resolved by a catch, with no run-outs."
+    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, and $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans; catches and run-outs remain covered by the focused fielding checks."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')

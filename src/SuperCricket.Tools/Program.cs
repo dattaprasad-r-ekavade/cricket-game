@@ -432,6 +432,9 @@ static void VerifyBatting(string shotSetPath)
     var incomingVelocity = new Vector3(0f, 0f, -30f);
     var bladeMinimum = new Vector3(-0.2f, -0.5f, -0.05f);
     var bladeMaximum = new Vector3(0.2f, 0.5f, 0.05f);
+    var straightDirection = BattingImpactModel.GetHorizontalShotDirection(0f);
+    if (MathF.Abs(straightDirection.X) > 0.0001f || MathF.Abs(straightDirection.Z - 1f) > 0.0001f)
+        throw new InvalidDataException("A straight drive did not point from the striker's wicket toward the bowler's end.");
     if (!SweptBattingContactResolver.TryResolve(
             new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f),
             Matrix4x4.Identity, Matrix4x4.Identity,
@@ -460,7 +463,7 @@ static void VerifyBatting(string shotSetPath)
         var edge = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, Vector2.One, shot);
         var highContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, 1f), shot);
         var lowContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, -1f), shot);
-        var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, -8f), Vector2.Zero, shot);
+        var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, 8f), Vector2.Zero, shot);
         var upwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 8f, 0f), Vector2.Zero, shot);
         var actualAngle = MathF.Atan2(upwardSwing.OutgoingVelocity.Y,
             new Vector2(upwardSwing.OutgoingVelocity.X, upwardSwing.OutgoingVelocity.Z).Length()) * 180f / MathF.PI;
@@ -468,9 +471,10 @@ static void VerifyBatting(string shotSetPath)
             throw new InvalidDataException($"Reported launch angle differs from outgoing velocity for '{shot.Name}'.");
 
         if (center.ContactQuality <= edge.ContactQuality ||
+            center.OutgoingVelocity.Z <= 0f ||
             highContact.LaunchAngleDegrees <= lowContact.LaunchAngleDegrees ||
             forwardSwing.OutgoingVelocity.Length() <= center.OutgoingVelocity.Length())
-            throw new InvalidDataException($"Batting impact response failed a sweet-spot, vertical-offset, or swing-speed check for '{shot.Name}'.");
+            throw new InvalidDataException($"Batting impact response failed a forward-axis, sweet-spot, vertical-offset, or swing-speed check for '{shot.Name}'.");
 
         Console.WriteLine($"{shot.Name}: sweet spot {center.ContactQuality:0.00}, edge {edge.ContactQuality:0.00}, swing gain {forwardSwing.OutgoingVelocity.Length() - center.OutgoingVelocity.Length():0.00} m/s");
     }
@@ -538,6 +542,24 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     var shotSet = BattingShotSet.Load(shotSetPath);
     var delivery = DeliveryPreset.Load(deliveryPath);
     var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery);
+    var bestDrive = results
+        .Where(sample => string.Equals(sample.ShotName, "drive", StringComparison.OrdinalIgnoreCase) && sample.ContactQuality.HasValue)
+        .OrderByDescending(sample => sample.ContactQuality)
+        .FirstOrDefault();
+    var driveTrajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
+        batter,
+        bowler,
+        shotSet,
+        "drive",
+        delivery,
+        bestDrive.InputDelaySeconds,
+        bestDrive.FootworkOffsetMeters);
+    if (driveTrajectory.ContactPosition is not { } driveContact ||
+        driveTrajectory.OutgoingVelocity is not { } driveVelocity ||
+        MathF.Abs(driveContact.Z - BattingPracticeAnalyzer.BatterWicketLineZ) > 0.5f ||
+        driveVelocity.Z <= 0f)
+        throw new InvalidDataException("The real-asset front-foot drive did not travel from the striker's wicket toward the bowler's end.");
+    Console.WriteLine($"PASS: real-asset straight drive travels toward positive Z from contact at {driveContact.Z:0.00} m.");
 
     // A broad blade guarantees overlap at release, including while still in stance.
     // It exposes collisions incorrectly accepted before a positive input delay.
