@@ -1,0 +1,18 @@
+; Engine trial only. The shipping MonoGame project remains in src/SuperCricket.Game.
+config_version=5
+
+[application]
+
+config/name="Super Cricket — Godot Engine Trial"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.7", "C#")
+
+[dotnet]
+
+project/assembly_name="SuperCricket.GodotTrial"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.39, 0.58, 0.72, 1)

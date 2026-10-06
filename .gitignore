@@ -9,6 +9,9 @@
 **/Content/obj
 **/Content/.mgstats
 
+# Godot trial editor/import cache
+/trials/godot/.godot/
+
 # Local captures and machine-specific files
 artifacts/
 *.user

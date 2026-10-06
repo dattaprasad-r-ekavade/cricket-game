@@ -1,0 +1,11 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SuperCricket.Simulation/SuperCricket.Simulation.csproj" />
+    <ProjectReference Include="../../src/SuperCricket.Content/SuperCricket.Content.csproj" />
+  </ItemGroup>
+</Project>

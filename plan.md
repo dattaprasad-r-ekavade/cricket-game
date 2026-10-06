@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 55 adds moment-to-moment feedback for contact quality and actual bounce, plus a speed-tinted ball trail. Automated checks and captures pass; the owner still needs to retest camera readability and batting/bowling feedback on keyboard, and GamePad play remains untested. A4a/A4b remain in progress; A4c's delivery-feedback items are implemented, with contact replay and guided practice still open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md), and [docs/steps/step-55-immediate-delivery-feedback.md](docs/steps/step-55-immediate-delivery-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 56 bootstraps a Godot .NET presentation trial on `codex/godot-trial`, referencing the unchanged Simulation and Content projects. The host loads the shared standard-pace delivery, renders the ball and pitch markers, and receives the first-bounce event. This completes B1 only; B2/B3 and the engine decision remain open. The owner still needs to retest the MonoGame batting/bowling cameras and feedback on keyboard; GamePad play remains untested. A4a/A4b remain in progress; A4c's delivery-feedback items are implemented, with contact replay and guided practice still open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md), [docs/steps/step-55-immediate-delivery-feedback.md](docs/steps/step-55-immediate-delivery-feedback.md), and [docs/steps/step-56-godot-trial-bootstrap.md](docs/steps/step-56-godot-trial-bootstrap.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -84,7 +84,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 
 MonoGame can render 2006-era graphics, but shadow maps, normal/PBR materials, MSAA, tone mapping, bloom, an animation blend tree, IK, and LODs would all be hand-written. Decide now, before more renderer investment.
 
-- [ ] B1. Create a Godot 4 (.NET) trial branch that references the unchanged `SuperCricket.Simulation` and `SuperCricket.Content` projects.
+- [x] B1. Create a Godot 4 (.NET) trial branch that references the unchanged `SuperCricket.Simulation` and `SuperCricket.Content` projects.
 - [ ] B2. Rebuild the stadium, pitch, one glTF character, and one delivery + shot in the trial, with shadows and post-processing.
 - [ ] B3. Compare captures and hours spent against the MonoGame build; record the decision in `docs/reviews/`.
 
