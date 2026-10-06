@@ -7,12 +7,21 @@ config/name="Super Cricket — Godot Engine Trial"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#")
 
+[display]
+
+window/size/viewport_width=1440
+window/size/viewport_height=900
+window/size/window_width_override=1440
+window/size/window_height_override=900
+
 [dotnet]
 
 project/assembly_name="SuperCricket.GodotTrial"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
+renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
+anti_aliasing/quality/msaa_3d=2
 environment/defaults/default_clear_color=Color(0.39, 0.58, 0.72, 1)
