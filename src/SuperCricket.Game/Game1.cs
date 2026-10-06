@@ -93,6 +93,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _bowlerActionFinished;
     private bool _bowlerReleased;
     private bool _showDebugOverlay;
+    private FieldingTactic _activeFieldingTactic = FieldingTactic.Balanced;
     private Vector3? _releaseMarkerPosition;
     private Vector3? _contactMarkerPosition;
     private Vector3? _sweetSpotMarkerPosition;
@@ -276,8 +277,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "highland-xi.json")),
             _selectedOversPerInnings);
-        _fieldingSide.ConfigureStartingPositions(
-            _fieldPreset.Players.ConvertAll(player => ToNumerics(player.Position.ToVector3())));
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
@@ -785,7 +784,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
             $"Batter footwork: {_batterFootworkOffsetX:+0.00;-0.00;0.00} m lateral",
             $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
-            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
+            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_activeFieldingTactic}, {_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"Release: {(_releaseMarkerPosition is { } release ? $"t=0.000 s @ {FormatPosition(release)} m" : "not yet released")}    Contact: {(_contactMarkerPosition is { } contact ? $"t={_contactTimeSeconds:0.000} s @ {FormatPosition(contact)} m" : "waiting")}",
             $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
@@ -829,14 +828,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         var selectedPreset = _deliveryPresets[_activeDeliveryPresetIndex];
+        var situation = new BowlingSituation(
+            _match.LegalBalls,
+            _match.OversPerInnings,
+            _match.Runs,
+            _match.Wickets,
+            _match.Target);
+        var fieldPlacement = FieldPlacementModel.Choose(_fieldPreset, situation, _match.StrikerPlayer.Power);
+        _activeFieldingTactic = fieldPlacement.Tactic;
+        _fieldingSide.ConfigureStartingPositions(fieldPlacement.StartingPositions);
         if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
         {
-            var situation = new BowlingSituation(
-                _match.LegalBalls,
-                _match.OversPerInnings,
-                _match.Runs,
-                _match.Wickets,
-                _match.Target);
             _deliveryPreset = BowlingDecisionModel.ChooseDelivery(
                 selectedPreset,
                 _match.CurrentBowler.Bowling,
