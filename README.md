@@ -19,6 +19,7 @@ dotnet run --project src/SuperCricket.Game
 The match scene uses metres in world space and includes a procedural stadium preview with textured outfield and pitch surfaces, a marked oval boundary, and a static 4,800-spectator crowd. Ten fielders use the shared skinned player rig; the active chaser switches to a running clip while the rest hold a ready stance. Catches and pickups play authored one-shot clips; run-out throws sequence pickup and overarm actions, with the ball leaving on the throw clip's release marker. Skinned parts are batched by material so the full 13-player scene avoids a draw call for every mesh part. A teal-clad bowler runs in and plays an authored overarm delivery; the ball and its flight trail begin at the clip's release event. In the first innings, A defends, S drives, and D plays a lofted shot; the game sweeps the animated bat against the incoming ball, then uses bat-point velocity and sweet-spot offset to shape the outgoing shot. J and L nudge the horizontal shot aim left or right; the GamePad right stick steers it smoothly. The HUD shows the aim shift before a swing and the selected shot lane during the swing. Q steps the batter toward off side, E toward leg side; each press moves by 0.45 m, up to 2.25 m, and the practice analyzer reports useful positions for each delivery. Choose the shot as the delivery approaches because an early or late swing can miss. Enter attempts a run; press it with a shot choice to start the runners at contact. X cancels a run. Number keys 1–3 select the next standard, wide, or no-ball delivery; N bowls the next ball or starts the chase after the first innings. In the second innings, the CPU chooses shots, timing, and footwork from player ratings and chase pressure. After contact, it checks the shot trajectory, fielders, pickup/throw timing, and boundary before planning a safe single or double; the user continues to select bowling deliveries. Rookie, Standard, and Pro difficulty tune CPU timing, placement, bowling accuracy, and batting aggression while keeping ball and scoring rules fixed. The default match has one over per innings. When a result appears, D cycles CPU difficulty and starts another match; O cycles the match length through 1, 2, 5, and 10 overs per innings and starts another match. R restarts with the current settings. P pauses/resumes the delivery, T cycles batter animations during human batting, V cycles broadcast/behind-striker/bowler-end/square-leg camera views, arrow keys orbit the camera, Page Up/Page Down change its elevation, the mouse wheel zooms, Home resets the broadcast camera, F1 toggles the developer overlay for release/contact/sweet-spot positions and timing, and Escape exits.
 
 J shifts the shot lane left; L shifts it right.
+Q/E and the GamePad D-pad trigger the matching Blender-authored off-side or leg-side shuffle; the batter settles back into stance after the step. Capture either pose deterministically with `--batter-footwork <clip> --action-time <seconds>`.
 
 Controller mapping: A defends, X drives, Y lofts, and B starts a run. The right stick steers the human shot lane; the left shoulder cancels a run and the right shoulder bowls the next ball. The D-pad selects the next delivery while the CPU bats and moves the batter off side/leg side while the human bats. Start pauses or resumes; Back exits. At a result, A replays the current match, the left shoulder cycles CPU difficulty, and the right shoulder cycles overs.
 
@@ -92,13 +93,15 @@ After editing the saved `.blend` in Blender or through Blender MCP, export that 
 
 ```powershell
 blender --background assets/characters/practice-batter.blend --python tools/blender/build_practice_batter.py -- `
-  --from-scene `
+  --from-scene --include-clip batting-step-offside --include-clip batting-step-legside `
   --blend-output assets/characters/practice-batter.blend `
   --asset-output assets/characters/practice-batter.scplayer.json
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json
 ```
 
-The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five starter clips in the batter file and exports additional named actions with `--include-clip`. The bowler source is an edited copy of the player scene with authored `bowling-run-up` and `overarm-delivery` actions; re-export it with:
+The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five base clips in the batter file, authors the mirrored `batting-step-offside` and `batting-step-legside` actions when requested, and exports other named actions with `--include-clip`. The bowler source is an edited copy of the player scene with authored `bowling-run-up` and `overarm-delivery` actions; re-export it with:
+
+When regenerating these procedural batting steps, pass `--rebuild-batting-footwork` with both `--include-clip` options. Without the rebuild flag, edited footwork actions in the `.blend` are preserved.
 
 ```powershell
 blender --background assets/characters/practice-bowler.blend --python tools/blender/add_fielder_lower_legs.py
@@ -131,6 +134,8 @@ dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/bowler-f
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/fielder-catch.png --fielder-action fielder-catch --action-time 0.5
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/fielder-pickup.png --fielder-action fielder-pickup --action-time 0.32
 dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/fielder-throw.png --fielder-action fielder-throw --action-time 0.2
+dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/batter-step-offside.png --camera behind-striker --batter-footwork batting-step-offside --action-time 0.15
+dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/batter-step-legside.png --camera behind-striker --batter-footwork batting-step-legside --action-time 0.15
 ```
 
 Prepare an AI-generated or artist-authored square texture tile with Python and Pillow before adding it to `assets/textures`:

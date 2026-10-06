@@ -67,6 +67,11 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Include an additional named Blender action when exporting an existing scene (repeatable).",
     )
+    parser.add_argument(
+        "--rebuild-batting-footwork",
+        action="store_true",
+        help="Replace the generated off-side and leg-side batting-step actions in an existing scene.",
+    )
     return parser.parse_args(forwarded)
 
 
@@ -221,7 +226,12 @@ def create_character(armature: bpy.types.Object) -> list[bpy.types.Object]:
     return parts
 
 
-def key_pose(armature: bpy.types.Object, frame: int, rotations: dict[str, tuple[float, float, float]]) -> None:
+def key_pose(
+    armature: bpy.types.Object,
+    frame: int,
+    rotations: dict[str, tuple[float, float, float]],
+    locations: dict[str, tuple[float, float, float]] | None = None,
+) -> None:
     scene = bpy.context.scene
     scene.frame_set(frame)
     for bone_name, rotation in rotations.items():
@@ -229,20 +239,84 @@ def key_pose(armature: bpy.types.Object, frame: int, rotations: dict[str, tuple[
         pose_bone.rotation_mode = "XYZ"
         pose_bone.rotation_euler = rotation
         pose_bone.keyframe_insert(data_path="rotation_euler", frame=frame, group=bone_name)
+    for bone_name, location in (locations or {}).items():
+        pose_bone = armature.pose.bones[bone_name]
+        pose_bone.location = location
+        pose_bone.keyframe_insert(data_path="location", frame=frame, group=bone_name)
 
 
-def create_animation(armature: bpy.types.Object, name: str, keyframes: list[tuple[int, dict]]) -> bpy.types.Action:
+def create_animation(armature: bpy.types.Object, name: str, keyframes: list[tuple]) -> bpy.types.Action:
     animation = armature.animation_data_create()
     action = bpy.data.actions.new(name)
     animation.action = action
     if hasattr(action, "slots") and len(action.slots) > 0:
         animation.action_slot = action.slots[0]
-    for frame, rotations in keyframes:
-        key_pose(armature, frame, rotations)
+    for keyframe in keyframes:
+        frame, rotations = keyframe[:2]
+        locations = keyframe[2] if len(keyframe) > 2 else None
+        key_pose(armature, frame, rotations, locations)
     for curve in getattr(action, "fcurves", []):
         for key in curve.keyframe_points:
             key.interpolation = "BEZIER"
     return action
+
+
+def create_batting_step_actions(
+    armature: bpy.types.Object,
+    sides: list[str] | None = None,
+) -> list[bpy.types.Action]:
+    """Author short, mirrored lateral steps that keep the batter balanced and ready."""
+    neutral = {
+        "spine": (0.025, 0.0, 0.0),
+        "head": (0.0, 0.0, 0.0),
+        "upper_arm.L": (0.0, 0.0, -0.04),
+        "forearm.L": (0.0, 0.0, 0.0),
+        "upper_arm.R": (0.0, 0.0, 0.04),
+        "forearm.R": (0.0, 0.0, 0.0),
+        "thigh.L": (0.0, 0.0, 0.015),
+        "thigh.R": (0.0, 0.0, -0.015),
+    }
+    requested_sides = sides or ["offside", "legside"]
+    actions = []
+    for side_name in requested_sides:
+        if side_name not in ("offside", "legside"):
+            raise ValueError(f"Unknown batting footwork side '{side_name}'.")
+        direction = 1.0 if side_name == "offside" else -1.0
+        lead_leg = "R" if direction > 0 else "L"
+        trail_leg = "L" if direction > 0 else "R"
+
+        def step_pose(stride: float, lean: float) -> dict:
+            pose = {
+                **neutral,
+                "spine": (0.05, direction * lean, 0.0),
+                "head": (0.0, direction * lean * 0.28, 0.0),
+                "upper_arm.L": (0.025 * stride, 0.0, -0.055),
+                "forearm.L": (-0.035 * stride, 0.0, 0.0),
+                "upper_arm.R": (-0.025 * stride, 0.0, 0.055),
+                "forearm.R": (0.035 * stride, 0.0, 0.0),
+            }
+            pose[f"thigh.{lead_leg}"] = (0.0, -0.85 * stride, 0.025)
+            pose[f"shin.{lead_leg}"] = (0.0, direction * 0.20 * stride, 0.0)
+            pose[f"thigh.{trail_leg}"] = (0.0, -direction * 0.12 * stride, -0.015)
+            pose[f"shin.{trail_leg}"] = (0.0, direction * 0.04 * stride, 0.0)
+            return pose
+
+        def step_location(stride: float) -> dict[str, tuple[float, float, float]]:
+            return {f"thigh.{lead_leg}": (direction * 0.20 * stride, 0.0, 0.0)}
+
+        action = create_animation(
+            armature,
+            f"batting-step-{side_name}",
+            [
+                (1, neutral, step_location(0.0)),
+                (4, step_pose(0.45, -0.035), step_location(0.45)),
+                (9, step_pose(1.0, 0.085), step_location(1.0)),
+                (14, step_pose(0.55, 0.04), step_location(0.55)),
+                (19, neutral, step_location(0.0)),
+            ],
+        )
+        actions.append(action)
+    return actions
 
 
 def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
@@ -341,7 +415,7 @@ def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
             (49, neutral), (55, run_a), (61, neutral),
         ],
     )
-    return [stance, defence, drive, loft, running]
+    return [stance, defence, drive, loft, running, *create_batting_step_actions(armature)]
 
 
 def export_mesh(part: bpy.types.Object, armature: bpy.types.Object, bone_indices: dict[str, int]) -> dict:
@@ -515,8 +589,22 @@ def main() -> None:
                 armature.animation_data_clear()
             actions = create_animations(armature)
             actions_by_name = {action.name: action for action in bpy.data.actions}
-
+        elif args.rebuild_batting_footwork:
+            for name in ("batting-step-offside", "batting-step-legside"):
+                action = actions_by_name.get(name)
+                if action is not None:
+                    bpy.data.actions.remove(action, do_unlink=True)
+            actions_by_name = {action.name: action for action in bpy.data.actions}
         requested_clips = list(dict.fromkeys([*clip_names, *args.include_clip]))
+        missing_batting_steps = [
+            name for name in requested_clips
+            if name in ("batting-step-offside", "batting-step-legside") and name not in actions_by_name
+        ]
+        if missing_batting_steps:
+            print("Authoring requested batting footwork actions:", ", ".join(missing_batting_steps))
+            step_sides = [name.removeprefix("batting-step-") for name in missing_batting_steps]
+            create_batting_step_actions(armature, step_sides)
+            actions_by_name = {action.name: action for action in bpy.data.actions}
         missing_requested = [name for name in requested_clips if name not in actions_by_name]
         if missing_requested:
             raise RuntimeError("Requested Blender animation actions are missing: " + ", ".join(missing_requested))

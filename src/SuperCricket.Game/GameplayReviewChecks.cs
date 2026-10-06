@@ -189,6 +189,25 @@ public partial class Game1
         }
         Console.WriteLine("PASS: defence, drive, and loft contact and resolve at 30/60/120 fps.");
 
+        Reset(1);
+        Tick(0f, Keys.Q);
+        Require(_playerAnimator.CurrentClipName == "batting-step-offside" && !_playerAnimator.IsOneShotComplete,
+            "off-side footwork did not play its authored step clip");
+        Tick(0.6f);
+        Require(MathF.Abs(_batterFootworkOffsetX - BatterFootwork.StepDistanceMeters) < 0.001f &&
+            _playerAnimator.CurrentClipName == "practice-stance",
+            "off-side footwork did not finish its move and recover to stance");
+
+        Reset(1);
+        Tick(0f, Keys.E);
+        Require(_playerAnimator.CurrentClipName == "batting-step-legside" && !_playerAnimator.IsOneShotComplete,
+            "leg-side footwork did not play its authored step clip");
+        Tick(0.6f);
+        Require(MathF.Abs(_batterFootworkOffsetX + BatterFootwork.StepDistanceMeters) < 0.001f &&
+            _playerAnimator.CurrentClipName == "practice-stance",
+            "leg-side footwork did not finish its move and recover to stance");
+        Console.WriteLine("PASS: authored off-side and leg-side steps play once and recover to stance.");
+
         foreach (var frameRate in new[] { 30, 60, 120 })
         {
             Reset(1);

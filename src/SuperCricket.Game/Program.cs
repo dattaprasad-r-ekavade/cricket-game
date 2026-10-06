@@ -7,6 +7,7 @@ string? captureCamera = null;
 float? captureRunUpTimeSeconds = null;
 float? captureDeliveryTimeSeconds = null;
 string? captureFielderAction = null;
+string? captureBatterFootworkAction = null;
 float? captureActionTimeSeconds = null;
 var captureDebugOverlay = false;
 var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
@@ -64,6 +65,9 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode)
             case "--fielder-action" when captureFielderAction is null:
                 captureFielderAction = value;
                 break;
+            case "--batter-footwork" when captureBatterFootworkAction is null:
+                captureBatterFootworkAction = value;
+                break;
             case "--action-time" when captureActionTimeSeconds is null &&
                 float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedActionSeconds) &&
                 float.IsFinite(parsedActionSeconds) && parsedActionSeconds >= 0f:
@@ -75,8 +79,12 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode)
         argumentIndex += 2;
     }
 
-    if ((captureFielderAction is null) != (captureActionTimeSeconds is null) ||
-        captureFielderAction is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null))
+    var hasActionCapture = captureFielderAction is not null || captureBatterFootworkAction is not null;
+    if (hasActionCapture != (captureActionTimeSeconds is not null) ||
+        captureFielderAction is not null && captureBatterFootworkAction is not null ||
+        hasActionCapture && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
+        captureBatterFootworkAction is not null && captureBatterFootworkAction is not
+            ("batting-step-offside" or "batting-step-legside"))
         throw new ArgumentException(GetCaptureUsage());
 }
 
@@ -86,12 +94,14 @@ using var game = new SuperCricket.Game.Game1(
     captureRunUpTimeSeconds,
     captureDeliveryTimeSeconds,
     captureFielderAction,
-    captureActionTimeSeconds,
+    captureFielderAction is null ? null : captureActionTimeSeconds,
     verifyGameplay,
     captureDebugOverlay,
     profileFrameCount,
-    liveMatchReviewPath);
+    liveMatchReviewPath,
+    captureBatterFootworkAction,
+    captureBatterFootworkAction is null ? null : captureActionTimeSeconds);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
+    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";

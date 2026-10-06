@@ -46,6 +46,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly float? _captureDeliveryTimeSeconds;
     private readonly string? _captureFielderActionClip;
     private readonly float? _captureFielderActionTimeSeconds;
+    private readonly string? _captureBatterFootworkActionClip;
+    private readonly float? _captureBatterFootworkActionTimeSeconds;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -98,6 +100,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private float _batterFootworkOffsetX;
     private float _targetBatterFootworkOffsetX;
     private float _humanShotAimOffset;
+    private bool _battingStepRecoveryActive;
     private bool _footworkTransitionActive;
     private bool _bowlerActionStarted;
     private bool _bowlerActionFinished;
@@ -179,13 +182,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         bool verifyGameplay = false,
         bool captureDebugOverlay = false,
         int profileFrameCount = 0,
-        string? liveMatchReviewPath = null)
+        string? liveMatchReviewPath = null,
+        string? captureBatterFootworkActionClip = null,
+        float? captureBatterFootworkActionTimeSeconds = null)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
-            captureFielderActionClip is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
+            (captureBatterFootworkActionClip is null) != (captureBatterFootworkActionTimeSeconds is null) ||
+            (captureFielderActionClip is not null && captureBatterFootworkActionClip is not null) ||
+            (captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) &&
+                (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
+            captureBatterFootworkActionClip is not null && captureBatterFootworkActionClip is not
+                ("batting-step-offside" or "batting-step-legside") ||
             profileFrameCount is < 0 or > 36000)
-            throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
+            throw new ArgumentException("Choose one bowler preview time, fielder action, or batter-footwork action and its preview time.");
         _capturePath = capturePath;
         _verifyGameplay = verifyGameplay;
         _liveMatchReviewPath = liveMatchReviewPath;
@@ -197,6 +207,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         _captureFielderActionClip = captureFielderActionClip;
         _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
+        _captureBatterFootworkActionClip = captureBatterFootworkActionClip;
+        _captureBatterFootworkActionTimeSeconds = captureBatterFootworkActionTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
             throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
@@ -328,6 +340,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (!_playerAsset.Animations.Exists(clip => string.Equals(clip.Name, shot.AnimationClip, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException($"Shot '{shot.Name}' refers to missing player clip '{shot.AnimationClip}'.");
         }
+        RequireAnimation(_playerAsset, "batting-step-offside");
+        RequireAnimation(_playerAsset, "batting-step-legside");
         _batBoneIndex = _playerAsset.Bones.FindIndex(bone => string.Equals(bone.Name, "forearm.R", StringComparison.OrdinalIgnoreCase));
         var batMesh = _playerAsset.Meshes.Find(mesh => string.Equals(mesh.Name, "Bat Blade", StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidDataException("Player asset is missing the Bat Blade mesh.");
@@ -341,7 +355,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         StartNewMatch();
         if (_captureTarget is not null)
         {
-            if (_captureFielderActionClip is { } fielderActionClip && _captureFielderActionTimeSeconds is { } actionTime)
+            if (_captureBatterFootworkActionClip is { } footworkClip &&
+                _captureBatterFootworkActionTimeSeconds is { } footworkTime)
+            {
+                SetBatterFootworkCapturePose(footworkClip, footworkTime);
+            }
+            else if (_captureFielderActionClip is { } fielderActionClip && _captureFielderActionTimeSeconds is { } actionTime)
             {
                 SetFielderActionCapturePose(fielderActionClip, actionTime);
             }
@@ -1187,6 +1206,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _simulationPaused = false;
         _chosenShot = null;
         _humanShotAimOffset = 0f;
+        _battingStepRecoveryActive = false;
         _shotResolved = false;
         _battedBall = false;
         _batterFootworkOffsetX = 0f;
@@ -1406,6 +1426,28 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _camera.Focus(fielderWorld + new Vector3(0f, 0.85f, 0f), 4.5f, 0f, 0.22f, "Fielder action");
     }
 
+    private void SetBatterFootworkCapturePose(string clipName, float timeSeconds)
+    {
+        if (clipName is not ("batting-step-offside" or "batting-step-legside"))
+            throw new ArgumentException("Batter-footwork capture must name batting-step-offside or batting-step-legside.", nameof(clipName));
+
+        var duration = GetAnimationDuration(_playerAsset, clipName);
+        if (!float.IsFinite(timeSeconds) || timeSeconds < 0f || timeSeconds > duration)
+            throw new ArgumentOutOfRangeException(nameof(timeSeconds), timeSeconds,
+                $"Batter-footwork capture time must be between 0 and {duration:0.###} seconds.");
+
+        _playerAnimator.PlayOnce(clipName, 0.001f);
+        _playerAnimator.Update(timeSeconds);
+        _batterFootworkOffsetX = clipName == "batting-step-offside"
+            ? BatterFootwork.StepDistanceMeters
+            : -BatterFootwork.StepDistanceMeters;
+        _targetBatterFootworkOffsetX = _batterFootworkOffsetX;
+        _currentBatWorld = GetBatWorldTransform();
+        _previousBatWorld = _currentBatWorld;
+        var striker = BatterWorld(NearBatterZ, true, _batterFootworkOffsetX);
+        _camera.Focus(striker.Translation + new Vector3(0f, 0.9f, 0.5f), 4.5f, 0f, 0.2f, "Batter footwork");
+    }
+
     private void SetBowlerDeliveryCapturePose(float timeSeconds)
     {
         var deliveryDuration = GetAnimationDuration(_bowlerAsset, "overarm-delivery");
@@ -1472,6 +1514,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+        _battingStepRecoveryActive = false;
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
         _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
@@ -1519,7 +1562,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _targetBatterFootworkOffsetX = BatterFootwork.AddStep(_targetBatterFootworkOffsetX, direction);
         _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f;
         if (_footworkTransitionActive && _chosenShot is null)
-            _playerAnimator.Play("between-wickets", 0.08f);
+        {
+            _playerAnimator.PlayOnce(
+                direction > 0f ? "batting-step-offside" : "batting-step-legside",
+                0.08f);
+            _battingStepRecoveryActive = true;
+        }
     }
 
     private void UpdateBatterFootwork(float deltaTime)
@@ -1528,12 +1576,26 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _batterFootworkOffsetX,
             _targetBatterFootworkOffsetX,
             deltaTime);
-        if (!_footworkTransitionActive || MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f)
+        if (_footworkTransitionActive)
+        {
+            if (MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f)
+                return;
+            _footworkTransitionActive = false;
+        }
+
+        if (!_battingStepRecoveryActive)
+            return;
+        if (_chosenShot is not null || _isRunning ||
+            _playerAnimator.CurrentClipName is not ("batting-step-offside" or "batting-step-legside"))
+        {
+            _battingStepRecoveryActive = false;
+            return;
+        }
+        if (!_playerAnimator.IsOneShotComplete)
             return;
 
-        _footworkTransitionActive = false;
-        if (_chosenShot is null && !_isRunning)
-            _playerAnimator.Play("practice-stance", 0.12f);
+        _battingStepRecoveryActive = false;
+        _playerAnimator.Play("practice-stance", 0.12f);
     }
 
     private void StartRun()
