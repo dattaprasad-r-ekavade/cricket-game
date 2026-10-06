@@ -1,18 +1,28 @@
 namespace SuperCricket.Simulation;
 
-/// <summary>Small single-over scoring state shared by the game and command-line scenarios.</summary>
+/// <summary>Scoring, strike, and over progression for one limited-overs innings.</summary>
 public sealed class OverScoreboard
 {
     public const int BallsPerOver = 6;
     public const int MaximumWickets = 10;
 
+    private readonly int _oversPerInnings;
+
+    public OverScoreboard(int oversPerInnings = 1)
+    {
+        if (oversPerInnings is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "An innings must have between one and ten overs.");
+        _oversPerInnings = oversPerInnings;
+    }
+
+    public int OversPerInnings => _oversPerInnings;
     public int Runs { get; private set; }
     public int Wickets { get; private set; }
     public int LegalBalls { get; private set; }
     public int Striker { get; private set; } = 1;
     public int NonStriker { get; private set; } = 2;
     public int NextBatter { get; private set; } = 3;
-    public bool IsOverComplete => LegalBalls >= BallsPerOver || Wickets >= MaximumWickets;
+    public bool IsOverComplete => LegalBalls >= BallsPerOver * _oversPerInnings || Wickets >= MaximumWickets;
     public int CompletedOvers => LegalBalls / BallsPerOver;
     public int BallsInCurrentOver => LegalBalls % BallsPerOver;
     public string OversText => $"{CompletedOvers}.{BallsInCurrentOver}";
@@ -30,7 +40,7 @@ public sealed class OverScoreboard
     public void RecordDelivery(DeliveryResult result)
     {
         if (IsOverComplete)
-            throw new InvalidOperationException("The over is complete; start a new over before recording another delivery.");
+            throw new InvalidOperationException("The innings is complete; start another innings before recording a delivery.");
 
         var error = result.Validate();
         if (error is not null)

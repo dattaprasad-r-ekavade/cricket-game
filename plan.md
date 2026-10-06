@@ -18,12 +18,12 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 
 Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning.md`.
 
-- Windows, offline, fictional teams, and one stadium still hold. The playable slice is one over; the first release candidate remains a short limited-overs match.
+- Windows, offline, fictional teams, and one stadium still hold. The current prototype is a two-innings short match with one over per innings by default; the first release candidate remains a fuller short limited-overs match.
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–26 rules, positioning, and live-overlay gates are complete; innings work can proceed while remaining fielding approximations stay open for playtesting.
-- Lateral footwork is in so the existing shots can reach the wide preset. Do not add a fourth named shot before this step is playtested.
+- Steps 23–27 rules, positioning, live-overlay, and first match-loop gates are complete; roster, opponent, settings, accessibility, and playtesting work remains open in Phase 5.
+- Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
 ## Progress
@@ -54,8 +54,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
 - [x] Step 25 — Add batter footwork or leave so the wide preset can find contact.
 - [x] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
+- [x] Step 27 — Add a two-innings short-match loop with a target chase, result text, restart, and compact overs selection.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–26 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–27 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -258,6 +259,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added the short-match experience brief, original four-panel stadium/material/player/HUD reference board, and v1 Blender player asset contract in `docs/design/`.
 - `PlayerAsset.Validate` now rejects rig/sample scales outside 0.5–2.0 per axis and player mesh heights outside 0.5–4.0 m. The review command mutates a temporary batter export to 10x scale and confirms the validator rejects it. The v1 format supports per-mesh diffuse colour; external image maps are not part of the current renderer contract.
 - Added `--profile-frames <count>` with a warm-up window and frame-interval/CPU update/draw summaries. On the Lenovo IdeaPad S145-15IIL (81W8), a 300-frame sample at 1440x900 with VSync averaged 16.66 ms; P95 was 17.55 ms. CPU update and draw-submission P95 were 0.14 ms and 2.65 ms. GPU timing remains open for Phase 4.
+
+### Step 27 notes
+
+- Added `LimitedOversMatch` on top of the shared `MatchState`, with configurable innings lengths, two fictional teams, a first-innings summary, a target of first-innings runs plus one, immediate target completion, and defended/tied/won result text.
+- The live game begins the chase with N, shows innings/team/score/overs/target, and displays the result. O cycles 1, 2, 5, and 10 overs per innings after a result and starts a new match; R restarts at the selected length.
+- Added simulation checks for a two-over target chase and a defended target, plus real update-loop checks for N advancing to the chase, a tie result, and O changing the match length. Release build and the full `tools/review.ps1` suite passed with zero warnings/errors.
+- This is the match-loop foundation only. Rosters/batting order, opponent decisions, settings, accessibility/controller support, automated match batches, and human playtesting remain open in Phase 5.
 - Removed the duplicate `practice-attack.json` content-copy entry. A clean Release review passed: both real player assets validate and load, invalid scale is rejected, all simulation/gameplay checks pass, and the renderer captures are produced.
 
 ## Technical foundation
@@ -314,7 +322,7 @@ Build a Field Lab to place players, inspect interception predictions and reachab
 
 **Gate:** play six legal deliveries, resolve extras and supported dismissals, update score and striker correctly, and return to a stable state after every ball.
 
-**Open after Step 26:** the over plays and the sample scenario finishes 10/2. Delivery lifecycle and score resolution now live in Simulation. Low catches, ground pickups, airborne and rope-skim boundary crossings, and a throw while the runner approaches the crease now have repeatable checks. Steps 23–26 are complete, so Phase 5 can begin. Fielder movement, throw travel, receiving, and wicket-breaking still use simplified rules and need full-match scenarios.
+**Open after Step 27:** Simulation now supports innings limits and two-innings match results. The game starts the chase with N, shows the target and result, and cycles 1/2/5/10 overs per innings with O after a result. Fielder movement, throw travel, receiving, and wicket-breaking still use simplified rules and need full-match scenarios.
 
 ## Phase 4 — Demonstrate the visual target
 
@@ -333,6 +341,8 @@ Add two fictional teams, player attributes and batting order, innings, a target 
 Build roster and tuning editors around validated files. Run automated matches to find stuck states, invalid scores, impossible transitions, and matches that fail to finish. Keep human playtesting for control feel and fun.
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
+
+**Current progress (Step 27):** the first implementation has fictional team names, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. Simulation and live game input checks cover a two-over chase, defended target, tied match, and UI progression through both innings. The full `tools/review.ps1` suite passes. This does not complete Phase 5: player rosters and batting order, opponent decisions, difficulty/settings, controller mapping, accessibility, save requirements, automated match batches, and human playtesting remain open.
 
 ## Phase 6 — Stabilize and choose expansion
 
@@ -371,7 +381,7 @@ Initial work package (complete):
 4. Implement fixed-step ball flight, pitch collision, and trajectory visualization.
 5. Save and replay one delivery preset through an initial Delivery Lab.
 
-The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. Steps 23–26 completed the one-over loop and live batting overlay; Phase 5 now needs to prove the two-innings match while Phase 4 visual and performance checks continue.
+The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. Steps 23–27 completed the one-over rules loop, live batting overlay, and first two-innings match slice; the remaining Phase 5 match work and Phase 4 visual and performance checks continue.
 
 ## References
 

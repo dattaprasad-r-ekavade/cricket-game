@@ -74,7 +74,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly string?[] _fielderActionClips = new string?[FieldingSide.FielderCount];
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
-    private readonly MatchState _match = new();
+    private static readonly int[] OversChoices = [1, 2, 5, 10];
+    private readonly LimitedOversMatch _match = new();
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
@@ -83,6 +84,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
     private float _bowlerReleaseTimeSeconds;
+    private int _selectedOversPerInnings = 1;
     private float _batterFootworkOffsetX;
     private float _targetBatterFootworkOffsetX;
     private bool _footworkTransitionActive;
@@ -105,6 +107,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _completedRuns => _match.CurrentDelivery?.CompletedRuns ?? 0;
     private DeliveryExtra _extraType => _match.CurrentDelivery?.Extra ?? DeliveryExtra.None;
     private DismissalKind _dismissal => _match.CurrentDelivery?.Dismissal ?? DismissalKind.None;
+    private string ScoreStatusText => _match.IsMatchComplete
+        ? _match.ResultText
+        : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}";
     private bool _isRunning;
     private bool _runRequestedPending;
     private float _runElapsed;
@@ -307,7 +312,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
-        StartNewOver();
+        StartNewMatch();
         if (_captureTarget is not null)
         {
             if (_captureFielderActionClip is { } fielderActionClip && _captureFielderActionTimeSeconds is { } actionTime)
@@ -355,12 +360,21 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
         if (keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R))
         {
-            StartNewOver();
+            StartNewMatch();
         }
         if (keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N) &&
-            _deliveryComplete && !_match.IsOverComplete)
+            _deliveryComplete && !_match.IsMatchComplete)
         {
-            BeginDelivery();
+            if (_match.IsInningsComplete)
+                StartNextInnings();
+            else
+                BeginDelivery();
+        }
+        if (keyboard.IsKeyDown(Keys.O) && !_previousKeyboard.IsKeyDown(Keys.O) && _match.IsMatchComplete)
+        {
+            var currentIndex = Array.IndexOf(OversChoices, _selectedOversPerInnings);
+            _selectedOversPerInnings = OversChoices[(currentIndex + 1) % OversChoices.Length];
+            StartNewMatch();
         }
         if (keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) SelectNextDelivery(0);
         if (keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) SelectNextDelivery(1);
@@ -722,13 +736,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             var eventText = _shotOutcome.Length > 72 ? _shotOutcome[..69] + "..." : _shotOutcome;
             var matchLines = new[]
             {
-                "SUPER CRICKET  /  ONE-OVER MATCH",
-                $"{_match.Runs}/{_match.Wickets}    {_match.OversText} overs    legal balls {_match.LegalBalls}/6",
-                eventText,
-                "Q/E: step off/leg    F1: debug    V: camera    N: next ball"
+                "SUPER CRICKET  /  SHORT MATCH",
+                ScoreStatusText,
+                _match.IsMatchComplete ? "Match complete" : eventText,
+                "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
+                "N: ball/innings    R: restart    O: overs    P: pause    F1: stats"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 116), Color.White);
+            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 141), Color.White);
             for (var index = 0; index < matchLines.Length; index++)
             {
                 var color = index == 0 ? new Color(242, 206, 116) : Color.White;
@@ -741,9 +756,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
-            "SUPER CRICKET  /  ONE-OVER MATCH",
+            "SUPER CRICKET  /  SHORT MATCH",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
-            $"Over {_match.OversText}    {_match.Runs}/{_match.Wickets}    Striker {_match.Striker}    legal balls {_match.LegalBalls}/6",
+            $"{ScoreStatusText}    Striker {_match.Striker}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
@@ -756,7 +771,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
-            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
+                "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N ball/innings    R restart    O change overs at result    P pause    Esc quit"
         };
         var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 18 + lines.Length * 23);
 
@@ -770,16 +785,23 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _spriteBatch.End();
     }
 
-    private void StartNewOver()
+    private void StartNewMatch()
     {
-        _match.Reset();
+        _match.Reset(_selectedOversPerInnings);
+        _nextDeliveryPresetIndex = 0;
+        BeginDelivery();
+    }
+
+    private void StartNextInnings()
+    {
+        _match.StartNextInnings();
         _nextDeliveryPresetIndex = 0;
         BeginDelivery();
     }
 
     private void BeginDelivery()
     {
-        if (_match.IsOverComplete)
+        if (_match.IsInningsComplete || _match.IsMatchComplete)
             return;
 
         _groundVertices = PracticeGround.CreateField();

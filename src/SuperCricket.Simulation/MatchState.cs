@@ -3,7 +3,12 @@ namespace SuperCricket.Simulation;
 /// <summary>Owns the current delivery lifecycle and applies each completed result to the scorecard.</summary>
 public sealed class MatchState
 {
-    private readonly OverScoreboard _scorecard = new();
+    private readonly OverScoreboard _scorecard;
+
+    public MatchState(int oversPerInnings = 1)
+    {
+        _scorecard = new OverScoreboard(oversPerInnings);
+    }
 
     public OverScoreboard Scorecard => _scorecard;
     public DeliverySession? CurrentDelivery { get; private set; }
@@ -15,6 +20,7 @@ public sealed class MatchState
     public int NonStriker => _scorecard.NonStriker;
     public bool IsOverComplete => _scorecard.IsOverComplete;
     public string OversText => _scorecard.OversText;
+    public int OversPerInnings => _scorecard.OversPerInnings;
 
     public void Reset()
     {

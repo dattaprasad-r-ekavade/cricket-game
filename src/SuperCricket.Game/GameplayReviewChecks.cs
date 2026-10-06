@@ -21,7 +21,8 @@ public partial class Game1
         {
             _previousKeyboard = default;
             _nextDeliveryPresetIndex = deliveryPresetIndex;
-            _match.Reset();
+            _selectedOversPerInnings = 1;
+            _match.Reset(_selectedOversPerInnings);
             BeginDelivery();
         }
 
@@ -90,6 +91,40 @@ public partial class Game1
         Require(_match.IsOverComplete && _match.LegalBalls == 6 && _match.Wickets == 6,
             "six legal deliveries did not complete the over");
         Console.WriteLine("PASS: six bowled deliveries complete an over.");
+
+        Reset();
+        for (var ball = 0; ball < 6; ball++)
+        {
+            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
+            Require(_deliveryComplete, "the live first innings did not resolve its delivery");
+            if (ball < 5)
+            {
+                Tick(0f, Keys.N);
+                Tick(0f);
+            }
+        }
+        Require(_match.IsInningsComplete && !_match.IsMatchComplete && _match.FirstInnings is { Runs: 0, LegalBalls: 6 },
+            "the first live innings did not stop at its over limit");
+        Tick(0f, Keys.N);
+        Require(_match.InningsNumber == 2 && _match.BattingTeamName == "Highland XI" && _match.Target == 1 && !_deliveryComplete,
+            "N did not start the target chase as the second innings");
+        Tick(0f);
+        for (var ball = 0; ball < 6; ball++)
+        {
+            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
+            Require(_deliveryComplete, "the live second innings did not resolve its delivery");
+            if (ball < 5)
+            {
+                Tick(0f, Keys.N);
+                Tick(0f);
+            }
+        }
+        Require(_match.IsMatchComplete && _match.ResultText == "Match tied",
+            "the second live innings did not show a tied result after its over");
+        Tick(0f, Keys.O);
+        Require(!_match.IsMatchComplete && _match.OversPerInnings == 2 && _match.InningsNumber == 1 && _match.Runs == 0,
+            "O did not restart the match with the next overs selection");
+        Console.WriteLine("PASS: N starts the second innings, the chase resolves, and O changes overs after the result.");
 
         foreach (var presetIndex in new[] { 1, 2 })
         {

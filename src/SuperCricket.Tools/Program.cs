@@ -122,6 +122,7 @@ static int Run(string[] arguments)
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match");
             MatchStateReviewChecks.Run();
+            LimitedOversMatchReviewChecks.Run();
             return 0;
         }
 

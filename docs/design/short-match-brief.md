@@ -4,7 +4,7 @@
 
 ## Player experience
 
-Super Cricket is an offline, single-player cricket game about reading a delivery, choosing a shot, and seeing a clear result. The current practice mode is one over. The first release target is a short limited-overs exhibition between two fictional teams, with two innings, a target chase, and a compact overs selector. Keep one-over practice as the training mode. One stadium is enough for the first release; multiplayer and career play stay deferred.
+Super Cricket is an offline, single-player cricket game about reading a delivery, choosing a shot, and seeing a clear result. The current prototype runs a two-innings match between two fictional teams, with one over per innings by default, a target chase, and an in-game selector for 1, 2, 5, or 10 overs per innings. A separate training mode remains future work. One stadium is enough for the first release; multiplayer and career play stay deferred.
 
 Batting begins with defence, drive, and loft. Players choose an intent before contact and learn timing from misses and impact quality. Q/E footwork reaches the existing wide delivery. Preserve those timing and position differences in the ball result; keep any future assistance bounded, visible in the F1 view, and repeatable.
 
