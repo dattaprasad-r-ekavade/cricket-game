@@ -27,6 +27,41 @@ public partial class Game1
         }
 
         Reset();
+        Tick(0f, Keys.J);
+        Tick(0f);
+        Tick(0f, Keys.J);
+        Tick(0f);
+        StartShot("drive");
+        Require(_chosenShot is { } leftAim && MathF.Abs(leftAim.HorizontalAim - -0.09f) < 0.001f,
+            "keyboard aim adjustments did not shift the authored drive lane to the left");
+        var leftAimImpact = BattingImpactModel.Calculate(
+            new NumericsVector3(0f, 0f, -20f),
+            NumericsVector3.Zero,
+            System.Numerics.Vector2.Zero,
+            _chosenShot!);
+        Require(leftAimImpact.OutgoingVelocity.X < 0f,
+            "left shot aim did not direct the outgoing ball toward negative X");
+        Tick(0f, Keys.L);
+        Require(_chosenShot is { } adjustedShot && MathF.Abs(adjustedShot.HorizontalAim - 0.03f) < 0.001f,
+            "keyboard aim could not adjust a selected shot before contact");
+
+        Reset();
+        UpdateMatch(
+            new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.4)),
+            new KeyboardState(),
+            MatchControllerActions.None,
+            controllerAimAxis: 1f);
+        Require(MathF.Abs(_humanShotAimOffset - 0.5f) < 0.001f,
+            "GamePad right-stick aim did not scale continuously with elapsed time");
+        StartShot("drive");
+        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 0.65f) < 0.001f,
+            "GamePad right-stick aim was not applied to the next authored shot");
+        Reset();
+        Require(MathF.Abs(_humanShotAimOffset) < 0.001f,
+            "shot aim adjustment was not cleared for the next delivery");
+        Console.WriteLine("PASS: keyboard and GamePad shot aiming shift human lanes and preserve the authored shot defaults.");
+
+        Reset();
         Tick(0.1f);
         Tick(0f, Keys.P);
         var batterTime = _playerAnimator.CurrentTimeSeconds;

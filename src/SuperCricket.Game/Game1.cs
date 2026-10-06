@@ -97,6 +97,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _selectedOversPerInnings = 1;
     private float _batterFootworkOffsetX;
     private float _targetBatterFootworkOffsetX;
+    private float _humanShotAimOffset;
     private bool _footworkTransitionActive;
     private bool _bowlerActionStarted;
     private bool _bowlerActionFinished;
@@ -379,7 +380,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     protected override void Update(GameTime gameTime)
     {
-        var controllerButtons = ReadControllerButtons(GamePad.GetState(PlayerIndex.One));
+        var controllerState = GamePad.GetState(PlayerIndex.One);
+        var controllerButtons = ReadControllerButtons(controllerState);
         var controllerActions = MatchControllerInputModel.ReadPressedActions(
             controllerButtons,
             _previousControllerButtons,
@@ -387,7 +389,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _match.IsMatchComplete,
             _simulationPaused);
         _previousControllerButtons = controllerButtons;
-        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions);
+        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions, controllerState.ThumbSticks.Right.X);
     }
 
     private void UpdateMatch(GameTime gameTime, KeyboardState keyboard) =>
@@ -396,9 +398,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private void UpdateMatch(
         GameTime gameTime,
         KeyboardState keyboard,
-        MatchControllerActions controllerActions)
+        MatchControllerActions controllerActions,
+        float controllerAimAxis = 0f)
     {
         var updateStart = Stopwatch.GetTimestamp();
+        var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
         if (ControllerPressed(MatchControllerActions.Exit) ||
             keyboard.IsKeyDown(Keys.Escape))
@@ -475,6 +479,27 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             ((keyboard.IsKeyDown(Keys.OemPlus) && !_previousKeyboard.IsKeyDown(Keys.OemPlus)) ||
              ControllerPressed(MatchControllerActions.IncreaseEffectsVolume)))
             AdjustEffectsVolume(0.1f);
+        if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete &&
+            !_battedBall && !_shotResolved && !_isRunning)
+        {
+            if (keyboard.IsKeyDown(Keys.J) && !_previousKeyboard.IsKeyDown(Keys.J))
+                AdjustHumanShotAim(-0.12f);
+            if (keyboard.IsKeyDown(Keys.L) && !_previousKeyboard.IsKeyDown(Keys.L))
+                AdjustHumanShotAim(0.12f);
+
+            var stickX = float.IsFinite(controllerAimAxis)
+                ? Math.Clamp(controllerAimAxis, -1f, 1f)
+                : 0f;
+            const float aimDeadZone = 0.2f;
+            var stickMagnitude = MathF.Abs(stickX);
+            if (stickMagnitude > aimDeadZone)
+            {
+                var stickIntent = MathF.CopySign(
+                    (stickMagnitude - aimDeadZone) / (1f - aimDeadZone),
+                    stickX);
+                AdjustHumanShotAim(stickIntent * 1.25f * elapsedSeconds);
+            }
+        }
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
             if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
@@ -503,7 +528,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
-        var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
             UpdateCpuBatting(flightElapsed);
@@ -879,32 +903,39 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     : IsCpuBattingControlled
                         ? $"CPU batting: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}"
                         : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
-            var matchLines = new[]
+            var matchLines = new List<string>
             {
                 $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}",
                 ScoreStatusText,
                 batterText,
-                _match.IsMatchComplete ? "Match finished" : eventText,
-                _match.IsMatchComplete
-                    ? "D: next CPU difficulty    O: next overs    R: replay"
-                    : IsCpuBattingControlled
-                        ? $"CPU batting ({_cpuDifficulty}). Choose a bowling delivery."
-                        : "A/S/D or Pad A/X/Y: shot    Q/E or D-pad: step",
-                _match.IsMatchComplete
-                    ? "Pad A: replay    LB: difficulty    RB: overs"
-                    : IsCpuBattingControlled
-                        ? "1-3 or D-pad: delivery    N/RB: next    P/Start: pause"
-                        : "Enter/B: run    X/LB: cancel    N/RB: next    R: restart    P/Start: pause"
+                _match.IsMatchComplete ? "Match finished" : eventText
             };
+            if (_match.IsMatchComplete)
+            {
+                matchLines.Add("D: next CPU difficulty    O: next overs    R: replay");
+                matchLines.Add("Pad A: replay    LB: difficulty    RB: overs");
+            }
+            else if (IsCpuBattingControlled)
+            {
+                matchLines.Add($"CPU batting ({_cpuDifficulty}). Choose a bowling delivery.");
+                matchLines.Add("1-3 or D-pad: delivery    N/RB: next    P/Start: pause");
+            }
+            else
+            {
+                matchLines.Add("A/S/D or Pad A/X/Y: choose shot");
+                matchLines.Add($"{HumanShotAimStatus}    J: left  L: right  Right Stick: aim");
+                matchLines.Add("Q/E or D-pad: step    Enter/B: run    X/LB: cancel");
+                matchLines.Add("N/RB: next ball    R: restart    P/Start: pause");
+            }
             var scale = _gameSettings.LargeText ? 1.25f : 1f;
             var lineSpacing = (int)MathF.Round(25 * scale);
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
                 _gameSettings.LargeText ? GraphicsDevice.Viewport.Width - 40 : 660);
-            var panelHeight = 20 + (int)MathF.Ceiling(matchLines.Length * lineSpacing + 30 * scale);
+            var panelHeight = 20 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 30 * scale);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, panelWidth, panelHeight),
                 _gameSettings.HighContrast ? Color.Black : Color.White);
-            for (var index = 0; index < matchLines.Length; index++)
+            for (var index = 0; index < matchLines.Count; index++)
             {
                 var color = index == 0
                     ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
@@ -1155,6 +1186,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;
+        _humanShotAimOffset = 0f;
         _shotResolved = false;
         _battedBall = false;
         _batterFootworkOffsetX = 0f;
@@ -1435,26 +1467,51 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             return;
 
         var authoredShot = _shotSet.Get(name);
-        if (horizontalAimOverride is { } horizontalAim)
-        {
-            if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
-                throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
-            _chosenShot = new BattingShotData
-            {
-                Name = authoredShot.Name,
-                AnimationClip = authoredShot.AnimationClip,
-                LaunchAngleDegrees = authoredShot.LaunchAngleDegrees,
-                HorizontalAim = horizontalAim,
-                SpeedTransfer = authoredShot.SpeedTransfer
-            };
-        }
-        else
-        {
-            _chosenShot = authoredShot;
-        }
+        var horizontalAim = horizontalAimOverride ??
+            Math.Clamp(authoredShot.HorizontalAim + _humanShotAimOffset, -1f, 1f);
+        if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
+            throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
+        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
         _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
+    }
+
+    private void AdjustHumanShotAim(float adjustment)
+    {
+        if (!float.IsFinite(adjustment) || adjustment == 0f)
+            return;
+
+        _humanShotAimOffset = Math.Clamp(_humanShotAimOffset + adjustment, -2f, 2f);
+        if (_chosenShot is not { } chosenShot || _shotResolved || IsCpuBattingControlled)
+            return;
+
+        var authoredShot = _shotSet.Get(chosenShot.Name);
+        var horizontalAim = Math.Clamp(authoredShot.HorizontalAim + _humanShotAimOffset, -1f, 1f);
+        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+    }
+
+    private static BattingShotData CopyShotWithAim(BattingShotData shot, float horizontalAim) => new()
+    {
+        Name = shot.Name,
+        AnimationClip = shot.AnimationClip,
+        LaunchAngleDegrees = shot.LaunchAngleDegrees,
+        HorizontalAim = horizontalAim,
+        SpeedTransfer = shot.SpeedTransfer
+    };
+
+    private string HumanShotAimStatus
+    {
+        get
+        {
+            var hasSelectedShot = _chosenShot is not null && !IsCpuBattingControlled;
+            var aim = hasSelectedShot ? _chosenShot!.HorizontalAim : _humanShotAimOffset;
+            var markerAim = hasSelectedShot ? aim : aim * 0.5f;
+            var marker = Math.Clamp((int)MathF.Round((markerAim + 1f) * 5f), 0, 10);
+            var track = $"[{new string('-', marker)}#{new string('-', 10 - marker)}]";
+            var position = MathF.Abs(aim) < 0.005f ? "center" : aim > 0f ? $"+{aim:0.00}" : $"{aim:0.00}";
+            return $"{(hasSelectedShot ? "Shot lane" : "Aim shift")}: {track} {position}";
+        }
     }
 
     private void StepBatterFootwork(float direction)
