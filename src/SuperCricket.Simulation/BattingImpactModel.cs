@@ -17,9 +17,12 @@ public static class BattingImpactModel
         Vector3 incomingVelocity,
         Vector3 batPointVelocity,
         Vector2 normalizedSweetSpotOffset,
-        BattingShotData shot)
+        BattingShotData shot,
+        TeamPlayerData? batter = null)
     {
         ArgumentNullException.ThrowIfNull(shot);
+        if (batter is { Timing: < 0 or > 100 } or { Power: < 0 or > 100 })
+            throw new ArgumentException("Batter timing and power ratings must be between 0 and 100.", nameof(batter));
         if (!IsFinite(incomingVelocity) || !IsFinite(batPointVelocity) ||
             !float.IsFinite(normalizedSweetSpotOffset.X) || !float.IsFinite(normalizedSweetSpotOffset.Y) ||
             !float.IsFinite(shot.LaunchAngleDegrees) || !float.IsFinite(shot.HorizontalAim) ||
@@ -33,6 +36,8 @@ public static class BattingImpactModel
         var offset = Vector2.Clamp(normalizedSweetSpotOffset, new Vector2(-1f), new Vector2(1f));
         var offsetDistance = MathF.Sqrt(offset.X * offset.X * 0.46f + offset.Y * offset.Y * 0.54f);
         var quality = Math.Clamp(1f - offsetDistance * 0.38f, 0.48f, 1f);
+        if (batter is not null)
+            quality = Math.Clamp(quality * (0.8f + batter.Timing * 0.004f), 0.38f, 1f);
 
         var horizontalAim = Math.Clamp(shot.HorizontalAim + offset.X * 0.12f, -1f, 1f);
         var launchAngle = Math.Clamp(shot.LaunchAngleDegrees + offset.Y * 10f, -5f, 70f);
@@ -44,8 +49,9 @@ public static class BattingImpactModel
             horizontalDirection.Z * MathF.Cos(launchRadians));
 
         var limitedBatVelocity = ClampMagnitude(batPointVelocity, MaximumSwingSpeedMetersPerSecond);
+        var powerMultiplier = batter is null ? 1f : 0.8f + batter.Power * 0.004f;
         var outgoingVelocity = (
-            shotDirection * (incomingSpeed * shot.SpeedTransfer) +
+            shotDirection * (incomingSpeed * shot.SpeedTransfer * powerMultiplier) +
             limitedBatVelocity * 0.18f) * quality;
 
         if (!IsFinite(outgoingVelocity) || outgoingVelocity.LengthSquared() <= 0.000001f)

@@ -1,3 +1,5 @@
+using SuperCricket.Content;
+
 namespace SuperCricket.Simulation;
 
 public readonly record struct MatchInningsResult(
@@ -14,6 +16,8 @@ public readonly record struct MatchInningsResult(
 /// <summary>Runs two innings of a short match using the same delivery and innings scorecard rules as practice.</summary>
 public sealed class LimitedOversMatch
 {
+    private readonly TeamRosterAsset _firstTeam;
+    private readonly TeamRosterAsset _secondTeam;
     private MatchState _innings = null!;
     private MatchInningsResult? _firstInnings;
     private MatchInningsResult? _secondInnings;
@@ -23,25 +27,33 @@ public sealed class LimitedOversMatch
         string secondTeamName = "Highland XI",
         int oversPerInnings = 1)
     {
-        if (string.IsNullOrWhiteSpace(firstTeamName))
-            throw new ArgumentException("The first team needs a name.", nameof(firstTeamName));
-        if (string.IsNullOrWhiteSpace(secondTeamName))
-            throw new ArgumentException("The second team needs a name.", nameof(secondTeamName));
-        if (string.Equals(firstTeamName, secondTeamName, StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("The two teams must have different names.", nameof(secondTeamName));
+        _firstTeam = TeamRosterAsset.CreatePlaceholder(firstTeamName);
+        _secondTeam = TeamRosterAsset.CreatePlaceholder(secondTeamName);
+        ValidateTeams(_firstTeam, _secondTeam);
+        Reset(oversPerInnings);
+    }
 
-        FirstTeamName = firstTeamName;
-        SecondTeamName = secondTeamName;
+    public LimitedOversMatch(TeamRosterAsset firstTeam, TeamRosterAsset secondTeam, int oversPerInnings = 1)
+    {
+        ArgumentNullException.ThrowIfNull(firstTeam);
+        ArgumentNullException.ThrowIfNull(secondTeam);
+        ValidateTeams(firstTeam, secondTeam);
+
+        _firstTeam = firstTeam;
+        _secondTeam = secondTeam;
         Reset(oversPerInnings);
     }
 
     public static IReadOnlyList<int> SupportedOversPerInnings { get; } = Array.AsReadOnly(new[] { 1, 2, 5, 10 });
 
-    public string FirstTeamName { get; }
-    public string SecondTeamName { get; }
+    public TeamRosterAsset FirstTeam => _firstTeam;
+    public TeamRosterAsset SecondTeam => _secondTeam;
+    public string FirstTeamName => _firstTeam.Name;
+    public string SecondTeamName => _secondTeam.Name;
     public int OversPerInnings { get; private set; }
     public int InningsNumber { get; private set; }
-    public string BattingTeamName => InningsNumber == 1 ? FirstTeamName : SecondTeamName;
+    public TeamRosterAsset BattingTeam => InningsNumber == 1 ? _firstTeam : _secondTeam;
+    public string BattingTeamName => BattingTeam.Name;
     public MatchState CurrentInnings => _innings;
     public DeliverySession? CurrentDelivery => _innings.CurrentDelivery;
     public int Runs => _innings.Runs;
@@ -49,6 +61,8 @@ public sealed class LimitedOversMatch
     public int LegalBalls => _innings.LegalBalls;
     public int Striker => _innings.Striker;
     public int NonStriker => _innings.NonStriker;
+    public TeamPlayerData StrikerPlayer => BattingTeam.GetPlayerAtBattingOrder(Striker);
+    public TeamPlayerData NonStrikerPlayer => BattingTeam.GetPlayerAtBattingOrder(NonStriker);
     public string OversText => _innings.OversText;
     public int? Target => _firstInnings is { } first && InningsNumber == 2 ? first.Runs + 1 : null;
     public MatchInningsResult? FirstInnings => _firstInnings;
@@ -126,5 +140,17 @@ public sealed class LimitedOversMatch
             throw new InvalidOperationException("The first innings must be complete before the second innings can start.");
         InningsNumber = 2;
         _innings = new MatchState(OversPerInnings);
+    }
+
+    private static void ValidateTeams(TeamRosterAsset firstTeam, TeamRosterAsset secondTeam)
+    {
+        var firstErrors = firstTeam.Validate();
+        if (firstErrors.Count > 0)
+            throw new ArgumentException($"The first team roster is invalid: {string.Join(" ", firstErrors)}", nameof(firstTeam));
+        var secondErrors = secondTeam.Validate();
+        if (secondErrors.Count > 0)
+            throw new ArgumentException($"The second team roster is invalid: {string.Join(" ", secondErrors)}", nameof(secondTeam));
+        if (string.Equals(firstTeam.Name, secondTeam.Name, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("The two teams must have different names.", nameof(secondTeam));
     }
 }

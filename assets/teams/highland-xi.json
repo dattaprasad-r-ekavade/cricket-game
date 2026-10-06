@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Highland XI",
+  "shortName": "HIG",
+  "players": [
+    { "id": "highland-01", "name": "Asha Balan", "battingOrder": 1, "role": "Wicketkeeper", "timing": 70, "power": 58 },
+    { "id": "highland-02", "name": "Naren Gill", "battingOrder": 2, "role": "Batter", "timing": 75, "power": 74 },
+    { "id": "highland-03", "name": "Veer Sethi", "battingOrder": 3, "role": "Batter", "timing": 68, "power": 82 },
+    { "id": "highland-04", "name": "Lina Khurana", "battingOrder": 4, "role": "Batter", "timing": 78, "power": 63 },
+    { "id": "highland-05", "name": "Omi Kapoor", "battingOrder": 5, "role": "AllRounder", "timing": 66, "power": 72 },
+    { "id": "highland-06", "name": "Rhea Bedi", "battingOrder": 6, "role": "AllRounder", "timing": 63, "power": 67 },
+    { "id": "highland-07", "name": "Tanish Rao", "battingOrder": 7, "role": "AllRounder", "timing": 59, "power": 64 },
+    { "id": "highland-08", "name": "Eshan Lal", "battingOrder": 8, "role": "Bowler", "timing": 50, "power": 62 },
+    { "id": "highland-09", "name": "Ira Vora", "battingOrder": 9, "role": "Bowler", "timing": 44, "power": 56 },
+    { "id": "highland-10", "name": "Mahir Dev", "battingOrder": 10, "role": "Bowler", "timing": 40, "power": 52 },
+    { "id": "highland-11", "name": "Sana Jaiswal", "battingOrder": 11, "role": "Bowler", "timing": 36, "power": 48 }
+  ]
+}

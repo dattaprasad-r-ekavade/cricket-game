@@ -17,6 +17,23 @@ try {
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
     }
+    $coastalRosterPath = 'assets/teams/coastal-xi.json'
+    $highlandRosterPath = 'assets/teams/highland-xi.json'
+    foreach ($teamPath in @($coastalRosterPath, $highlandRosterPath)) {
+        Invoke-CheckedDotNet @($toolsDll, 'validate-team', $teamPath)
+    }
+    $invalidRosterPath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-roster-$PID.json"
+    try {
+        $invalidRoster = Get-Content -LiteralPath $coastalRosterPath -Raw | ConvertFrom-Json
+        $invalidRoster.players[0].timing = 101
+        $invalidRoster | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidRosterPath -Encoding utf8
+        $null = & dotnet $toolsDll validate-team $invalidRosterPath 2>&1
+        if ($LASTEXITCODE -ne 1) { throw 'Team validator accepted an out-of-range player rating.' }
+    }
+    finally {
+        Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
+    }
+    Write-Output 'PASS: invalid team batting rating rejected.'
     $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
     try {
         $invalidScaleAsset = Get-Content -LiteralPath $batterPath -Raw | ConvertFrom-Json

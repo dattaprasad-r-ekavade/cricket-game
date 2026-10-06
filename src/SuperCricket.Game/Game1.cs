@@ -75,7 +75,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
     private static readonly int[] OversChoices = [1, 2, 5, 10];
-    private readonly LimitedOversMatch _match = new();
+    private LimitedOversMatch _match = null!;
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
     private float _simulationAccumulator;
@@ -271,6 +271,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json"))
         ];
         _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
+        _match = new LimitedOversMatch(
+            TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
+            TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "highland-xi.json")),
+            _selectedOversPerInnings);
         _fieldingSide.ConfigureStartingPositions(
             _fieldPreset.Players.ConvertAll(player => ToNumerics(player.Position.ToVector3())));
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
@@ -449,7 +453,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         ToNumerics(frame.Velocity),
                         ToNumerics(battingContact.BatPointVelocity),
                         new System.Numerics.Vector2(battingContact.NormalizedSweetSpotOffset.X, battingContact.NormalizedSweetSpotOffset.Y),
-                        _chosenShot);
+                        _chosenShot,
+                        _match.StrikerPlayer);
                     _contactQuality = impact.ContactQuality;
                     _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
@@ -734,16 +739,22 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (!_showDebugOverlay)
         {
             var eventText = _shotOutcome.Length > 72 ? _shotOutcome[..69] + "..." : _shotOutcome;
+            var batterText = _match.IsMatchComplete
+                ? "Match complete"
+                : _match.IsInningsComplete
+                    ? "Innings complete; press N to start the chase"
+                    : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
             var matchLines = new[]
             {
                 "SUPER CRICKET  /  SHORT MATCH",
                 ScoreStatusText,
-                _match.IsMatchComplete ? "Match complete" : eventText,
+                batterText,
+                _match.IsMatchComplete ? "Match finished" : eventText,
                 "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
                 "N: ball/innings    R: restart    O: overs    P: pause    F1: stats"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 141), Color.White);
+            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 166), Color.White);
             for (var index = 0; index < matchLines.Length; index++)
             {
                 var color = index == 0 ? new Color(242, 206, 116) : Color.White;
@@ -758,7 +769,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             "SUPER CRICKET  /  SHORT MATCH",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
-            $"{ScoreStatusText}    Striker {_match.Striker}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
+            $"{ScoreStatusText}    Striker {_match.StrikerPlayer.Name}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",

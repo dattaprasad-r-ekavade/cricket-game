@@ -6,6 +6,8 @@
 
 Super Cricket is an offline, single-player cricket game about reading a delivery, choosing a shot, and seeing a clear result. The current prototype runs a two-innings match between two fictional teams, with one over per innings by default, a target chase, and an in-game selector for 1, 2, 5, or 10 overs per innings. A separate training mode remains future work. One stadium is enough for the first release; multiplayer and career play stay deferred.
 
+Each fictional side has a validated 11-player batting order. Timing and power ratings affect batting contact; the current roster players still share one runtime character model.
+
 Batting begins with defence, drive, and loft. Players choose an intent before contact and learn timing from misses and impact quality. Q/E footwork reaches the existing wide delivery. Preserve those timing and position differences in the ball result; keep any future assistance bounded, visible in the F1 view, and repeatable.
 
 Bowling begins with authored run-up and release timing, then uses saved pace, wide, and no-ball presets. The short match can add opponent bowling changes after the player loop is readable. Use one fixed rules and physics baseline first; difficulty should tune opponent decisions and reaction time before it changes contact or scoring rules.
@@ -37,4 +39,3 @@ The named development floor and current renderer measurements are in [hardware-b
 - Bat timing and footwork produce understandable differences across all three shots, including wide deliveries.
 - Two innings finish with a stable result screen and no debug intervention.
 - The agreed hardware target holds the measured frame-time budget in a representative full match; verify GPU time with a GPU profiler.
-

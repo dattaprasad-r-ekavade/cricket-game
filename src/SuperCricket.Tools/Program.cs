@@ -117,12 +117,22 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "validate-team")
+        {
+            var team = TeamRosterAsset.Load(arguments[1]);
+            Console.WriteLine($"Valid team roster: {team.Name} ({team.ShortName}), {team.Players.Count} players.");
+            foreach (var player in team.Players.OrderBy(player => player.BattingOrder))
+                Console.WriteLine($"  {player.BattingOrder,2}. {player.Name} ({player.Role}) — timing {player.Timing}, power {player.Power}");
+            return 0;
+        }
+
         if (arguments[0] == "verify-match")
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match");
             MatchStateReviewChecks.Run();
             LimitedOversMatchReviewChecks.Run();
+            TeamRosterReviewChecks.Run();
             return 0;
         }
 
@@ -547,6 +557,7 @@ static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
     Console.WriteLine("  validate-player <player.scplayer.json>");
+    Console.WriteLine("  validate-team <team.json>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");

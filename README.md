@@ -25,13 +25,14 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating content, analyzing batting and field coverage, and replaying scenarios
 - `assets` — editable delivery and field presets plus Blender-authored batter and bowler source/export
+- `assets/teams` — validated fictional team rosters with batting order and batting attributes
 - `assets/textures` — seamless generated albedo tiles for the outfield and pitch
 - `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export players, add the fielder lower legs, and author fielding actions
 - `tools/prepare_texture.py` — resize and feather generated square texture tiles for repeat sampling
 - `plan.md` — milestone plan, current assumptions, and progress record
 - `docs/reviews` — dated gameplay and planning reviews
-- `docs/design` — short-match brief, visual board, hardware baseline, and player asset contract
+- `docs/design` — short-match brief, visual board, hardware baseline, and validated player/team asset contracts
 
 ## Delivery tools
 
@@ -50,6 +51,8 @@ dotnet run --project src/SuperCricket.Tools -- verify-batting assets/batting/sho
 dotnet run --project src/SuperCricket.Tools -- analyze-batting-practice assets/characters/practice-batter.scplayer.json assets/characters/practice-bowler.scplayer.json assets/batting/shots.json assets/deliveries/standard-pace.json artifacts/standard-batting-practice.csv
 dotnet run --project src/SuperCricket.Tools -- verify-batting-practice assets/characters/practice-batter.scplayer.json assets/characters/practice-bowler.scplayer.json assets/batting/shots.json assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- validate-field assets/fields/practice-attack.json
+dotnet run --project src/SuperCricket.Tools -- validate-team assets/teams/coastal-xi.json
+dotnet run --project src/SuperCricket.Tools -- validate-team assets/teams/highland-xi.json
 dotnet run --project src/SuperCricket.Tools -- analyze-field assets/fields/practice-attack.json
 dotnet run --project src/SuperCricket.Tools -- simulate-over assets/scenarios/practice-over.json
 dotnet run --project src/SuperCricket.Tools -- verify-match
