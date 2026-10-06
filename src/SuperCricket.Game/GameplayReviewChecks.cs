@@ -111,6 +111,10 @@ public partial class Game1
                 Tick(elapsed, key);
                 for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
                 Require(_battedBall && _deliveryComplete, $"shot {key} failed contact/resolution at {frameRate} fps");
+                Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
+                    _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
+                    _contactQuality is >= 0f and <= 1f && _contactSweetSpotOffset is not null,
+                    $"shot {key} failed to record release/contact/sweet-spot marker data at {frameRate} fps");
             }
         }
         Console.WriteLine("PASS: defence, drive, and loft contact and resolve at 30/60/120 fps.");
@@ -132,6 +136,10 @@ public partial class Game1
             Require(_battedBall && _deliveryComplete &&
                 MathF.Abs(_batterFootworkOffsetX - BatterFootwork.MaximumOffsetMeters) < 0.001f,
                 $"off-side footwork failed to reach the wide delivery at {frameRate} fps");
+            Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
+                _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
+                _contactQuality is >= 0f and <= 1f && _contactSweetSpotOffset is not null,
+                $"wide shot failed to record release/contact/sweet-spot markers at {frameRate} fps");
         }
         Console.WriteLine("PASS: Q steps into the wide line and the drive makes contact at 30/60/120 fps.");
 

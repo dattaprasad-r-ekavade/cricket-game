@@ -361,7 +361,8 @@ static void VerifyBatting(string shotSetPath)
             new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f),
             Matrix4x4.Identity, Matrix4x4.Identity,
             bladeMinimum, bladeMaximum, 0.03f, 1f / 120f, out var stationaryContact) ||
-        stationaryContact.NormalizedSweetSpotOffset.Length() > 0.001f)
+        stationaryContact.NormalizedSweetSpotOffset.Length() > 0.001f ||
+        stationaryContact.SweetSpotPosition.Length() > 0.001f)
         throw new InvalidDataException("The swept bat resolver missed a centered ball against a stationary bat.");
 
     if (SweptBattingContactResolver.TryResolve(
@@ -374,8 +375,9 @@ static void VerifyBatting(string shotSetPath)
             Vector3.Zero, Vector3.Zero,
             Matrix4x4.CreateTranslation(-1f, 0f, 0f), Matrix4x4.CreateTranslation(1f, 0f, 0f),
             bladeMinimum, bladeMaximum, 0.03f, 0.1f, out var movingBatContact) ||
-        movingBatContact.BatPointVelocity.X < 19.9f)
-        throw new InvalidDataException("The swept bat resolver missed a moving bat or failed to report its point velocity.");
+        movingBatContact.BatPointVelocity.X < 19.9f ||
+        MathF.Abs(movingBatContact.SweetSpotPosition.X) > 0.24f)
+        throw new InvalidDataException("The swept bat resolver missed a moving bat or reported an incorrect sweet-spot position or point velocity.");
 
     foreach (var shot in shotSet.Shots)
     {

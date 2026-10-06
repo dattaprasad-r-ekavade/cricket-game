@@ -53,9 +53,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
 - [x] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
 - [x] Step 25 — Add batter footwork or leave so the wide preset can find contact.
-- [ ] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
+- [x] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–26 are the next work package from the 6 October 2026 planning review; they come before Phase 5 innings.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–26 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -246,6 +246,12 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Extended `analyze-batting-practice` to compare all 11 supported offsets at each input timing and report the chosen position. The wide pace preset now yields 20/45 defence, 17/45 drive, and 16/45 loft contacts; best drive contact is at +0.350 s with a +2.25 m off-side step.
 - Added a wide-preset test to the full game update at 30/60/120 FPS and a `verify-footwork` command for step limits, input timing, and all three real-asset shot clips.
 - The analyzer and game now use the same rope-crossing classifier for four/six outcomes. The complete review command passes. Footwork is a readable prototype translation using the existing movement cycle; a dedicated authored batting step remains art work.
+
+### Step 26 notes
+
+- The F1 view now draws world-space release, ball-contact, and bat sweet-spot crosses in gold, orange, and cyan. It reports the release time, elapsed contact time, sweet-spot quality and normalized offset, and each marker's position.
+- The swept-contact result includes the blade's sweet-spot center interpolated to the hit fraction. Gameplay regressions require all three marker positions and contact metrics after standard and wide shots at 30/60/120 FPS; the resolver check also verifies the moving bat's sweet-spot world position.
+- Added a deterministic F1 renderer capture to `tools/review.ps1`; the capture was visually checked. The full Release review passed with zero warnings/errors, including all asset, simulation, analysis, and actual-gameplay checks.
 
 ## Technical foundation
 

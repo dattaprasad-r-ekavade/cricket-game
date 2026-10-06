@@ -54,6 +54,8 @@ try {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-start.png')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-debug-overlay.png', '--camera', 'bowler-end', '--show-debug-overlay')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-follow-through.png', '--camera', 'bowler-end', '--delivery-time', '1.0')
         foreach ($action in @('catch', 'pickup', 'throw')) {
             Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',

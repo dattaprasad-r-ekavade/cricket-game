@@ -27,8 +27,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private readonly record struct BattingContact(
         Vector3 Position,
+        Vector3 SweetSpotPosition,
         Vector2 NormalizedSweetSpotOffset,
-        Vector3 BatPointVelocity);
+        Vector3 BatPointVelocity,
+        float HitFraction);
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
@@ -51,6 +53,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly OrbitCamera _camera = new();
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];
+    private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
@@ -83,6 +86,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _bowlerActionFinished;
     private bool _bowlerReleased;
     private bool _showDebugOverlay;
+    private Vector3? _releaseMarkerPosition;
+    private Vector3? _contactMarkerPosition;
+    private Vector3? _sweetSpotMarkerPosition;
+    private float? _contactTimeSeconds;
+    private float? _contactQuality;
+    private Vector2? _contactSweetSpotOffset;
     private BattingShotData? _chosenShot;
     private bool _shotResolved;
     private bool _deliveryComplete => _match.CurrentDelivery?.IsComplete == true;
@@ -137,7 +146,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         float? captureDeliveryTimeSeconds = null,
         string? captureFielderActionClip = null,
         float? captureFielderActionTimeSeconds = null,
-        bool verifyGameplay = false)
+        bool verifyGameplay = false,
+        bool captureDebugOverlay = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
@@ -145,6 +155,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
         _capturePath = capturePath;
         _verifyGameplay = verifyGameplay;
+        _showDebugOverlay = captureDebugOverlay;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         _captureFielderActionClip = captureFielderActionClip;
@@ -404,11 +415,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         GetBatPoseDeltaSeconds(physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed),
                         out var battingContact))
                 {
+                    _contactMarkerPosition = battingContact.Position;
+                    _sweetSpotMarkerPosition = battingContact.SweetSpotPosition;
+                    _contactTimeSeconds = previousFrame.TimeSeconds +
+                        _ballFlight.FixedTimeStepSeconds * battingContact.HitFraction;
+                    _contactSweetSpotOffset = battingContact.NormalizedSweetSpotOffset;
                     var impact = BattingImpactModel.Calculate(
                         ToNumerics(frame.Velocity),
                         ToNumerics(battingContact.BatPointVelocity),
                         new System.Numerics.Vector2(battingContact.NormalizedSweetSpotOffset.X, battingContact.NormalizedSweetSpotOffset.Y),
                         _chosenShot);
+                    _contactQuality = impact.ContactQuality;
                     _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
@@ -565,6 +582,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
         _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection, _bowlerAnimator.GetSkinMatrices());
+        if (_showDebugOverlay)
+        {
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
+            DrawDebugMarkers();
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        }
         DrawDebugOverlay();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
@@ -578,6 +601,41 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _captureTarget = null;
             target.Dispose();
             Exit();
+        }
+    }
+
+    private void DrawDebugMarkers()
+    {
+        var vertexCount = 0;
+
+        void AddMarker(Vector3? position, Color color)
+        {
+            if (position is not { } point)
+                return;
+
+            const float halfLength = 0.24f;
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point - Vector3.UnitX * halfLength, color);
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point + Vector3.UnitX * halfLength, color);
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point - Vector3.UnitY * halfLength, color);
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point + Vector3.UnitY * halfLength, color);
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point - Vector3.UnitZ * halfLength, color);
+            _debugMarkerVertices[vertexCount++] = new VertexPositionColor(point + Vector3.UnitZ * halfLength, color);
+        }
+
+        AddMarker(_releaseMarkerPosition, new Color(248, 195, 82));
+        AddMarker(_contactMarkerPosition, new Color(255, 126, 64));
+        AddMarker(_sweetSpotMarkerPosition, new Color(81, 224, 218));
+        if (vertexCount == 0)
+            return;
+
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.LineList,
+                _debugMarkerVertices,
+                0,
+                vertexCount / 2);
         }
     }
 
@@ -631,15 +689,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
             $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
+            $"Release: {(_releaseMarkerPosition is { } release ? $"t=0.000 s @ {FormatPosition(release)} m" : "not yet released")}    Contact: {(_contactMarkerPosition is { } contact ? $"t={_contactTimeSeconds:0.000} s @ {FormatPosition(contact)} m" : "waiting")}",
+            $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
             "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
         };
-        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 320);
+        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 18 + lines.Length * 23);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_debugPanel, panel, Color.White);
+        _spriteBatch.Draw(_debugPanel, panel, new Color(255, 255, 255, 190));
         for (var index = 0; index < lines.Length; index++)
         {
             var color = index == 0 ? new Color(242, 206, 116) : Color.White;
@@ -684,6 +744,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         Array.Clear(_fielderActionHoldAtEnd);
         _fieldingSide.Reset();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
+        _releaseMarkerPosition = null;
+        _contactMarkerPosition = null;
+        _sweetSpotMarkerPosition = null;
+        _contactTimeSeconds = null;
+        _contactQuality = null;
+        _contactSweetSpotOffset = null;
         _playerAnimator.Play("practice-stance", 0.12f);
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
@@ -737,6 +803,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (!_bowlerReleased && _bowlerActionElapsed >= _bowlerReleaseTimeSeconds)
             {
                 _bowlerReleased = true;
+                _releaseMarkerPosition = ToXna(_ballFlight.CurrentFrame.Position);
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
                     new Color(248, 181, 82)));
@@ -769,6 +836,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerActionFinished = false;
         _bowlerActionElapsed = _bowlerReleaseTimeSeconds;
         _bowlerReleased = true;
+        _releaseMarkerPosition = ToXna(_ballFlight.CurrentFrame.Position);
         _bowlerAnimator.Play("overarm-delivery", 0.001f);
         _bowlerAnimator.Update(_bowlerReleaseTimeSeconds);
         _trajectoryVertices.Clear();
@@ -1395,8 +1463,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
         contact = new BattingContact(
             ToXna(resolved.Position),
+            ToXna(resolved.SweetSpotPosition),
             new Vector2(resolved.NormalizedSweetSpotOffset.X, resolved.NormalizedSweetSpotOffset.Y),
-            ToXna(resolved.BatPointVelocity));
+            ToXna(resolved.BatPointVelocity),
+            resolved.HitFraction);
         return true;
     }
 
@@ -1454,6 +1524,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         return (minimum, maximum);
     }
+
+    private static string FormatPosition(Vector3 value) =>
+        $"({value.X:0.00}, {value.Y:0.00}, {value.Z:0.00})";
 
     private static Vector3 ToXna(NumericsVector3 value) => new(value.X, value.Y, value.Z);
     private static NumericsVector3 ToNumerics(Vector3 value) => new(value.X, value.Y, value.Z);

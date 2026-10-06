@@ -4,6 +4,7 @@ namespace SuperCricket.Simulation;
 
 public readonly record struct SweptBattingContact(
     Vector3 Position,
+    Vector3 SweetSpotPosition,
     Vector2 NormalizedSweetSpotOffset,
     Vector3 BatPointVelocity,
     float HitFraction);
@@ -43,6 +44,10 @@ public static class SweptBattingContactResolver
         var localContact = Vector3.Lerp(localStart, localEnd, hitFraction);
         var contactPosition = Vector3.Lerp(ballStart, ballEnd, hitFraction);
         var center = (bladeMinimum + bladeMaximum) * 0.5f;
+        var sweetSpotPosition = Vector3.Lerp(
+            Vector3.Transform(center, batStartWorld),
+            Vector3.Transform(center, batEndWorld),
+            hitFraction);
         var halfSize = (bladeMaximum - bladeMinimum) * 0.5f + padding;
         var normalizedOffset = new Vector2(
             Math.Clamp((localContact.X - center.X) / MathF.Max(halfSize.X, 0.001f), -1f, 1f),
@@ -51,7 +56,7 @@ public static class SweptBattingContactResolver
         var batPointVelocity = elapsedSeconds <= 0.000001f
             ? Vector3.Zero
             : (Vector3.Transform(localContact, batEndWorld) - Vector3.Transform(localContact, batStartWorld)) / elapsedSeconds;
-        contact = new SweptBattingContact(contactPosition, normalizedOffset, batPointVelocity, hitFraction);
+        contact = new SweptBattingContact(contactPosition, sweetSpotPosition, normalizedOffset, batPointVelocity, hitFraction);
         return true;
     }
 

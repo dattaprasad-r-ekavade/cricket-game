@@ -8,18 +8,28 @@ float? captureRunUpTimeSeconds = null;
 float? captureDeliveryTimeSeconds = null;
 string? captureFielderAction = null;
 float? captureActionTimeSeconds = null;
+var captureDebugOverlay = false;
 var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
 if (args.Length > 0 && !verifyGameplay)
 {
-    if (args[0] != "--capture-frame" || args.Length < 2 || args.Length % 2 != 0)
+    if (args[0] != "--capture-frame" || args.Length < 2)
     {
         throw new ArgumentException(GetCaptureUsage());
     }
 
     capturePath = Path.GetFullPath(args[1]);
-    for (var argumentIndex = 2; argumentIndex < args.Length; argumentIndex += 2)
+    for (var argumentIndex = 2; argumentIndex < args.Length;)
     {
         var option = args[argumentIndex];
+        if (option == "--show-debug-overlay" && !captureDebugOverlay)
+        {
+            captureDebugOverlay = true;
+            argumentIndex++;
+            continue;
+        }
+        if (argumentIndex + 1 >= args.Length)
+            throw new ArgumentException(GetCaptureUsage());
+
         var value = args[argumentIndex + 1];
         switch (option)
         {
@@ -47,6 +57,7 @@ if (args.Length > 0 && !verifyGameplay)
             default:
                 throw new ArgumentException(GetCaptureUsage());
         }
+        argumentIndex += 2;
     }
 
     if ((captureFielderAction is null) != (captureActionTimeSeconds is null) ||
@@ -61,8 +72,9 @@ using var game = new SuperCricket.Game.Game1(
     captureDeliveryTimeSeconds,
     captureFielderAction,
     captureActionTimeSeconds,
-    verifyGameplay);
+    verifyGameplay,
+    captureDebugOverlay);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds>]";
+    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds>] [--show-debug-overlay]";
