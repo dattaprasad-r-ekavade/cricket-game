@@ -152,6 +152,24 @@ public partial class Game1
         _activeBowlingTargetPosition = _firstBouncePosition.Value + new Vector3(0.5f, 0f, 0f);
         _chosenShot = _shotSet.Get("drive");
         _contactQuality = 0.91f;
+        var idealDriveInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(_deliveryPreset.Name, _chosenShot.Name);
+        Require(idealDriveInputDelay is { } idealDelay && MathF.Abs(idealDelay - 0.25f) < 0.001f &&
+            _battingTimingCalibration.FindIdealInputDelaySeconds("Uncalibrated delivery", "drive") is null,
+            "batting timing calibration did not load the analyzer-derived drive target or reject unknown deliveries");
+        _shotInputDelaySeconds = idealDriveInputDelay;
+        var originalDelivery = _deliveryPreset;
+        _deliveryPreset = _deliveryPreset.DeepCopy();
+        _deliveryPreset.Name = $"{_deliveryPresets[_activeDeliveryPresetIndex].Name} - outswing";
+        var timingWithBowlingVariation = GetBattingTimingText();
+        var variationTestShotName = _chosenShot?.Name ?? "<none>";
+        var variationTestIdeal = _battingTimingCalibration.FindIdealInputDelaySeconds(
+            _deliveryPresets[_activeDeliveryPresetIndex].Name, variationTestShotName);
+        _deliveryPreset = originalDelivery;
+        Require(timingWithBowlingVariation == "PERFECT",
+            $"batting timing feedback lost its calibration when the CPU bowler added a delivery variation (" +
+            $"text '{timingWithBowlingVariation ?? "<none>"}', preset '{_deliveryPresets[_activeDeliveryPresetIndex].Name}', " +
+            $"shot '{variationTestShotName}', target {variationTestIdeal}, delay {_shotInputDelaySeconds}, " +
+            $"CPU batting {IsCpuBattingControlled})");
         CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
         _match.CompleteDelivery();
         var feedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
@@ -160,9 +178,16 @@ public partial class Game1
             feedbackLines[1].Contains("good length", StringComparison.Ordinal) &&
             feedbackLines[2].Contains("drive", StringComparison.Ordinal) &&
             feedbackLines[2].Contains("middled", StringComparison.Ordinal) &&
+            feedbackLines[2].Contains("timing PERFECT", StringComparison.Ordinal) &&
             feedbackLines[3].Contains("0.5 m from aim", StringComparison.Ordinal),
-            "the delivery result card did not explain pace, pitch, contact, runs, and bowling accuracy");
-        Console.WriteLine("PASS: completed-ball feedback reports pace, pitch line/length, contact quality, score, and bowling target error.");
+            "the delivery result card did not explain pace, pitch, contact, timing, runs, and bowling accuracy");
+        var early = BattingTimingFeedbackModel.Assess(0.12f, 0.25f, 0.075f);
+        var perfect = BattingTimingFeedbackModel.Assess(0.30f, 0.25f, 0.075f);
+        var late = BattingTimingFeedbackModel.Assess(0.42f, 0.25f, 0.075f);
+        Require(early.Band == BattingTimingBand.Early && perfect.Band == BattingTimingBand.Perfect &&
+            late.Band == BattingTimingBand.Late && MathF.Abs(late.OffsetFromIdealSeconds - 0.17f) < 0.001f,
+            "calibrated batting timing did not distinguish early, perfect, and late inputs");
+        Console.WriteLine("PASS: completed-ball feedback reports pace, pitch line/length, contact, calibrated timing, score, and bowling target error.");
 
         Reset();
         Tick(0f, Keys.J);

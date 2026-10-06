@@ -365,6 +365,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         RequireAnimation(_bowlerAsset, "practice-stance");
         var shotSetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "shots.json");
         _shotSet = BattingShotSet.Load(shotSetPath);
+        _battingTimingCalibration = BattingTimingCalibrationAsset.Load(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "timing-calibration.json"));
         foreach (var shot in _shotSet.Shots)
         {
             if (!_playerAsset.Animations.Exists(clip => string.Equals(clip.Name, shot.AnimationClip, StringComparison.OrdinalIgnoreCase)))
@@ -1432,6 +1434,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _sweetSpotMarkerPosition = null;
         _contactTimeSeconds = null;
         _contactQuality = null;
+        _shotInputDelaySeconds = null;
         _contactSweetSpotOffset = null;
         _playerAnimator.Play("practice-stance", 0.12f);
         _currentBatWorld = GetBatWorldTransform();
@@ -1770,6 +1773,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+        _shotInputDelaySeconds = _bowlerRunUpElapsed + _bowlerActionElapsed -
+            (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
         _battingStepRecoveryActive = false;
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";

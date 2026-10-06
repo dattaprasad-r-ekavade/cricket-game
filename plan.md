@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 51 addresses the reported camera framing and missing delivery feedback. Its Release captures and automated checks pass; the owner still needs to retest the new build on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md) and [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 52 adds analyzer-calibrated early/perfect/late batting feedback to Step 51's result card. Release captures and automated checks pass; the owner still needs to retest the camera and feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), and [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -67,7 +67,8 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 **A4c — Delivery and shot feedback**
 - [x] After each completed ball, show a persistent result card with release speed (km/h), measured pitch length/line, shot/contact quality, and score or wicket.
 - [x] When the human bowls, show the selected target, measured landing, and distance from aim.
-- [ ] Add calibrated early/perfect/late timing feedback and a pitch-map dot.
+- [x] Add calibrated early/perfect/late timing feedback from measured best-contact delays; the result card reports the timing band and offset.
+- [ ] Add a pitch-map dot.
 - A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
 - Immediate in-world feedback: a bat-contact flash or sound sting scaled by quality, ball trail colour by speed, and the pitch spot marked briefly.
 

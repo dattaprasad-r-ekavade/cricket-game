@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
@@ -11,6 +12,9 @@ public partial class Game1
     private float _deliverySpeedKilometersPerHour;
     private Vector3? _firstBouncePosition;
     private Vector3? _activeBowlingTargetPosition;
+    private float? _shotInputDelaySeconds;
+    private BattingTimingCalibrationAsset _battingTimingCalibration = null!;
+    private string CalibrationDeliveryName => _deliveryPresets[_activeDeliveryPresetIndex].Name;
 
     private void DrawDeliveryFeedbackCard()
     {
@@ -65,6 +69,8 @@ public partial class Game1
                 ? $"{shot.Name}: {GetContactQualityLabel(quality)} ({quality:P0})"
                 : $"{shot.Name}: no contact - ball beat the bat"
             : "No shot played";
+        if (GetBattingTimingText() is { } timingText)
+            battingDescription += $" | timing {timingText}";
 
         var lines = new List<string>
         {
@@ -113,6 +119,29 @@ public partial class Game1
         _ => "thin contact"
     };
 
+    private string? GetBattingTimingText()
+    {
+        if (IsCpuBattingControlled || _chosenShot is not { } shot ||
+            _shotInputDelaySeconds is not { } actualInputDelay)
+            return null;
+
+        var idealInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, shot.Name);
+        if (idealInputDelay is not { } ideal)
+            return null;
+
+        var assessment = BattingTimingFeedbackModel.Assess(
+            actualInputDelay,
+            ideal,
+            _battingTimingCalibration.OnTimeWindowSeconds);
+        var offsetMilliseconds = (int)MathF.Round(MathF.Abs(assessment.OffsetFromIdealSeconds) * 1000f);
+        return assessment.Band switch
+        {
+            BattingTimingBand.Perfect => "PERFECT",
+            BattingTimingBand.Early => $"EARLY {offsetMilliseconds} ms",
+            _ => $"LATE {offsetMilliseconds} ms"
+        };
+    }
+
     private void PrepareFeedbackPreviewCapture()
     {
         _firstBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } bounce
@@ -131,6 +160,7 @@ public partial class Game1
             CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
             _battedBall = true;
             _chosenShot = _shotSet.Get("drive");
+            _shotInputDelaySeconds = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, _chosenShot.Name);
             _contactQuality = 0.91f;
             _shotOutcome = "FOUR: reached the boundary";
         }

@@ -32,6 +32,7 @@
     <None Include="..\..\assets\characters\practice-batter.scplayer.json" Link="Assets\Characters\practice-batter.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\characters\practice-bowler.scplayer.json" Link="Assets\Characters\practice-bowler.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\batting\timing-calibration.json" Link="Assets\Batting\timing-calibration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\outfield-grass.png" Link="Assets\Textures\outfield-grass.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\cricket-pitch-clay.png" Link="Assets\Textures\cricket-pitch-clay.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

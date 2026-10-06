@@ -90,6 +90,29 @@ try {
         Invoke-CheckedDotNet @($toolsDll, 'analyze-batting-practice', $batterPath, $bowlerPath, $shotsPath,
             $deliveryPath, "artifacts/review-$presetName-batting.csv")
     }
+    $timingCalibration = Get-Content -LiteralPath 'assets/batting/timing-calibration.json' -Raw | ConvertFrom-Json
+    foreach ($calibrationCase in @(
+        @{ Preset = 'standard'; Delivery = 'Standard pace' },
+        @{ Preset = 'wide'; Delivery = 'Wide pace' },
+        @{ Preset = 'no-ball'; Delivery = 'No-ball pace' },
+        @{ Preset = 'yorker'; Delivery = 'Yorker pace' }
+    )) {
+        $profiles = @($timingCalibration.deliveryProfiles | Where-Object {
+            $_.deliveryName -eq $calibrationCase.Delivery
+        })
+        if ($profiles.Count -ne 1) { throw "Timing calibration needs one profile for $($calibrationCase.Delivery)." }
+        $timingRows = @(Import-Csv -LiteralPath "artifacts/review-$($calibrationCase.Preset)-batting.csv")
+        foreach ($shotCalibration in $profiles[0].shots) {
+            $bestTiming = $timingRows | Where-Object {
+                $_.shot -eq $shotCalibration.shotName -and $_.contact_quality -ne ''
+            } | Sort-Object { [double]$_.contact_quality } -Descending | Select-Object -First 1
+            if ($null -eq $bestTiming -or
+                [math]::Abs([double]$bestTiming.input_delay_s - [double]$shotCalibration.idealInputDelaySeconds) -gt 0.013) {
+                throw "Timing calibration drifted for $($calibrationCase.Delivery)/$($shotCalibration.shotName); rerun the analyzer and update the calibration asset."
+            }
+        }
+    }
+    Write-Output 'PASS: early/perfect/late timing targets match the highest-quality analyzer samples for all four delivery presets.'
     $yorkerPreset = Get-Content -LiteralPath 'assets/deliveries/yorker-pace.json' -Raw | ConvertFrom-Json
     $yorkerFlight = @(Import-Csv -LiteralPath 'artifacts/review-yorker-flight.csv')
     $yorkerBounce = $yorkerFlight | Where-Object { [int]$_.bounces -ge 1 } | Select-Object -First 1
