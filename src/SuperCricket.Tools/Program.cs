@@ -144,6 +144,7 @@ static int Run(string[] arguments)
             BowlingDecisionReviewChecks.Run();
             FieldPlacementReviewChecks.Run();
             CpuBattingOutcomeReviewChecks.Run();
+            MatchControllerInputReviewChecks.Run();
             return 0;
         }
 

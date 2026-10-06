@@ -18,7 +18,7 @@ Fielding should explain outcomes through visible movement, catches, pickups, thr
 
 Use the broadcast camera as the default: show the striker, bowler, pitch, field shape, and enough outfield to read the shot. Offer behind-striker, bowler-end, and square-leg views for practice and inspection. The ball, boundary, trajectory, score, and dismissal should remain easy to find during play. Build toward a readable stylized presentation with clear player silhouettes, restrained crowd detail, warm daylight, soft ground contact, and differentiated grass and clay. Cricket 07 is a long-term ambition, not a short-match art acceptance gate.
 
-The current playable input is keyboard and mouse. Keep those controls complete; add a mapped controller for the short-match release. Do not build a second in-game authoring lab: use the validated CLI tools for delivery, batting, and field analysis.
+The current playable inputs are keyboard/mouse and an Xbox-style GamePad mapping. Keep keyboard controls complete; verify the physical controller and control feel during short-match playtesting. Do not build a second in-game authoring lab: use the validated CLI tools for delivery, batting, and field analysis.
 
 Difficulty for the first public slice should have an approachable starting setting and a standard setting. Keep physical rules fixed across settings. Add harder opponent decisions only when the baseline match is repeatable and human playtests identify specific pressure points.
 

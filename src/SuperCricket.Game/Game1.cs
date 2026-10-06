@@ -81,6 +81,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private LimitedOversMatch _match = null!;
     private readonly FieldingSide _fieldingSide = new();
     private KeyboardState _previousKeyboard;
+    private MatchControllerButtons _previousControllerButtons;
     private float _simulationAccumulator;
     private bool _simulationPaused;
     private float _bowlerRunUpDurationSeconds;
@@ -360,22 +361,41 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
     }
 
-    protected override void Update(GameTime gameTime) => UpdateMatch(gameTime, Keyboard.GetState());
+    protected override void Update(GameTime gameTime)
+    {
+        var controllerButtons = ReadControllerButtons(GamePad.GetState(PlayerIndex.One));
+        var controllerActions = MatchControllerInputModel.ReadPressedActions(
+            controllerButtons,
+            _previousControllerButtons,
+            IsCpuBattingControlled,
+            _match.IsMatchComplete);
+        _previousControllerButtons = controllerButtons;
+        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions);
+    }
 
-    private void UpdateMatch(GameTime gameTime, KeyboardState keyboard)
+    private void UpdateMatch(GameTime gameTime, KeyboardState keyboard) =>
+        UpdateMatch(gameTime, keyboard, MatchControllerActions.None);
+
+    private void UpdateMatch(
+        GameTime gameTime,
+        KeyboardState keyboard,
+        MatchControllerActions controllerActions)
     {
         var updateStart = Stopwatch.GetTimestamp();
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
+        bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
+        if (ControllerPressed(MatchControllerActions.Exit) ||
             keyboard.IsKeyDown(Keys.Escape))
         {
             Exit();
         }
 
-        if (keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R))
+        if ((keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R)) ||
+            ControllerPressed(MatchControllerActions.RestartMatch))
         {
             StartNewMatch();
         }
-        if (keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N) &&
+        if (((keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N)) ||
+             ControllerPressed(MatchControllerActions.NextBall)) &&
             _deliveryComplete && !_match.IsMatchComplete)
         {
             if (_match.IsInningsComplete)
@@ -383,24 +403,32 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             else
                 BeginDelivery();
         }
-        if (keyboard.IsKeyDown(Keys.O) && !_previousKeyboard.IsKeyDown(Keys.O) && _match.IsMatchComplete)
+        if (((keyboard.IsKeyDown(Keys.O) && !_previousKeyboard.IsKeyDown(Keys.O)) ||
+             ControllerPressed(MatchControllerActions.CycleOvers)) && _match.IsMatchComplete)
         {
             var currentIndex = Array.IndexOf(OversChoices, _selectedOversPerInnings);
             _selectedOversPerInnings = OversChoices[(currentIndex + 1) % OversChoices.Length];
             StartNewMatch();
         }
-        if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D) && _match.IsMatchComplete)
+        if (((keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) ||
+             ControllerPressed(MatchControllerActions.CycleDifficulty)) && _match.IsMatchComplete)
         {
             _cpuDifficulty = CpuDifficultyModel.Next(_cpuDifficulty);
             StartNewMatch();
         }
-        if (keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) SelectNextDelivery(0);
-        if (keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) SelectNextDelivery(1);
-        if (keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) SelectNextDelivery(2);
+        if ((keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) ||
+            ControllerPressed(MatchControllerActions.SelectStandardDelivery)) SelectNextDelivery(0);
+        if ((keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) ||
+            ControllerPressed(MatchControllerActions.SelectWideDelivery)) SelectNextDelivery(1);
+        if ((keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) ||
+            ControllerPressed(MatchControllerActions.SelectNoBallDelivery)) SelectNextDelivery(2);
         if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
         if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
-        if (!IsCpuBattingControlled && keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) CancelRun();
-        if (keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P))
+        if (!IsCpuBattingControlled &&
+            ((keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) ||
+             ControllerPressed(MatchControllerActions.CancelRun))) CancelRun();
+        if ((keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P)) ||
+            ControllerPressed(MatchControllerActions.Pause))
         {
             _simulationPaused = !_simulationPaused;
         }
@@ -410,6 +438,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 StepBatterFootwork(1f);
             if (keyboard.IsKeyDown(Keys.E) && !_previousKeyboard.IsKeyDown(Keys.E))
                 StepBatterFootwork(-1f);
+            if (ControllerPressed(MatchControllerActions.StepOffSide))
+                StepBatterFootwork(1f);
+            if (ControllerPressed(MatchControllerActions.StepLegSide))
+                StepBatterFootwork(-1f);
         }
         if (!IsCpuBattingControlled && !_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
         {
@@ -417,10 +449,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         if (!IsCpuBattingControlled)
         {
-            if (keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) StartShot("defence");
-            if (keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) StartShot("drive");
-            if (keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) StartShot("loft");
-            if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) StartRun();
+            if ((keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) ||
+                ControllerPressed(MatchControllerActions.Defend)) StartShot("defence");
+            if ((keyboard.IsKeyDown(Keys.S) && !_previousKeyboard.IsKeyDown(Keys.S)) ||
+                ControllerPressed(MatchControllerActions.Drive)) StartShot("drive");
+            if ((keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) ||
+                ControllerPressed(MatchControllerActions.Loft)) StartShot("loft");
+            if ((keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter)) ||
+                ControllerPressed(MatchControllerActions.Run)) StartRun();
         }
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
@@ -800,12 +836,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     ? "D: next CPU difficulty    O: next overs    R: replay"
                     : IsCpuBattingControlled
                         ? $"CPU batting ({_cpuDifficulty}). Choose a bowling delivery."
-                        : "A/S/D: shot    Q/E: step    Enter: run    X: cancel",
+                        : "A/S/D or Pad A/X/Y: shot    Q/E or D-pad: step",
                 _match.IsMatchComplete
-                    ? "Choose another match to continue."
+                    ? "Pad A: replay    LB: difficulty    RB: overs"
                     : IsCpuBattingControlled
-                        ? "1-3: delivery    N: next ball    R: restart    P: pause"
-                        : "N: ball/innings    R: restart    P: pause    F1: stats"
+                        ? "1-3 or D-pad: delivery    N/RB: next    P/Start: pause"
+                        : "Enter/B: run    X/LB: cancel    N/RB: next    R: restart    P/Start: pause"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 166), Color.White);
@@ -836,7 +872,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
-                "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N ball/innings    R restart    O change overs at result    P pause    Esc quit"
+            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N ball/innings    R restart    O overs    D difficulty at result    P pause    Esc quit",
+            "Pad A/X/Y shots    B run    LB cancel/difficulty    RB next/overs    D-pad delivery/steps    Start pause    Back quit"
         };
         var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 18 + lines.Length * 23);
 
@@ -848,6 +885,24 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _spriteBatch.DrawString(_debugFont, lines[index], new Vector2(30, 17 + index * 23), color);
         }
         _spriteBatch.End();
+    }
+
+    private static MatchControllerButtons ReadControllerButtons(GamePadState state)
+    {
+        var buttons = MatchControllerButtons.None;
+        if (state.IsButtonDown(Buttons.A)) buttons |= MatchControllerButtons.A;
+        if (state.IsButtonDown(Buttons.B)) buttons |= MatchControllerButtons.B;
+        if (state.IsButtonDown(Buttons.X)) buttons |= MatchControllerButtons.X;
+        if (state.IsButtonDown(Buttons.Y)) buttons |= MatchControllerButtons.Y;
+        if (state.IsButtonDown(Buttons.Start)) buttons |= MatchControllerButtons.Start;
+        if (state.IsButtonDown(Buttons.Back)) buttons |= MatchControllerButtons.Back;
+        if (state.IsButtonDown(Buttons.LeftShoulder)) buttons |= MatchControllerButtons.LeftShoulder;
+        if (state.IsButtonDown(Buttons.RightShoulder)) buttons |= MatchControllerButtons.RightShoulder;
+        if (state.IsButtonDown(Buttons.DPadUp)) buttons |= MatchControllerButtons.DPadUp;
+        if (state.IsButtonDown(Buttons.DPadDown)) buttons |= MatchControllerButtons.DPadDown;
+        if (state.IsButtonDown(Buttons.DPadLeft)) buttons |= MatchControllerButtons.DPadLeft;
+        if (state.IsButtonDown(Buttons.DPadRight)) buttons |= MatchControllerButtons.DPadRight;
+        return buttons;
     }
 
     private void StartNewMatch()
