@@ -133,6 +133,7 @@ static int Run(string[] arguments)
             MatchStateReviewChecks.Run();
             LimitedOversMatchReviewChecks.Run();
             TeamRosterReviewChecks.Run();
+            BowlingDecisionReviewChecks.Run();
             return 0;
         }
 

@@ -107,6 +107,17 @@ public sealed class DeliveryPreset
         return errors;
     }
 
+    public DeliveryPreset DeepCopy()
+    {
+        if (ReleasePosition is null || ReleaseVelocity is null)
+            throw new InvalidOperationException("A delivery preset must have release position and velocity before it can be copied.");
+
+        var copy = (DeliveryPreset)MemberwiseClone();
+        copy.ReleasePosition = Vector3Data.From(ReleasePosition.ToVector3());
+        copy.ReleaseVelocity = Vector3Data.From(ReleaseVelocity.ToVector3());
+        return copy;
+    }
+
     private static bool IsPositive(float value) => float.IsFinite(value) && value > 0f;
     private static bool IsNonNegative(float value) => float.IsFinite(value) && value >= 0f;
     private static bool IsUnitInterval(float value) => float.IsFinite(value) && value is >= 0f and <= 1f;

@@ -61,6 +61,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
+    private int _matchBowlingSeed;
     private DeliveryPreset _deliveryPreset = null!;
     private BattingShotSet _shotSet = null!;
     private BallFlightSimulator _ballFlight = null!;
@@ -776,7 +777,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
-            "SUPER CRICKET  /  SHORT MATCH",
+            $"SUPER CRICKET  /  SHORT MATCH    seed {_matchBowlingSeed}",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
             $"{ScoreStatusText}    Striker {_match.StrikerPlayer.Name}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
@@ -808,6 +809,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private void StartNewMatch()
     {
         _match.Reset(_selectedOversPerInnings);
+        _matchBowlingSeed = Random.Shared.Next();
         _nextDeliveryPresetIndex = 0;
         BeginDelivery();
     }
@@ -826,7 +828,26 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
-        _deliveryPreset = _deliveryPresets[_activeDeliveryPresetIndex];
+        var selectedPreset = _deliveryPresets[_activeDeliveryPresetIndex];
+        if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
+        {
+            var situation = new BowlingSituation(
+                _match.LegalBalls,
+                _match.OversPerInnings,
+                _match.Runs,
+                _match.Wickets,
+                _match.Target);
+            _deliveryPreset = BowlingDecisionModel.ChooseDelivery(
+                selectedPreset,
+                _match.CurrentBowler.Bowling,
+                _match.StrikerPlayer.Power,
+                situation,
+                CreateBowlingDecisionSeed()).Delivery;
+        }
+        else
+        {
+            _deliveryPreset = selectedPreset;
+        }
         ConfigureFieldingRatingsForCurrentSide();
         _match.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
@@ -865,6 +886,31 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerReleased = false;
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
+    }
+
+    private int CreateBowlingDecisionSeed()
+    {
+        unchecked
+        {
+            var seed = _matchBowlingSeed;
+            seed = seed * 31 + _match.InningsNumber;
+            seed = seed * 31 + _match.LegalBalls;
+            seed = seed * 31 + _match.Runs;
+            seed = seed * 31 + _match.Wickets;
+            seed = AddSeedText(seed, _match.CurrentBowler.Id);
+            seed = AddSeedText(seed, _match.StrikerPlayer.Id);
+            return seed;
+        }
+    }
+
+    private static int AddSeedText(int seed, string text)
+    {
+        unchecked
+        {
+            foreach (var character in text)
+                seed = seed * 31 + character;
+            return seed;
+        }
     }
 
     private void ConfigureFieldingRatingsForCurrentSide()

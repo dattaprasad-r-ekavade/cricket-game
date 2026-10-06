@@ -10,7 +10,7 @@ Each fictional side has a validated 11-player batting order. Timing and power ra
 
 Batting begins with defence, drive, and loft. Players choose an intent before contact and learn timing from misses and impact quality. Q/E footwork reaches the existing wide delivery. Preserve those timing and position differences in the ball result; keep any future assistance bounded, visible in the F1 view, and repeatable.
 
-Bowling begins with authored run-up and release timing, then uses saved pace, wide, and no-ball presets. The short match can add opponent bowling changes after the player loop is readable. Use one fixed rules and physics baseline first; difficulty should tune opponent decisions and reaction time before it changes contact or scoring rules.
+Bowling uses authored run-up and release timing with the validated stock trajectory as its baseline. In a match, the CPU bowler chooses a line and movement plan using bowling skill, striker power, and chase pressure; skill changes pace, line control, and swing execution. Wide/no-ball presets remain available as diagnostic scenarios. Use one fixed rules and physics baseline first; difficulty should tune opponent decisions and reaction time before it changes contact or scoring rules.
 
 Fielding should explain outcomes through visible movement, catches, pickups, throws, and wicket events. Keep the current one-over rules loop as the test bed while simplifying heuristics are replaced by measured scenarios.
 
