@@ -94,7 +94,38 @@ try {
         'assets/deliveries/standard-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-cpu-batting', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
-        $highlandRosterPath, $coastalRosterPath)
+        $highlandRosterPath, $coastalRosterPath, 'assets/fields/practice-attack.json')
+    $physicsBatchPath = 'artifacts/review-physics-match-batch.csv'
+    $physicsBatchRepeatPath = 'artifacts/review-physics-match-batch-repeat.csv'
+    foreach ($physicsOutputPath in @($physicsBatchPath, $physicsBatchRepeatPath)) {
+        Invoke-CheckedDotNet @($toolsDll, 'simulate-physics-match-batch', $coastalRosterPath, $highlandRosterPath,
+            'assets/fields/practice-attack.json', $batterPath, $bowlerPath, $shotsPath,
+            'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
+            'assets/deliveries/no-ball-pace.json', '3', '1', '3710', $physicsOutputPath)
+    }
+    $physicsRows = @(Import-Csv -LiteralPath $physicsBatchPath)
+    if ($physicsRows.Count -ne 3) { throw "Physics match batch wrote $($physicsRows.Count) rows instead of 3." }
+    if (@($physicsRows | Where-Object { [string]::IsNullOrWhiteSpace($_.result) }).Count -gt 0) {
+        throw 'Physics match batch included a result without a match outcome.'
+    }
+    $physicsPlans = ($physicsRows | Measure-Object -Property shot_plans -Sum).Sum
+    $physicsContacts = ($physicsRows | Measure-Object -Property contacts -Sum).Sum
+    $physicsMisses = ($physicsRows | Measure-Object -Property misses -Sum).Sum
+    $physicsPickups = ($physicsRows | Measure-Object -Property ground_pickups -Sum).Sum
+    $physicsBoundaries = ($physicsRows | Measure-Object -Property boundaries -Sum).Sum
+    $physicsCompletedRuns = ($physicsRows | Measure-Object -Property completed_runs -Sum).Sum
+    $physicsRunIntents = ($physicsRows | Measure-Object -Property run_intents -Sum).Sum
+    $physicsSafeRuns = ($physicsRows | Measure-Object -Property safe_run_attempts -Sum).Sum
+    if ($physicsPlans -ne ($physicsContacts + $physicsMisses) -or
+        $physicsSafeRuns -gt $physicsRunIntents -or
+        $physicsPickups + $physicsBoundaries -le 0 -or
+        $physicsCompletedRuns -le 0) {
+        throw 'Physics match batch produced inconsistent contact or running metrics.'
+    }
+    $physicsBatchHash = (Get-FileHash -LiteralPath $physicsBatchPath).Hash
+    $physicsBatchRepeatHash = (Get-FileHash -LiteralPath $physicsBatchRepeatPath).Hash
+    if ($physicsBatchHash -ne $physicsBatchRepeatHash) { throw 'Repeated physics match-batch output differs.' }
+    Write-Output "PASS: physics match batch replayed exactly with $physicsPlans shot plans, $physicsBoundaries boundaries, and $physicsCompletedRuns completed runs."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')

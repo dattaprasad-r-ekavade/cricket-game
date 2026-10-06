@@ -7,7 +7,23 @@ public readonly record struct AutomatedMatchResult(
     MatchInningsResult FirstInnings,
     MatchInningsResult SecondInnings,
     string ResultText,
-    int TotalDeliveries);
+    int TotalDeliveries,
+    PhysicsMatchMetrics? PhysicsMetrics = null);
+
+public readonly record struct PhysicsMatchMetrics(
+    int ShotPlans,
+    int Contacts,
+    int Misses,
+    int Catches,
+    int GroundPickups,
+    int Boundaries,
+    int RunIntents,
+    int SafeRunAttempts,
+    int CompletedRuns,
+    int RunOuts,
+    int BowledDismissals,
+    int WideDeliveries,
+    int NoBallDeliveries);
 
 /// <summary>Runs seeded, renderer-free matches through the production innings and delivery rules.</summary>
 public static class AutomatedMatchBatchSimulator

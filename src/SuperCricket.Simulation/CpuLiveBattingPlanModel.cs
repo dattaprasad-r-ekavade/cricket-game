@@ -1,3 +1,4 @@
+using System.Numerics;
 using SuperCricket.Content;
 
 namespace SuperCricket.Simulation;
@@ -7,9 +8,10 @@ public readonly record struct CpuLiveBattingPlan(
     float InputDelaySeconds,
     float FootworkOffsetMeters,
     bool AttemptRun,
-    float? PredictedContactQuality);
+    float? PredictedContactQuality,
+    float HorizontalAim);
 
-/// <summary>Chooses a repeatable live shot, timing, footwork step, and running intent.</summary>
+/// <summary>Chooses a repeatable live shot, timing, footwork, placement, and running intent.</summary>
 public static class CpuLiveBattingPlanModel
 {
     public const float InputDelayStepSeconds = 0.025f;
@@ -24,12 +26,14 @@ public static class CpuLiveBattingPlanModel
         PlayerAsset batterAsset,
         PlayerAsset bowlerAsset,
         BattingShotSet shotSet,
-        int seed)
+        int seed,
+        IReadOnlyList<Vector3>? fieldingPositions = null)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(batterAsset);
         ArgumentNullException.ThrowIfNull(bowlerAsset);
         ArgumentNullException.ThrowIfNull(shotSet);
+        ArgumentNullException.ThrowIfNull(fielders);
         var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic);
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)
@@ -47,8 +51,21 @@ public static class CpuLiveBattingPlanModel
             shotSet,
             shotName,
             delivery,
-            InputDelayStepSeconds);
-        return ChooseFromSamples(striker, outcome, delivery, samples, seed);
+            InputDelayStepSeconds,
+            striker);
+        var authoredShot = shotSet.Get(shotName);
+        var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim);
+        if (fieldingPositions is null)
+            return plan;
+
+        var fieldingRatings = fielders.Select(fielder => fielder.Fielding).ToArray();
+        var horizontalAim = CpuShotPlacementModel.ChooseHorizontalAim(
+            authoredShot,
+            striker.Power,
+            delivery,
+            fieldingPositions,
+            fieldingRatings);
+        return plan with { HorizontalAim = horizontalAim };
     }
 
     internal static CpuLiveBattingPlan ChooseFromSamples(
@@ -56,11 +73,14 @@ public static class CpuLiveBattingPlanModel
         CpuBattingDecision outcome,
         DeliveryPreset delivery,
         IReadOnlyList<BattingPracticeSample> samples,
-        int seed)
+        int seed,
+        float horizontalAim = 0f)
     {
         ArgumentNullException.ThrowIfNull(striker);
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(samples);
+        if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
+            throw new ArgumentOutOfRangeException(nameof(horizontalAim), "Shot direction must be between -1 and 1.");
         var random = new Random(seed);
         var wicketLineTime = BattingPracticeAnalyzer.GetWicketLineTimeSeconds(delivery);
         var liveSamples = samples
@@ -106,6 +126,7 @@ public static class CpuLiveBattingPlanModel
             selectedSample.InputDelaySeconds,
             selectedSample.FootworkOffsetMeters,
             attemptRun,
-            selectedSample.ContactQuality);
+            selectedSample.ContactQuality,
+            horizontalAim);
     }
 }

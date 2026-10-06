@@ -30,7 +30,9 @@ public static class CpuLiveRunningDecisionModel
         Vector3 outgoingVelocity,
         IReadOnlyList<Vector3> fielderPositions,
         IReadOnlyList<int> fieldingRatings,
-        float runDurationSeconds = DefaultRunDurationSeconds)
+        float runDurationSeconds = DefaultRunDurationSeconds,
+        float pickupAnimationDurationSeconds = 0.5f,
+        float throwAnimationDurationSeconds = 0.6f)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(fielderPositions);
@@ -39,6 +41,9 @@ public static class CpuLiveRunningDecisionModel
             throw new ArgumentException("CPU running requires a finite contact point and non-zero outgoing velocity.");
         if (!float.IsFinite(runDurationSeconds) || runDurationSeconds <= 0f)
             throw new ArgumentOutOfRangeException(nameof(runDurationSeconds), "Run duration must be finite and positive.");
+        if (!float.IsFinite(pickupAnimationDurationSeconds) || pickupAnimationDurationSeconds <= 0f ||
+            !float.IsFinite(throwAnimationDurationSeconds) || throwAnimationDurationSeconds <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(pickupAnimationDurationSeconds), "Fielder pickup and throw durations must be finite and positive.");
         if (fielderPositions.Count != FieldingSide.FielderCount || fieldingRatings.Count != FieldingSide.FielderCount)
             throw new ArgumentException($"CPU running decisions require exactly {FieldingSide.FielderCount} fielding positions and ratings.");
         if (!runIntent)
@@ -60,14 +65,17 @@ public static class CpuLiveRunningDecisionModel
         {
             fielding.Step(ball.FixedTimeStepSeconds, previous.Position);
             var current = ball.Step();
-            if (fielding.TryFindContact(previous, current, out _))
+            if (fielding.TryFindContact(previous, current, out var contact))
             {
-                var runCompleted = current.TimeSeconds >= runDurationSeconds;
+                if (contact.Kind == FieldingContactKind.Catch)
+                    return new CpuLiveRunDecision(false, CpuLiveRunDecisionReason.FielderCanCollectBeforeRun, current.TimeSeconds);
+
+                var throwCanBeatRunner = current.TimeSeconds + pickupAnimationDurationSeconds + throwAnimationDurationSeconds < runDurationSeconds;
                 return new CpuLiveRunDecision(
-                    runCompleted,
-                    runCompleted
-                        ? CpuLiveRunDecisionReason.SafeRunWindow
-                        : CpuLiveRunDecisionReason.FielderCanCollectBeforeRun,
+                    !throwCanBeatRunner,
+                    throwCanBeatRunner
+                        ? CpuLiveRunDecisionReason.FielderCanCollectBeforeRun
+                        : CpuLiveRunDecisionReason.SafeRunWindow,
                     current.TimeSeconds);
             }
             if (BoundaryResolver.TryFindCrossing(

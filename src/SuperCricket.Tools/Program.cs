@@ -119,9 +119,9 @@ static int Run(string[] arguments)
 
         if (arguments[0] == "verify-cpu-batting")
         {
-            if (arguments.Length != 8)
-                throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json>");
-            VerifyCpuBatting(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7]);
+            if (arguments.Length != 9)
+                throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
+            VerifyCpuBatting(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7], arguments[8]);
             return 0;
         }
 
@@ -167,6 +167,32 @@ static int Run(string[] arguments)
             var secondTeam = TeamRosterAsset.Load(arguments[2]);
             var outputPath = arguments.Length == 7 ? arguments[6] : Path.Combine("artifacts", "automatic-match-batch.csv");
             SimulateMatchBatch(firstTeam, secondTeam, matchCount, oversPerInnings, seed, outputPath);
+            return 0;
+        }
+
+        if (arguments[0] == "simulate-physics-match-batch")
+        {
+            if (arguments.Length is < 13 or > 14)
+                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+            if (!int.TryParse(arguments[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out var matchCount) ||
+                !int.TryParse(arguments[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out var oversPerInnings) ||
+                !int.TryParse(arguments[12], NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed))
+                throw new ArgumentException("Match count, overs, and seed must be integers.");
+            var outputPath = arguments.Length == 14 ? arguments[13] : Path.Combine("artifacts", "physics-match-batch.csv");
+            SimulatePhysicsMatchBatch(
+                TeamRosterAsset.Load(arguments[1]),
+                TeamRosterAsset.Load(arguments[2]),
+                FieldPreset.Load(arguments[3]),
+                PlayerAsset.Load(arguments[4]),
+                PlayerAsset.Load(arguments[5]),
+                BattingShotSet.Load(arguments[6]),
+                DeliveryPreset.Load(arguments[7]),
+                DeliveryPreset.Load(arguments[8]),
+                DeliveryPreset.Load(arguments[9]),
+                matchCount,
+                oversPerInnings,
+                seed,
+                outputPath);
             return 0;
         }
 
@@ -553,7 +579,8 @@ static void VerifyCpuBatting(
     string standardDeliveryPath,
     string wideDeliveryPath,
     string battingTeamPath,
-    string fieldingTeamPath)
+    string fieldingTeamPath,
+    string fieldPath)
 {
     CpuLiveBattingPlanReviewChecks.Run(
         PlayerAsset.Load(batterPath),
@@ -562,7 +589,8 @@ static void VerifyCpuBatting(
         DeliveryPreset.Load(standardDeliveryPath),
         DeliveryPreset.Load(wideDeliveryPath),
         TeamRosterAsset.Load(battingTeamPath),
-        TeamRosterAsset.Load(fieldingTeamPath));
+        TeamRosterAsset.Load(fieldingTeamPath),
+        FieldPreset.Load(fieldPath));
 }
 
 static void SimulateMatchBatch(
@@ -574,15 +602,70 @@ static void SimulateMatchBatch(
     string outputPath)
 {
     var results = AutomatedMatchBatchSimulator.RunBatch(firstTeam, secondTeam, matchCount, oversPerInnings, seed);
+    WriteMatchBatchCsv(firstTeam, secondTeam, results, outputPath);
+
+    var firstTeamWins = results.Count(result => result.FirstInnings.Runs > result.SecondInnings.Runs);
+    var secondTeamWins = results.Count(result => result.SecondInnings.Runs > result.FirstInnings.Runs);
+    var ties = results.Count - firstTeamWins - secondTeamWins;
+    var averageRuns = results.Average(result => result.FirstInnings.Runs + result.SecondInnings.Runs);
+    Console.WriteLine($"Completed {results.Count} seeded synthetic matches at {oversPerInnings} overs per innings (seed {seed} onward).");
+    Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
+    Console.WriteLine($"Match results written to {Path.GetFullPath(outputPath)}");
+}
+
+static void SimulatePhysicsMatchBatch(
+    TeamRosterAsset firstTeam,
+    TeamRosterAsset secondTeam,
+    FieldPreset fieldPreset,
+    PlayerAsset batterAsset,
+    PlayerAsset bowlerAsset,
+    BattingShotSet shotSet,
+    DeliveryPreset stockDelivery,
+    DeliveryPreset wideDelivery,
+    DeliveryPreset noBallDelivery,
+    int matchCount,
+    int oversPerInnings,
+    int seed,
+    string outputPath)
+{
+    var results = PhysicsAutomatedMatchBatchSimulator.RunBatch(
+        firstTeam, secondTeam, fieldPreset, batterAsset, bowlerAsset, shotSet,
+        stockDelivery, wideDelivery, noBallDelivery, matchCount, oversPerInnings, seed);
+    WriteMatchBatchCsv(firstTeam, secondTeam, results, outputPath);
+
+    var firstTeamWins = results.Count(result => result.FirstInnings.Runs > result.SecondInnings.Runs);
+    var secondTeamWins = results.Count(result => result.SecondInnings.Runs > result.FirstInnings.Runs);
+    var ties = results.Count - firstTeamWins - secondTeamWins;
+    var averageRuns = results.Average(result => result.FirstInnings.Runs + result.SecondInnings.Runs);
+    var physicsMetrics = results.Where(result => result.PhysicsMetrics.HasValue)
+        .Select(result => result.PhysicsMetrics!.Value)
+        .ToArray();
+    Console.WriteLine($"Completed {results.Count} physics-grounded matches at {oversPerInnings} overs per innings (seed {seed} onward).");
+    Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
+    if (physicsMetrics.Length > 0)
+    {
+        Console.WriteLine($"Physics events: {physicsMetrics.Sum(item => item.Contacts)} contacts, {physicsMetrics.Sum(item => item.Misses)} misses, {physicsMetrics.Sum(item => item.Catches)} catches, {physicsMetrics.Sum(item => item.GroundPickups)} pickups, {physicsMetrics.Sum(item => item.Boundaries)} boundaries.");
+        Console.WriteLine($"Running: {physicsMetrics.Sum(item => item.RunIntents)} intents, {physicsMetrics.Sum(item => item.SafeRunAttempts)} safe attempts, {physicsMetrics.Sum(item => item.CompletedRuns)} completed runs, {physicsMetrics.Sum(item => item.RunOuts)} run-outs.");
+    }
+    Console.WriteLine($"Match results written to {Path.GetFullPath(outputPath)}");
+}
+
+static void WriteMatchBatchCsv(
+    TeamRosterAsset firstTeam,
+    TeamRosterAsset secondTeam,
+    IReadOnlyList<AutomatedMatchResult> results,
+    string outputPath)
+{
     var outputDirectory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
     if (!string.IsNullOrEmpty(outputDirectory))
         Directory.CreateDirectory(outputDirectory);
 
     using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
     {
-        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries");
+        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries");
         foreach (var result in results)
         {
+            var physics = result.PhysicsMetrics ?? default;
             writer.WriteLine(string.Join(',',
                 result.Seed.ToString(CultureInfo.InvariantCulture),
                 CsvValue(firstTeam.Name),
@@ -594,17 +677,23 @@ static void SimulateMatchBatch(
                 result.SecondInnings.Wickets.ToString(CultureInfo.InvariantCulture),
                 result.SecondInnings.LegalBalls.ToString(CultureInfo.InvariantCulture),
                 CsvValue(result.ResultText),
-                result.TotalDeliveries.ToString(CultureInfo.InvariantCulture)));
+                result.TotalDeliveries.ToString(CultureInfo.InvariantCulture),
+                physics.ShotPlans.ToString(CultureInfo.InvariantCulture),
+                physics.Contacts.ToString(CultureInfo.InvariantCulture),
+                physics.Misses.ToString(CultureInfo.InvariantCulture),
+                physics.Catches.ToString(CultureInfo.InvariantCulture),
+                physics.GroundPickups.ToString(CultureInfo.InvariantCulture),
+                physics.Boundaries.ToString(CultureInfo.InvariantCulture),
+                physics.RunIntents.ToString(CultureInfo.InvariantCulture),
+                physics.SafeRunAttempts.ToString(CultureInfo.InvariantCulture),
+                physics.CompletedRuns.ToString(CultureInfo.InvariantCulture),
+                physics.RunOuts.ToString(CultureInfo.InvariantCulture),
+                physics.BowledDismissals.ToString(CultureInfo.InvariantCulture),
+                physics.WideDeliveries.ToString(CultureInfo.InvariantCulture),
+                physics.NoBallDeliveries.ToString(CultureInfo.InvariantCulture)));
         }
     }
 
-    var firstTeamWins = results.Count(result => result.FirstInnings.Runs > result.SecondInnings.Runs);
-    var secondTeamWins = results.Count(result => result.SecondInnings.Runs > result.FirstInnings.Runs);
-    var ties = results.Count - firstTeamWins - secondTeamWins;
-    var averageRuns = results.Average(result => result.FirstInnings.Runs + result.SecondInnings.Runs);
-    Console.WriteLine($"Completed {results.Count} seeded matches at {oversPerInnings} overs per innings (seed {seed} onward).");
-    Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
-    Console.WriteLine($"Match results written to {Path.GetFullPath(outputPath)}");
 }
 
 static void VerifyFootwork(string batterPath, string bowlerPath, string shotSetPath, string wideDeliveryPath)
@@ -657,7 +746,7 @@ static void PrintUsage()
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
     Console.WriteLine("  verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
-    Console.WriteLine("  verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json>");
+    Console.WriteLine("  verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
@@ -665,6 +754,7 @@ static void PrintUsage()
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
+    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-match-batch");
     Console.WriteLine("  verify-fielding");

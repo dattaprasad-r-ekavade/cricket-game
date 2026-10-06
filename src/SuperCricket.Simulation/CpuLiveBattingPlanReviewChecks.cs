@@ -1,3 +1,4 @@
+using System.Numerics;
 using SuperCricket.Content;
 
 namespace SuperCricket.Simulation;
@@ -11,7 +12,8 @@ public static class CpuLiveBattingPlanReviewChecks
         DeliveryPreset standardDelivery,
         DeliveryPreset wideDelivery,
         TeamRosterAsset battingTeam,
-        TeamRosterAsset fieldingTeam)
+        TeamRosterAsset fieldingTeam,
+        FieldPreset fieldPreset)
     {
         ArgumentNullException.ThrowIfNull(batterAsset);
         ArgumentNullException.ThrowIfNull(bowlerAsset);
@@ -20,6 +22,7 @@ public static class CpuLiveBattingPlanReviewChecks
         ArgumentNullException.ThrowIfNull(wideDelivery);
         ArgumentNullException.ThrowIfNull(battingTeam);
         ArgumentNullException.ThrowIfNull(fieldingTeam);
+        ArgumentNullException.ThrowIfNull(fieldPreset);
 
         var striker = battingTeam.GetPlayerAtBattingOrder(1);
         var bowler = fieldingTeam.Players
@@ -64,7 +67,8 @@ public static class CpuLiveBattingPlanReviewChecks
                     };
                     var samples = BattingPracticeAnalyzer.AnalyzeShot(
                         batterAsset, bowlerAsset, shotSet, shotName, delivery,
-                        CpuLiveBattingPlanModel.InputDelayStepSeconds);
+                        CpuLiveBattingPlanModel.InputDelayStepSeconds,
+                        striker);
                     var plan = CpuLiveBattingPlanModel.ChooseFromSamples(
                         striker, outcome, delivery, samples, seed: 8142);
                     var replay = CpuLiveBattingPlanModel.ChooseFromSamples(
@@ -91,6 +95,61 @@ public static class CpuLiveBattingPlanReviewChecks
 
                     if (delivery == standardDelivery && testCase.Shot == CpuShotChoice.Drive)
                     {
+                        var formation = FieldPlacementModel.Choose(
+                            fieldPreset, testCase.Situation, striker.Power);
+                        var placedPlan = CpuLiveBattingPlanModel.Choose(
+                            striker,
+                            bowler,
+                            fielders,
+                            testCase.Situation,
+                            formation.Tactic,
+                            delivery,
+                            batterAsset,
+                            bowlerAsset,
+                            shotSet,
+                            seed: 8142,
+                            formation.StartingPositions);
+                        var placedShot = shotSet.Get("drive");
+                        var expectedAim = CpuShotPlacementModel.ChooseHorizontalAim(
+                            placedShot,
+                            striker.Power,
+                            delivery,
+                            formation.StartingPositions,
+                            fielders.Select(fielder => fielder.Fielding).ToArray());
+                        Require(placedPlan.Shot == CpuShotChoice.Drive &&
+                            MathF.Abs(placedPlan.HorizontalAim - expectedAim) < 0.0001f,
+                            "the live CPU plan did not use the deterministic field-aware shot lane");
+                        var authoredGapScore = CpuShotPlacementModel.EvaluateGapScore(
+                            placedShot,
+                            striker.Power,
+                            delivery,
+                            formation.StartingPositions,
+                            fielders.Select(fielder => fielder.Fielding).ToArray(),
+                            placedShot.HorizontalAim);
+                        var selectedGapScore = CpuShotPlacementModel.EvaluateGapScore(
+                            placedShot,
+                            striker.Power,
+                            delivery,
+                            formation.StartingPositions,
+                            fielders.Select(fielder => fielder.Fielding).ToArray(),
+                            placedPlan.HorizontalAim);
+                        Require(selectedGapScore + 0.0001f >= authoredGapScore,
+                            "field-aware shot placement selected a worse lane than the authored aim");
+
+                        var alternateAim = placedShot.HorizontalAim <= 0.5f ? 0.75f : -0.75f;
+                        var authoredTrajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
+                            batterAsset, bowlerAsset, shotSet, "drive", delivery,
+                            placedPlan.InputDelaySeconds, placedPlan.FootworkOffsetMeters, striker);
+                        var aimedTrajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
+                            batterAsset, bowlerAsset, shotSet, "drive", delivery,
+                            placedPlan.InputDelaySeconds, placedPlan.FootworkOffsetMeters, striker, alternateAim);
+                        Require(authoredTrajectory.Sample.ContactQuality.HasValue &&
+                            aimedTrajectory.Sample.ContactQuality.HasValue &&
+                            authoredTrajectory.OutgoingVelocity is { } authoredVelocity &&
+                            aimedTrajectory.OutgoingVelocity is { } aimedVelocity &&
+                            Vector3.Distance(authoredVelocity, aimedVelocity) > 0.01f,
+                            "an explicit batting aim did not alter the actual simulated shot trajectory");
+
                         striker.Timing = 0;
                         var lowSkillPlan = CpuLiveBattingPlanModel.ChooseFromSamples(
                             striker, outcome, delivery, samples, seed: 8142);

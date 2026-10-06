@@ -17,6 +17,12 @@ public readonly record struct BattingPracticeSample(
     float? SweetSpotOffsetY,
     float FootworkOffsetMeters = 0f);
 
+public readonly record struct BattingPracticeTrajectory(
+    BattingPracticeSample Sample,
+    Vector3? ContactPosition,
+    Vector3? OutgoingVelocity,
+    IReadOnlyList<BallFlightFrame> OutgoingFrames);
+
 /// <summary>Replays actual exported swing clips against a delivery while sweeping the shot input time.</summary>
 public static class BattingPracticeAnalyzer
 {
@@ -33,7 +39,8 @@ public static class BattingPracticeAnalyzer
         PlayerAsset bowler,
         BattingShotSet shotSet,
         DeliveryPreset delivery,
-        float inputDelayStepSeconds = 0.025f)
+        float inputDelayStepSeconds = 0.025f,
+        TeamPlayerData? battingRatings = null)
     {
         ArgumentNullException.ThrowIfNull(batter);
         ArgumentNullException.ThrowIfNull(bowler);
@@ -41,6 +48,7 @@ public static class BattingPracticeAnalyzer
         ArgumentNullException.ThrowIfNull(delivery);
         if (!float.IsFinite(inputDelayStepSeconds) || inputDelayStepSeconds is < 0.01f or > 0.25f)
             throw new ArgumentOutOfRangeException(nameof(inputDelayStepSeconds), "Input-delay step must be between 0.01 and 0.25 seconds.");
+        ValidateBattingRatings(battingRatings);
 
         var batterSampler = new BatSampler(batter);
         var stance = FindClip(batter, "practice-stance");
@@ -69,7 +77,8 @@ public static class BattingPracticeAnalyzer
                     shotSet.ContactPaddingMeters,
                     delivery,
                     inputDelay,
-                    footworkOffset));
+                    footworkOffset,
+                    battingRatings));
                 results.Add(candidates
                     .OrderByDescending(sample => sample.ContactQuality ?? -1f)
                     .ThenBy(sample => MathF.Abs(sample.FootworkOffsetMeters))
@@ -86,7 +95,8 @@ public static class BattingPracticeAnalyzer
         BattingShotSet shotSet,
         string shotName,
         DeliveryPreset delivery,
-        float inputDelayStepSeconds = 0.025f)
+        float inputDelayStepSeconds = 0.025f,
+        TeamPlayerData? battingRatings = null)
     {
         ArgumentNullException.ThrowIfNull(shotSet);
         if (string.IsNullOrWhiteSpace(shotName))
@@ -98,7 +108,7 @@ public static class BattingPracticeAnalyzer
             ContactPaddingMeters = shotSet.ContactPaddingMeters,
             Shots = [shot]
         };
-        return Analyze(batter, bowler, singleShot, delivery, inputDelayStepSeconds);
+        return Analyze(batter, bowler, singleShot, delivery, inputDelayStepSeconds, battingRatings);
     }
 
     public static float GetWicketLineTimeSeconds(DeliveryPreset delivery)
@@ -125,6 +135,64 @@ public static class BattingPracticeAnalyzer
         return previous.TimeSeconds;
     }
 
+    public static BattingPracticeTrajectory AnalyzeShotTrajectory(
+        PlayerAsset batter,
+        PlayerAsset bowler,
+        BattingShotSet shotSet,
+        string shotName,
+        DeliveryPreset delivery,
+        float inputDelaySeconds,
+        float footworkOffsetMeters,
+        TeamPlayerData? battingRatings = null,
+        float? horizontalAimOverride = null)
+    {
+        ArgumentNullException.ThrowIfNull(batter);
+        ArgumentNullException.ThrowIfNull(bowler);
+        ArgumentNullException.ThrowIfNull(shotSet);
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (string.IsNullOrWhiteSpace(shotName))
+            throw new ArgumentException("A shot name must not be empty.", nameof(shotName));
+        if (!float.IsFinite(inputDelaySeconds) || inputDelaySeconds < MinimumInputDelaySeconds)
+            throw new ArgumentOutOfRangeException(nameof(inputDelaySeconds), "Input delay must be finite and at least -0.5 seconds.");
+        if (!float.IsFinite(footworkOffsetMeters) || MathF.Abs(footworkOffsetMeters) > BatterFootwork.MaximumOffsetMeters)
+            throw new ArgumentOutOfRangeException(nameof(footworkOffsetMeters), "Footwork offset exceeds the supported movement range.");
+        if (horizontalAimOverride is { } horizontalAim &&
+            (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f))
+            throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
+        ValidateBattingRatings(battingRatings);
+
+        var authoredShot = shotSet.Get(shotName);
+        var shot = horizontalAimOverride is { } aim
+            ? new BattingShotData
+            {
+                Name = authoredShot.Name,
+                AnimationClip = authoredShot.AnimationClip,
+                LaunchAngleDegrees = authoredShot.LaunchAngleDegrees,
+                HorizontalAim = aim,
+                SpeedTransfer = authoredShot.SpeedTransfer
+            }
+            : authoredShot;
+        var batterSampler = new BatSampler(batter);
+        var stance = FindClip(batter, "practice-stance");
+        var bowlerRunUp = FindClip(bowler, "bowling-run-up");
+        var bowlerDelivery = FindClip(bowler, "overarm-delivery");
+        var releaseEvent = bowlerDelivery.Events.Find(animationEvent =>
+            string.Equals(animationEvent.Name, "ball-release", StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidDataException("Bowler overarm-delivery clip is missing its ball-release event.");
+        return SimulateOneDetailed(
+            batterSampler,
+            stance,
+            FindClip(batter, shot.AnimationClip),
+            bowlerRunUp.DurationSeconds + releaseEvent.TimeSeconds,
+            shot,
+            shotSet.ContactPaddingMeters,
+            delivery,
+            inputDelaySeconds,
+            footworkOffsetMeters,
+            battingRatings,
+            captureOutgoingFrames: true);
+    }
+
     private static BattingPracticeSample SimulateOne(
         BatSampler batterSampler,
         PlayerAnimationData stance,
@@ -134,7 +202,32 @@ public static class BattingPracticeAnalyzer
         float contactPaddingMeters,
         DeliveryPreset delivery,
         float inputDelaySeconds,
-        float footworkOffsetMeters)
+        float footworkOffsetMeters,
+        TeamPlayerData? battingRatings) => SimulateOneDetailed(
+            batterSampler,
+            stance,
+            shotClip,
+            stanceTimeAtRelease,
+            shot,
+            contactPaddingMeters,
+            delivery,
+            inputDelaySeconds,
+            footworkOffsetMeters,
+            battingRatings,
+            captureOutgoingFrames: false).Sample;
+
+    private static BattingPracticeTrajectory SimulateOneDetailed(
+        BatSampler batterSampler,
+        PlayerAnimationData stance,
+        PlayerAnimationData shotClip,
+        float stanceTimeAtRelease,
+        BattingShotData shot,
+        float contactPaddingMeters,
+        DeliveryPreset delivery,
+        float inputDelaySeconds,
+        float footworkOffsetMeters,
+        TeamPlayerData? battingRatings,
+        bool captureOutgoingFrames)
     {
         var ball = new BallFlightSimulator(delivery);
         var previousFrame = ball.CurrentFrame;
@@ -178,11 +271,13 @@ public static class BattingPracticeAnalyzer
                     currentFrame.Velocity,
                     contact.BatPointVelocity,
                     contact.NormalizedSweetSpotOffset,
-                    shot);
+                    shot,
+                    battingRatings);
                 ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
-                var outcome = SimulateOutgoingBall(ball, delivery);
+                var outgoingFrames = captureOutgoingFrames ? new List<BallFlightFrame> { ball.CurrentFrame } : null;
+                var outcome = SimulateOutgoingBall(ball, delivery, outgoingFrames);
                 var contactTime = contactStartTime + contactDeltaSeconds * contact.HitFraction;
-                return new BattingPracticeSample(
+                var sample = new BattingPracticeSample(
                     shot.Name,
                     delivery.Name,
                     inputDelaySeconds,
@@ -195,24 +290,44 @@ public static class BattingPracticeAnalyzer
                     contact.NormalizedSweetSpotOffset.X,
                     contact.NormalizedSweetSpotOffset.Y,
                     footworkOffsetMeters);
+                return new BattingPracticeTrajectory(
+                    sample,
+                    captureOutgoingFrames ? contact.Position : null,
+                    captureOutgoingFrames ? impact.OutgoingVelocity : null,
+                    outgoingFrames is null ? Array.Empty<BallFlightFrame>() : Array.AsReadOnly(outgoingFrames.ToArray()));
             }
 
             if (currentFrame.Position.Z <= BatterZ - MissPlaneOffsetMeters)
-                return Miss(shot, delivery, inputDelaySeconds, "MissedBat", footworkOffsetMeters);
+                return MissTrajectory(shot, delivery, inputDelaySeconds, "MissedBat", footworkOffsetMeters);
 
             previousFrame = currentFrame;
         }
 
-        return Miss(shot, delivery, inputDelaySeconds, "SettledBeforeContact", footworkOffsetMeters);
+        return MissTrajectory(shot, delivery, inputDelaySeconds, "SettledBeforeContact", footworkOffsetMeters);
     }
 
-    private static string SimulateOutgoingBall(BallFlightSimulator ball, DeliveryPreset delivery)
+    private static BattingPracticeTrajectory MissTrajectory(
+        BattingShotData shot,
+        DeliveryPreset delivery,
+        float inputDelaySeconds,
+        string outcome,
+        float footworkOffsetMeters) => new(
+            Miss(shot, delivery, inputDelaySeconds, outcome, footworkOffsetMeters),
+            null,
+            null,
+            Array.Empty<BallFlightFrame>());
+
+    private static string SimulateOutgoingBall(
+        BallFlightSimulator ball,
+        DeliveryPreset delivery,
+        List<BallFlightFrame>? trajectory = null)
     {
         var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
         var previousFrame = ball.CurrentFrame;
         for (var step = 0; step < maximumSteps && ball.CurrentFrame.Phase != BallMotionPhase.Settled; step++)
         {
             var frame = ball.Step();
+            trajectory?.Add(frame);
             if (BoundaryResolver.TryFindCrossing(
                 previousFrame,
                 frame,
@@ -239,6 +354,12 @@ public static class BattingPracticeAnalyzer
         }
 
         return ball.CurrentFrame.TimeSeconds;
+    }
+
+    private static void ValidateBattingRatings(TeamPlayerData? battingRatings)
+    {
+        if (battingRatings is { Timing: < 0 or > 100 } or { Power: < 0 or > 100 })
+            throw new ArgumentOutOfRangeException(nameof(battingRatings), "Batter timing and power ratings must be between 0 and 100.");
     }
 
     private static BattingPracticeSample Miss(

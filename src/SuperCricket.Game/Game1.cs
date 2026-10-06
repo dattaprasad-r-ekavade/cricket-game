@@ -127,6 +127,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private NumericsVector3 _fielderHeldBallPosition;
     private float _fielderPickupBallSecuredTimeSeconds;
     private float _fielderCatchBallSecuredTimeSeconds;
+    private float _fielderPickupDurationSeconds;
     private float _fielderThrowReleaseTimeSeconds;
     private float _fielderThrowDurationSeconds;
     private NumericsVector3 _fielderThrowStart;
@@ -295,6 +296,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _bowlerRunUpDurationSeconds = GetAnimationDuration(_bowlerAsset, "bowling-run-up");
         _bowlerReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "overarm-delivery", "ball-release");
         _fielderThrowDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-throw");
+        _fielderPickupDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-pickup");
         _fielderThrowReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-throw", "ball-release");
         _fielderPickupBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-pickup", "ball-secured");
         _fielderCatchBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-catch", "catch-secured");
@@ -482,7 +484,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                             impact.OutgoingVelocity,
                             _fieldingSide.Positions,
                             fieldingRatings,
-                            _runDurationSeconds).AttemptRun;
+                            _runDurationSeconds,
+                            _fielderPickupDurationSeconds,
+                            _fielderThrowDurationSeconds).AttemptRun;
                     }
                     if (_runRequestedPending)
                         StartRun();
@@ -931,7 +935,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 _playerAsset,
                 _bowlerAsset,
                 _shotSet,
-                CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5));
+                CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
+                _fieldingSide.Positions);
             _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
             _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
@@ -952,7 +957,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             CpuShotChoice.Defence => "defence",
             CpuShotChoice.Drive => "drive",
             _ => "loft"
-        });
+        }, plan.HorizontalAim);
         _cpuShotStarted = true;
     }
 
@@ -1147,12 +1152,29 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _nextDeliveryPresetIndex = Math.Clamp(index, 0, _deliveryPresets.Length - 1);
     }
 
-    private void StartShot(string name)
+    private void StartShot(string name, float? horizontalAimOverride = null)
     {
         if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
 
-        _chosenShot = _shotSet.Get(name);
+        var authoredShot = _shotSet.Get(name);
+        if (horizontalAimOverride is { } horizontalAim)
+        {
+            if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
+                throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
+            _chosenShot = new BattingShotData
+            {
+                Name = authoredShot.Name,
+                AnimationClip = authoredShot.AnimationClip,
+                LaunchAngleDegrees = authoredShot.LaunchAngleDegrees,
+                HorizontalAim = horizontalAim,
+                SpeedTransfer = authoredShot.SpeedTransfer
+            };
+        }
+        else
+        {
+            _chosenShot = authoredShot;
+        }
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
         _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
