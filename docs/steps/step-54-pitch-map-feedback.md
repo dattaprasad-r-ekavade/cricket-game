@@ -17,4 +17,4 @@ The projection includes lateral and length margins so wide or overpitched locati
 
 ## Follow-up
 
-The owner still needs to confirm the map and text are readable during keyboard play. GamePad feedback remains untested. The pitch map is an outcome aid; a live pitch spot, contact replay, and guided batting practice remain separate open tasks.
+The owner still needs to confirm the map and text are readable during keyboard play. GamePad feedback remains untested. Step 55 adds the separate live pitch spot and contact flash; contact replay and guided batting practice remain open.

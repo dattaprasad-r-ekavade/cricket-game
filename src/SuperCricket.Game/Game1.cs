@@ -73,6 +73,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly List<VertexPositionColor> _shadowVertices = [];
     private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
     private readonly VertexPositionColor[] _bowlingTargetMarkerVertices = new VertexPositionColor[28];
+    private readonly VertexPositionColor[] _feedbackRingVertices = new VertexPositionColor[64];
     private readonly List<FrameTiming> _profileTimings = [];
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
@@ -433,7 +434,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     var frame = _ballFlight.Step();
                     _trajectoryVertices.Add(new VertexPositionColor(
                         ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
-                        new Color(248, 181, 82)));
+                        GetBallTrailColor(frame.Velocity.Length())));
                 }
             }
             else
@@ -698,7 +699,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
                 var frame = _ballFlight.Step();
                 if (_firstBouncePosition is null && previousFrame.BounceCount == 0 && frame.BounceCount > 0)
+                {
                     _firstBouncePosition = ToXna(frame.Position);
+                    _bounceSpotFeedbackRemainingSeconds = BounceSpotFeedbackDurationSeconds;
+                }
                 if (_chosenShot is not null && !_shotResolved &&
                     TryBatContact(
                         previousFrame.Position,
@@ -720,6 +724,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         _chosenShot,
                         _match.StrikerPlayer);
                     _contactQuality = impact.ContactQuality;
+                    _contactFeedbackQuality = impact.ContactQuality;
+                    _contactFeedbackIsMiss = false;
+                    _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
                     _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
                     _shotResolved = true;
@@ -750,6 +757,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < NearBatterZ - 0.45f && frame.Velocity.Z < 0f)
                 {
                     _shotResolved = true;
+                    _contactFeedbackQuality = null;
+                    _contactFeedbackIsMiss = true;
+                    _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
                 }
 
@@ -789,7 +799,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
-                    new Color(248, 181, 82)));
+                    GetBallTrailColor(frame.Velocity.Length())));
                 _simulationAccumulator -= _ballFlight.FixedTimeStepSeconds;
                 physicsElapsedThisFrame += _ballFlight.FixedTimeStepSeconds;
             }
@@ -803,6 +813,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             ? ToXna(GetFielderThrowBallPosition())
             : ToXna(_ballFlight.CurrentFrame.Position);
         _camera.FollowBall(cameraBallPosition, elapsedSeconds);
+        if (!_simulationPaused)
+        {
+            _bounceSpotFeedbackRemainingSeconds = MathF.Max(0f, _bounceSpotFeedbackRemainingSeconds - elapsedSeconds);
+            _contactFeedbackRemainingSeconds = MathF.Max(0f, _contactFeedbackRemainingSeconds - elapsedSeconds);
+        }
 
         _frameTimeMilliseconds = gameTime.ElapsedGameTime.TotalMilliseconds;
         _fpsElapsed += gameTime.ElapsedGameTime.TotalSeconds;
@@ -909,6 +924,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             skinMatrices, battingPrimaryColor, battingAccentColor);
         _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection,
             _bowlerAnimator.GetSkinMatrices(), fieldingPrimaryColor, fieldingAccentColor);
+        DrawWorldFeedbackMarkers();
         if (_showDebugOverlay)
         {
             GraphicsDevice.DepthStencilState = DepthStencilState.None;
@@ -917,6 +933,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         DrawDeliveryFeedbackCard();
         DrawDebugOverlay();
+        DrawContactFeedbackBanner();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
 
@@ -1136,6 +1153,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 _match.IsMatchComplete ? "Match finished" : eventText,
                 GetPrimaryControlHint()
             };
+            if (_bowlerReleased)
+                matchLines.Add("Ball trail: cool = slower; warm = faster");
             var scale = _gameSettings.LargeText ? 1.25f : 1f;
             var lineSpacing = (int)MathF.Round(25 * scale);
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
@@ -1464,6 +1483,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         UpdateBowlingTargetPreview();
         _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
         _firstBouncePosition = null;
+        _bounceSpotFeedbackRemainingSeconds = 0f;
+        _contactFeedbackRemainingSeconds = 0f;
+        _contactFeedbackQuality = null;
+        _contactFeedbackIsMiss = false;
         _activeBowlingTargetPosition = IsCpuBattingControlled && !_developerMode
             ? _bowlingTargetMarkerPosition
             : null;
@@ -1594,7 +1617,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 _releaseMarkerPosition = ToXna(_ballFlight.CurrentFrame.Position);
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
-                    new Color(248, 181, 82)));
+                    GetBallTrailColor(_ballFlight.CurrentFrame.Velocity.Length())));
             }
 
             if (_bowlerReleased)
@@ -1630,7 +1653,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _trajectoryVertices.Clear();
         _trajectoryVertices.Add(new VertexPositionColor(
             ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),
-            new Color(248, 181, 82)));
+            GetBallTrailColor(_ballFlight.CurrentFrame.Velocity.Length())));
     }
 
     private void SetFielderActionCapturePose(string clipName, float timeSeconds)

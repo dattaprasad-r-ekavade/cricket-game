@@ -9,14 +9,176 @@ namespace SuperCricket.Game;
 
 public partial class Game1
 {
+    private const float BounceSpotFeedbackDurationSeconds = 1.15f;
+    private const float ContactFeedbackDurationSeconds = 0.82f;
     private const float PitchMapLateralHalfExtentMeters = 9f;
     private const float PitchMapLengthMarginMeters = 2f;
     private float _deliverySpeedKilometersPerHour;
     private Vector3? _firstBouncePosition;
     private Vector3? _activeBowlingTargetPosition;
+    private float _bounceSpotFeedbackRemainingSeconds;
+    private float _contactFeedbackRemainingSeconds;
+    private float? _contactFeedbackQuality;
+    private bool _contactFeedbackIsMiss;
     private float? _shotInputDelaySeconds;
     private BattingTimingCalibrationAsset _battingTimingCalibration = null!;
     private string CalibrationDeliveryName => _deliveryPresets[_activeDeliveryPresetIndex].Name;
+
+    private static Color GetBallTrailColor(float speedMetersPerSecond)
+    {
+        if (!float.IsFinite(speedMetersPerSecond))
+            speedMetersPerSecond = 0f;
+
+        var speedFraction = Math.Clamp((speedMetersPerSecond - 8f) / 28f, 0f, 1f);
+        var cool = new Color(68, 220, 255);
+        var warm = new Color(255, 226, 70);
+        var hot = new Color(255, 86, 58);
+        return speedFraction < 0.5f
+            ? Color.Lerp(cool, warm, speedFraction * 2f)
+            : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
+    }
+
+    private string GetContactFeedbackLabel() => _contactFeedbackIsMiss
+        ? "NO CONTACT"
+        : _contactFeedbackQuality switch
+        {
+            >= 0.88f => "MIDDLE",
+            >= 0.75f => "CLEAN CONTACT",
+            >= 0.60f => "EDGE CONTACT",
+            > 0f => "THIN CONTACT",
+            _ => string.Empty
+        };
+
+    private Color GetContactFeedbackColor()
+    {
+        if (_contactFeedbackIsMiss)
+            return _gameSettings.HighContrast ? Color.Red : new Color(255, 91, 77);
+        if (_contactFeedbackQuality is not { } quality)
+            return Color.White;
+        if (_gameSettings.HighContrast)
+            return quality >= 0.75f ? Color.Yellow : Color.Red;
+        return quality switch
+        {
+            >= 0.88f => new Color(135, 255, 159),
+            >= 0.75f => new Color(89, 232, 255),
+            >= 0.60f => new Color(255, 220, 85),
+            _ => new Color(255, 143, 75)
+        };
+    }
+
+    private void DrawWorldFeedbackMarkers()
+    {
+        if (_bounceSpotFeedbackRemainingSeconds <= 0f && _contactFeedbackRemainingSeconds <= 0f)
+            return;
+
+        GraphicsDevice.DepthStencilState = DepthStencilState.None;
+        GraphicsDevice.BlendState = BlendState.AlphaBlend;
+
+        if (_firstBouncePosition is { } bounce && _bounceSpotFeedbackRemainingSeconds > 0f)
+        {
+            var progress = 1f - _bounceSpotFeedbackRemainingSeconds / BounceSpotFeedbackDurationSeconds;
+            var withinPitch = MathF.Abs(bounce.X) <= _deliveryPreset.PitchWidthMeters * 0.5f &&
+                MathF.Abs(bounce.Z) <= _deliveryPreset.PitchLengthMeters * 0.5f;
+            var surfaceHeight = withinPitch
+                ? _deliveryPreset.PitchSurfaceHeightMeters
+                : _deliveryPreset.FieldSurfaceHeightMeters;
+            var center = new Vector3(bounce.X, surfaceHeight + 0.035f, bounce.Z);
+            var alpha = Math.Clamp(_bounceSpotFeedbackRemainingSeconds / 0.28f, 0f, 1f);
+            var color = WithAlpha(_gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74), alpha);
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.25f + progress * 0.55f, color);
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.10f, WithAlpha(Color.White, alpha * 0.9f));
+        }
+
+        if (_contactMarkerPosition is { } contact && _contactFeedbackRemainingSeconds > 0f)
+        {
+            var progress = 1f - _contactFeedbackRemainingSeconds / ContactFeedbackDurationSeconds;
+            var alpha = Math.Clamp(_contactFeedbackRemainingSeconds / 0.24f, 0f, 1f);
+            var quality = _contactFeedbackQuality ?? 0f;
+            var tint = WithAlpha(GetContactFeedbackColor(), alpha);
+            var viewDirection = _camera.Target - _camera.Position;
+            if (viewDirection.LengthSquared() < 0.0001f)
+                viewDirection = Vector3.UnitZ;
+            viewDirection.Normalize();
+            var right = Vector3.Cross(viewDirection, Vector3.Up);
+            if (right.LengthSquared() < 0.0001f)
+                right = Vector3.UnitX;
+            right.Normalize();
+            var up = Vector3.Normalize(Vector3.Cross(right, viewDirection));
+            var center = contact + Vector3.UnitY * 0.04f;
+            var radius = 0.18f + Math.Clamp(quality, 0f, 1f) * 0.14f + progress * 0.18f;
+            DrawFeedbackWorldRing(center, right, up, radius, tint);
+        }
+
+        GraphicsDevice.BlendState = BlendState.Opaque;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+    }
+
+    private void DrawFeedbackWorldRing(Vector3 center, Vector3 axisA, Vector3 axisB, float radius, Color color)
+    {
+        const int segmentCount = 32;
+        for (var segment = 0; segment < segmentCount; segment++)
+        {
+            var startAngle = MathHelper.TwoPi * segment / segmentCount;
+            var endAngle = MathHelper.TwoPi * (segment + 1) / segmentCount;
+            _feedbackRingVertices[segment * 2] = new VertexPositionColor(
+                center + (axisA * MathF.Cos(startAngle) + axisB * MathF.Sin(startAngle)) * radius,
+                color);
+            _feedbackRingVertices[segment * 2 + 1] = new VertexPositionColor(
+                center + (axisA * MathF.Cos(endAngle) + axisB * MathF.Sin(endAngle)) * radius,
+                color);
+        }
+
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(PrimitiveType.LineList, _feedbackRingVertices, 0, segmentCount);
+        }
+    }
+
+    private static Color WithAlpha(Color color, float alpha) =>
+        new(color.R, color.G, color.B, (byte)MathF.Round(color.A * Math.Clamp(alpha, 0f, 1f)));
+
+    private void DrawContactFeedbackBanner()
+    {
+        if (_contactFeedbackRemainingSeconds <= 0f)
+            return;
+
+        var label = GetContactFeedbackLabel();
+        if (label.Length == 0)
+            return;
+
+        var detail = _contactFeedbackIsMiss
+            ? "The swing passed outside the contact window"
+            : $"{_contactFeedbackQuality!.Value:P0} contact quality";
+        var viewport = GraphicsDevice.Viewport;
+        var titleScale = _gameSettings.LargeText ? 1.15f : 0.95f;
+        var detailScale = _gameSettings.LargeText ? 0.82f : 0.68f;
+        var contentWidth = Math.Max(
+            _debugFont.MeasureString(label).X * titleScale,
+            _debugFont.MeasureString(detail).X * detailScale);
+        var panelWidth = Math.Min(viewport.Width - 40, (int)MathF.Ceiling(contentWidth + 58f));
+        var panelHeight = _gameSettings.LargeText ? 88 : 78;
+        var normalHudWidth = Math.Min(viewport.Width - 40,
+            _gameSettings.LargeText ? viewport.Width - 40 : 1050);
+        var upperRightX = viewport.Width - panelWidth - 20;
+        var fitsBesideHud = upperRightX >= 20 + normalHudWidth + 36;
+        var hudLineSpacing = (int)MathF.Round(25 * (_gameSettings.LargeText ? 1.25f : 1f));
+        var hudBottom = 20 + 20 + (_bowlerReleased ? 6 : 5) * hudLineSpacing +
+            30 * (_gameSettings.LargeText ? 1.25f : 1f);
+        var fallbackY = Math.Max((int)(viewport.Height * 0.28f), (int)MathF.Ceiling(hudBottom + 8f));
+        var panel = new Rectangle(fitsBesideHud ? upperRightX : (viewport.Width - panelWidth) / 2,
+            fitsBesideHud ? 20 : Math.Min(fallbackY, viewport.Height - panelHeight - 20), panelWidth, panelHeight);
+        var fade = Math.Clamp(_contactFeedbackRemainingSeconds / 0.22f, 0f, 1f);
+        var accent = WithAlpha(GetContactFeedbackColor(), fade);
+        var background = WithAlpha(_gameSettings.HighContrast ? Color.Black : new Color(8, 16, 20), 0.94f * fade);
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
+        _spriteBatch.Draw(_feedbackMapPixel, panel, background);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 6, panel.Height), accent);
+        DrawOverlayText(label, new Vector2(panel.X + 19, panel.Y + 6), accent, titleScale);
+        DrawOverlayText(detail, new Vector2(panel.X + 19, panel.Y + 43), Color.White, detailScale);
+        _spriteBatch.End();
+    }
 
     private void DrawDeliveryFeedbackCard()
     {
@@ -295,6 +457,9 @@ public partial class Game1
         _firstBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } bounce
             ? new Vector3(bounce.Position.X, bounce.Position.Y, bounce.Position.Z)
             : null;
+        _bounceSpotFeedbackRemainingSeconds = _firstBouncePosition is null
+            ? 0f
+            : BounceSpotFeedbackDurationSeconds * 0.68f;
         if (IsCpuBattingControlled)
         {
             CurrentDelivery.RecordCompletedRun();
@@ -313,6 +478,10 @@ public partial class Game1
             _shotOutcome = "FOUR: reached the boundary";
         }
 
+        _contactMarkerPosition = _currentBatWorld.Translation;
+        _contactFeedbackQuality = _contactQuality;
+        _contactFeedbackIsMiss = false;
+        _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds * 0.82f;
         _match.CompleteDelivery();
         _shotResolved = true;
         _simulationPaused = true;

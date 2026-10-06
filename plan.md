@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 54 adds a pitch map to the delivery card, plotting the actual bounce and showing the intended bowling point beside it. Release captures and automated checks pass; the owner still needs to retest camera readability and batting/bowling feedback on keyboard, and a GamePad playtest remains outstanding. A4a/A4b/A4c are still in progress. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), and [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 55 adds moment-to-moment feedback for contact quality and actual bounce, plus a speed-tinted ball trail. Automated checks and captures pass; the owner still needs to retest camera readability and batting/bowling feedback on keyboard, and GamePad play remains untested. A4a/A4b remain in progress; A4c's delivery-feedback items are implemented, with contact replay and guided practice still open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md), and [docs/steps/step-55-immediate-delivery-feedback.md](docs/steps/step-55-immediate-delivery-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -70,7 +70,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] Add calibrated early/perfect/late timing feedback from measured best-contact delays; the result card reports the timing band and offset.
 - [x] Add a pitch map with the actual bounce and, for human bowling, the intended target marker.
 - A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
-- Immediate in-world feedback: a bat-contact flash or sound sting scaled by quality, ball trail colour by speed, and the pitch spot marked briefly.
+- [x] Immediate in-world feedback: a bat-contact flash scaled by quality, ball-trail colour by speed, and the actual pitch spot marked briefly.
 
 **A4d — Gameplay cameras**
 - [x] Tighten the default broadcast to 22 m, behind-striker to 16 m, bowler-end to 18 m, and square-leg to 27 m; frame the bowler-end target marker centrally.

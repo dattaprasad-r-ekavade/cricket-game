@@ -159,7 +159,34 @@ public partial class Game1
             bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
             MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
             "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
-        Console.WriteLine("PASS: tighter cameras and pitch-map projection preserve readable ends and wide-ball locations.");
+        var slowTrail = GetBallTrailColor(8f);
+        var mediumTrail = GetBallTrailColor(22f);
+        var fastTrail = GetBallTrailColor(36f);
+        Require(slowTrail.B > slowTrail.R && mediumTrail.R > 200 && mediumTrail.G > 170 &&
+            fastTrail.R > fastTrail.B && GetContactFeedbackLabel() == string.Empty,
+            "ball trail speed colours or empty contact feedback state were not mapped clearly");
+        _contactFeedbackQuality = 0.91f;
+        Require(GetContactFeedbackLabel() == "MIDDLE", "high-quality batting feedback did not use a clear middle-contact label");
+        _contactFeedbackQuality = 0.68f;
+        Require(GetContactFeedbackLabel() == "EDGE CONTACT", "moderate batting feedback did not identify edge contact");
+        _contactFeedbackQuality = null;
+        _contactFeedbackIsMiss = true;
+        Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
+        _contactFeedbackIsMiss = false;
+        Console.WriteLine("PASS: tighter cameras, pitch-map projection, contact labels, and speed-colour mapping are readable.");
+
+        Reset();
+        for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
+        Require(_firstBouncePosition is not null && _bounceSpotFeedbackRemainingSeconds > 0f,
+            "the first ball bounce did not start a brief in-world pitch marker");
+        var bounceMarkerRemaining = _bounceSpotFeedbackRemainingSeconds;
+        Tick(0.1f);
+        Require(_bounceSpotFeedbackRemainingSeconds < bounceMarkerRemaining && _bounceSpotFeedbackRemainingSeconds > 0f,
+            "the in-world pitch marker did not fade with elapsed game time");
+        Tick(BounceSpotFeedbackDurationSeconds);
+        Require(_bounceSpotFeedbackRemainingSeconds == 0f,
+            "the in-world pitch marker persisted past its short visibility window");
+        Console.WriteLine("PASS: actual bounce feedback appears at impact and fades after its short display window.");
 
         Reset();
         var feedbackBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
@@ -389,6 +416,13 @@ public partial class Game1
                 for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
                 for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < delay; step++) Tick(elapsed);
                 Tick(elapsed, key);
+                for (var step = 0; step < frameRate * 2 && !_battedBall && !_deliveryComplete; step++) Tick(elapsed);
+                Require(_battedBall && _contactFeedbackRemainingSeconds > 0f && !_contactFeedbackIsMiss,
+                    $"shot {key} did not show a brief quality flash after contact at {frameRate} fps");
+                var contactFlashRemaining = _contactFeedbackRemainingSeconds;
+                Tick(elapsed);
+                Require(_contactFeedbackRemainingSeconds < contactFlashRemaining && _contactFeedbackRemainingSeconds > 0f,
+                    $"shot {key} contact flash did not fade at {frameRate} fps");
                 for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
                 Require(_battedBall && _deliveryComplete, $"shot {key} failed contact/resolution at {frameRate} fps");
                 Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
