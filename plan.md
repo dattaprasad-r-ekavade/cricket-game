@@ -22,8 +22,8 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Do not start innings until delivery resolution lives in Simulation and fielding/rules scenarios cover the known heuristics.
-- Next batting work is footwork or leave so a wide can be played. Do not add a fourth named shot first.
+- Add innings only after the Steps 23–26 rules, positioning, and live-overlay gates pass.
+- Lateral footwork is in so the existing shots can reach the wide preset. Do not add a fourth named shot before this step is playtested.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
 ## Progress
@@ -52,7 +52,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 22 — Review and regression-test gameplay, fix pause/scoring/analyzer defects, and add one repeatable review command.
 - [x] Step 23 — Extract delivery lifecycle and scoring resolution from `Game1` into Simulation match state.
 - [x] Step 24 — Add dedicated fielding and rules scenarios for catches, rope-skim boundaries, throws, and run-outs.
-- [ ] Step 25 — Add batter footwork or leave so the wide preset can find contact.
+- [x] Step 25 — Add batter footwork or leave so the wide preset can find contact.
 - [ ] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–26 are the next work package from the 6 October 2026 planning review; they come before Phase 5 innings.
@@ -240,6 +240,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added repeatable `verify-fielding` scenarios for those contacts and boundary cases, plus a real game-update scenario that completes pickup and throw while the runner is approaching the far crease.
 - Release build, fielding checks, and gameplay regressions pass. Fielder movement, receiving, and throw travel remain simplified and should be playtested during short-match work.
 
+### Step 25 notes
+
+- Added Q/E lateral steps. Each press moves the batter 0.45 m toward off side or leg side, up to 2.25 m; the translation eases in and updates both the batter model and swept bat transform.
+- Extended `analyze-batting-practice` to compare all 11 supported offsets at each input timing and report the chosen position. The wide pace preset now yields 20/45 defence, 17/45 drive, and 16/45 loft contacts; best drive contact is at +0.350 s with a +2.25 m off-side step.
+- Added a wide-preset test to the full game update at 30/60/120 FPS and a `verify-footwork` command for step limits, input timing, and all three real-asset shot clips.
+- The analyzer and game now use the same rope-crossing classifier for four/six outcomes. The complete review command passes. Footwork is a readable prototype translation using the existing movement cycle; a dedicated authored batting step remains art work.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -284,7 +291,7 @@ Keep contact authored and tunable: determine eligibility from ball and bat posit
 
 **Gate:** the player can intentionally defend, drive, and loft; timing and positioning differences are clear; contact aligns from both gameplay and replay cameras. Repeated delivery practice is enjoyable before expanding the shot catalogue.
 
-**Open after Step 22:** defence, drive, and loft work on a standard ball. Positioning is still missing, so wides have no practice-sweep contacts. Footwork or leave is Step 25.
+**Open after Step 25:** defence, drive, and loft work on standard and wide pace. Q/E moves the batter laterally, and the analyzer identifies the step and timing needed to make contact. The current step reuses the between-wickets cycle; an authored batting footwork clip, leave decision, and broader delivery coverage remain open.
 
 ## Phase 3 — Fielding and a complete over
 

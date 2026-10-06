@@ -115,6 +115,26 @@ public partial class Game1
         }
         Console.WriteLine("PASS: defence, drive, and loft contact and resolve at 30/60/120 fps.");
 
+        foreach (var frameRate in new[] { 30, 60, 120 })
+        {
+            Reset(1);
+            for (var step = 0; step < BatterFootwork.MaximumSteps; step++)
+            {
+                Tick(0f, Keys.Q);
+                Tick(0f);
+            }
+            Tick(0.6f);
+            var elapsed = 1f / frameRate;
+            for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
+            for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < 0.35f; step++) Tick(elapsed);
+            Tick(elapsed, Keys.S);
+            for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
+            Require(_battedBall && _deliveryComplete &&
+                MathF.Abs(_batterFootworkOffsetX - BatterFootwork.MaximumOffsetMeters) < 0.001f,
+                $"off-side footwork failed to reach the wide delivery at {frameRate} fps");
+        }
+        Console.WriteLine("PASS: Q steps into the wide line and the drive makes contact at 30/60/120 fps.");
+
         foreach (var boundaryRuns in new[] { 4, 6 })
         {
             Reset();

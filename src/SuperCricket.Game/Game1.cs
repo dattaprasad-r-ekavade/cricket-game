@@ -76,6 +76,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
     private float _bowlerReleaseTimeSeconds;
+    private float _batterFootworkOffsetX;
+    private float _targetBatterFootworkOffsetX;
+    private bool _footworkTransitionActive;
     private bool _bowlerActionStarted;
     private bool _bowlerActionFinished;
     private bool _bowlerReleased;
@@ -347,6 +350,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _simulationPaused = !_simulationPaused;
         }
+        if (!_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
+        {
+            if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
+                StepBatterFootwork(1f);
+            if (keyboard.IsKeyDown(Keys.E) && !_previousKeyboard.IsKeyDown(Keys.E))
+                StepBatterFootwork(-1f);
+        }
         if (!_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
         {
             _playerAnimator.PlayNext();
@@ -362,6 +372,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _previousBatWorld = _currentBatWorld;
             _playerAnimator.Update(elapsedSeconds);
+            UpdateBatterFootwork(elapsedSeconds);
             _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);
         }
@@ -594,7 +605,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 "SUPER CRICKET  /  ONE-OVER MATCH",
                 $"{_match.Runs}/{_match.Wickets}    {_match.OversText} overs    legal balls {_match.LegalBalls}/6",
                 eventText,
-                "F1: debug    V: camera view    N: next ball"
+                "Q/E: step off/leg    F1: debug    V: camera    N: next ball"
             };
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 116), Color.White);
@@ -616,13 +627,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
             $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
+            $"Batter footwork: {_batterFootworkOffsetX:+0.00;-0.00;0.00} m lateral",
             $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
             $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
-            "A defend    S drive    D loft    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
+            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N next    R over    P pause    T clips    Esc quit"
         };
         var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 320);
 
@@ -658,6 +670,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _chosenShot = null;
         _shotResolved = false;
         _battedBall = false;
+        _batterFootworkOffsetX = 0f;
+        _targetBatterFootworkOffsetX = 0f;
+        _footworkTransitionActive = false;
         _isRunning = false;
         _runRequestedPending = false;
         _runElapsed = 0f;
@@ -670,6 +685,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _fieldingSide.Reset();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
         _playerAnimator.Play("practice-stance", 0.12f);
+        _currentBatWorld = GetBatWorldTransform();
+        _previousBatWorld = _currentBatWorld;
         _bowlerRunUpElapsed = 0f;
         _bowlerActionElapsed = 0f;
         _bowlerActionStarted = false;
@@ -845,6 +862,28 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
     }
 
+    private void StepBatterFootwork(float direction)
+    {
+        _targetBatterFootworkOffsetX = BatterFootwork.AddStep(_targetBatterFootworkOffsetX, direction);
+        _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f;
+        if (_footworkTransitionActive && _chosenShot is null)
+            _playerAnimator.Play("between-wickets", 0.08f);
+    }
+
+    private void UpdateBatterFootwork(float deltaTime)
+    {
+        _batterFootworkOffsetX = BatterFootwork.Advance(
+            _batterFootworkOffsetX,
+            _targetBatterFootworkOffsetX,
+            deltaTime);
+        if (!_footworkTransitionActive || MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f)
+            return;
+
+        _footworkTransitionActive = false;
+        if (_chosenShot is null && !_isRunning)
+            _playerAnimator.Play("practice-stance", 0.12f);
+    }
+
     private void StartRun()
     {
         if (_simulationPaused || _deliveryComplete || _isRunning)
@@ -856,6 +895,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
 
         _runRequestedPending = false;
+        _targetBatterFootworkOffsetX = 0f;
+        _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
         _isRunning = true;
         _runElapsed = 0f;
         _playerAnimator.Play("between-wickets", 0.12f);
@@ -1244,16 +1285,16 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             var progress = MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f);
             return (
-                BatterWorld(MathHelper.Lerp(NearBatterZ, FarBatterZ, progress), true),
+                BatterWorld(MathHelper.Lerp(NearBatterZ, FarBatterZ, progress), true, _batterFootworkOffsetX),
                 BatterWorld(MathHelper.Lerp(FarBatterZ, NearBatterZ, progress), false));
         }
 
-        return (BatterWorld(NearBatterZ, true), BatterWorld(FarBatterZ, false));
+        return (BatterWorld(NearBatterZ, true, _batterFootworkOffsetX), BatterWorld(FarBatterZ, false));
     }
 
-    private static Matrix BatterWorld(float z, bool atNearEnd) =>
+    private static Matrix BatterWorld(float z, bool atNearEnd, float lateralOffsetX = 0f) =>
         Matrix.CreateRotationY(atNearEnd ? 0f : MathHelper.Pi) *
-        Matrix.CreateTranslation(new Vector3(-0.48f, -0.025f, z));
+        Matrix.CreateTranslation(new Vector3(-0.48f + lateralOffsetX, -0.025f, z));
 
     private Matrix GetFielderWorld(int fielderIndex, NumericsVector3 ballPosition)
     {
@@ -1362,7 +1403,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private Matrix GetBatWorldTransform()
     {
         var skinMatrices = _playerAnimator.GetSkinMatrices();
-        return skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true);
+        return skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true, _batterFootworkOffsetX);
     }
 
     private float GetBatPoseFraction(float physicsElapsed, float accumulatorBeforeFrame, float elapsedSeconds, float flightElapsed)

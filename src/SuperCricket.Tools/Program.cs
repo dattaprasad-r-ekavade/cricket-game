@@ -12,7 +12,7 @@ static int Run(string[] arguments)
 {
     if (arguments.Length == 0 ||
         arguments[0] is "help" or "--help" or "-h" ||
-        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-fielding"))
+        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-fielding" or "verify-footwork"))
     {
         PrintUsage();
         return arguments.Length < 2 ? 2 : 0;
@@ -130,6 +130,14 @@ static int Run(string[] arguments)
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-fielding");
             FieldingReviewChecks.Run();
+            return 0;
+        }
+
+        if (arguments[0] == "verify-footwork")
+        {
+            if (arguments.Length != 5)
+                throw new ArgumentException("Usage: verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
+            VerifyFootwork(arguments[1], arguments[2], arguments[3], arguments[4]);
             return 0;
         }
 
@@ -407,7 +415,7 @@ static void AnalyzeBattingPractice(
     var delivery = DeliveryPreset.Load(deliveryPath);
     var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery, delayStepSeconds);
     var csv = new StringBuilder();
-    csv.AppendLine("shot,delivery,input_delay_s,outcome,contact_time_s,contact_quality,launch_angle_degrees,outgoing_speed_mps,bat_point_speed_mps,sweet_spot_x,sweet_spot_y");
+    csv.AppendLine("shot,delivery,input_delay_s,outcome,contact_time_s,contact_quality,launch_angle_degrees,outgoing_speed_mps,bat_point_speed_mps,sweet_spot_x,sweet_spot_y,footwork_offset_m");
     foreach (var sample in results)
     {
         csv.Append(CsvValue(sample.ShotName)).Append(',')
@@ -420,7 +428,8 @@ static void AnalyzeBattingPractice(
             .Append(Optional(sample.OutgoingSpeedMetersPerSecond)).Append(',')
             .Append(Optional(sample.BatPointSpeedMetersPerSecond)).Append(',')
             .Append(Optional(sample.SweetSpotOffsetX)).Append(',')
-            .AppendLine(Optional(sample.SweetSpotOffsetY));
+            .Append(Optional(sample.SweetSpotOffsetY)).Append(',')
+            .AppendLine(F(sample.FootworkOffsetMeters));
     }
 
     var fullOutputPath = Path.GetFullPath(outputPath);
@@ -440,7 +449,7 @@ static void AnalyzeBattingPractice(
         }
 
         var best = contacts.OrderByDescending(result => result.ContactQuality).First();
-        Console.WriteLine($"  {shotGroup.Key}: {contacts.Length}/{shotGroup.Count()} timings contact; best {best.ContactQuality:0.00} at {best.InputDelaySeconds:+0.000;-0.000;0.000} s, result {best.Outcome}.");
+        Console.WriteLine($"  {shotGroup.Key}: {contacts.Length}/{shotGroup.Count()} timings contact; best {best.ContactQuality:0.00} at {best.InputDelaySeconds:+0.000;-0.000;0.000} s, step {best.FootworkOffsetMeters:+0.00;-0.00;0.00} m, result {best.Outcome}.");
     }
     Console.WriteLine($"Batting-practice results written to {fullOutputPath}");
 }
@@ -490,6 +499,44 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
 }
 
+static void VerifyFootwork(string batterPath, string bowlerPath, string shotSetPath, string wideDeliveryPath)
+{
+    var targetOffset = 0f;
+    for (var step = 0; step < BatterFootwork.MaximumSteps + 2; step++)
+        targetOffset = BatterFootwork.AddStep(targetOffset, 1f);
+    var halfwayOffset = BatterFootwork.Advance(0f, targetOffset, 0.25f);
+    var completedOffset = BatterFootwork.Advance(halfwayOffset, targetOffset, 1f);
+    if (MathF.Abs(targetOffset - BatterFootwork.MaximumOffsetMeters) > 0.0001f ||
+        MathF.Abs(halfwayOffset - 1.125f) > 0.0001f ||
+        MathF.Abs(completedOffset - targetOffset) > 0.0001f ||
+        MathF.Abs(BatterFootwork.AddStep(0f, -1f) + BatterFootwork.StepDistanceMeters) > 0.0001f)
+        throw new InvalidDataException("Batter footwork did not respect its step size, movement speed, or lateral limits.");
+
+    var batter = PlayerAsset.Load(batterPath);
+    var bowler = PlayerAsset.Load(bowlerPath);
+    var shotSet = BattingShotSet.Load(shotSetPath);
+    var wideDelivery = DeliveryPreset.Load(wideDeliveryPath);
+    var samples = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, wideDelivery);
+
+    foreach (var shot in shotSet.Shots)
+    {
+        var contacts = samples.Where(sample =>
+            string.Equals(sample.ShotName, shot.Name, StringComparison.OrdinalIgnoreCase) &&
+            sample.ContactQuality.HasValue && MathF.Abs(sample.FootworkOffsetMeters) > 0.0001f).ToArray();
+        if (contacts.Length == 0)
+            throw new InvalidDataException($"Shot '{shot.Name}' found no contact against '{wideDelivery.Name}' using a batter step.");
+        if (contacts.Any(sample => MathF.Abs(sample.FootworkOffsetMeters) > BatterFootwork.MaximumOffsetMeters + 0.0001f ||
+            !sample.ContactTimeSeconds.HasValue ||
+            sample.ContactTimeSeconds.Value < MathF.Max(0f, sample.InputDelaySeconds) - 0.000001f))
+            throw new InvalidDataException($"Shot '{shot.Name}' used invalid footwork or contacted before input.");
+
+        var best = contacts.OrderByDescending(sample => sample.ContactQuality).First();
+        Console.WriteLine($"{shot.Name}: {contacts.Length} wide contacts with a {best.FootworkOffsetMeters:+0.00;-0.00;0.00} m step; best quality {best.ContactQuality:0.00} at {best.InputDelaySeconds:+0.000;-0.000;0.000} s.");
+    }
+
+    Console.WriteLine($"Wide-ball footwork checks passed for {wideDelivery.Name}.");
+}
+
 static string F(float value) => value.ToString("0.000000", CultureInfo.InvariantCulture);
 static string Optional(float? value) => value is { } number ? F(number) : string.Empty;
 
@@ -509,6 +556,7 @@ static void PrintUsage()
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-fielding");
+    Console.WriteLine("  verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
 }
 
 internal sealed class OverScenarioDocument

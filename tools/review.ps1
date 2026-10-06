@@ -31,6 +31,8 @@ try {
     }
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting-practice', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/standard-pace.json')
+    Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
+        'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')
     Invoke-CheckedDotNet @($toolsDll, 'analyze-field', 'assets/fields/practice-attack.json', 'artifacts/review-field.csv')
     Invoke-CheckedDotNet @($toolsDll, 'analyze-batting-practice', $batterPath, $bowlerPath, $shotsPath,
@@ -39,11 +41,13 @@ try {
     $repeatHash = (Get-FileHash -LiteralPath artifacts/review-standard-batting-repeat.csv).Hash
     if ($firstHash -ne $repeatHash) { throw 'Repeated batting-practice output differs.' }
     $wideContacts = @(Import-Csv artifacts/review-wide-batting.csv | Where-Object { $_.contact_quality -ne '' })
-    if ($wideContacts.Count -ne 0) { throw 'Wide preset unexpectedly produces bat contact.' }
+    if ($wideContacts.Count -eq 0) { throw 'Wide preset produced no bat contact after searching footwork positions.' }
+    $wideFootworkContacts = @($wideContacts | Where-Object { [math]::Abs([double]$_.footwork_offset_m) -gt 0.0001 })
+    if ($wideFootworkContacts.Count -eq 0) { throw 'Wide contacts did not use a reported footwork step.' }
     & dotnet $toolsDll analyze-batting-practice $batterPath $bowlerPath $shotsPath `
         assets/deliveries/standard-pace.json artifacts/review-invalid.csv 0.001
     if ($LASTEXITCODE -ne 1) { throw 'Invalid timing step did not fail with exit code 1.' }
-    Write-Output "PASS: repeated batting CSV hash $firstHash; wide misses; invalid input rejected."
+    Write-Output "PASS: repeated batting CSV hash $firstHash; wide-ball footwork contacts; invalid input rejected."
 
     Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
     if (!$SkipCaptures) {
