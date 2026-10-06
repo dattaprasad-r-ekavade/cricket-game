@@ -145,6 +145,7 @@ static int Run(string[] arguments)
             FieldPlacementReviewChecks.Run();
             CpuBattingOutcomeReviewChecks.Run();
             MatchControllerInputReviewChecks.Run();
+            GameSettingsReviewChecks.Run();
             return 0;
         }
 

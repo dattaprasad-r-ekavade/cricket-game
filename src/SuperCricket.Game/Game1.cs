@@ -63,6 +63,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
     private int _matchBowlingSeed;
+    private GameSettings _gameSettings = new();
     private CpuDifficulty _cpuDifficulty = CpuDifficulty.Standard;
     private DeliveryPreset _deliveryPreset = null!;
     private BattingShotSet _shotSet = null!;
@@ -142,6 +143,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
+    private string? _settingsStatusMessage;
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;
     private Vector3 _batBladeMaximum;
@@ -326,6 +328,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         (_batBladeMinimum, _batBladeMaximum) = FindBounds(batMesh.Positions);
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
+        LoadGameSettings();
         StartNewMatch();
         if (_captureTarget is not null)
         {
@@ -368,7 +371,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             controllerButtons,
             _previousControllerButtons,
             IsCpuBattingControlled,
-            _match.IsMatchComplete);
+            _match.IsMatchComplete,
+            _simulationPaused);
         _previousControllerButtons = controllerButtons;
         UpdateMatch(gameTime, Keyboard.GetState(), controllerActions);
     }
@@ -389,14 +393,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             Exit();
         }
 
-        if ((keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R)) ||
-            ControllerPressed(MatchControllerActions.RestartMatch))
+        if (((keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R)) ||
+             ControllerPressed(MatchControllerActions.RestartMatch)) && !_simulationPaused)
         {
             StartNewMatch();
         }
         if (((keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N)) ||
              ControllerPressed(MatchControllerActions.NextBall)) &&
-            _deliveryComplete && !_match.IsMatchComplete)
+            !_simulationPaused && _deliveryComplete && !_match.IsMatchComplete)
         {
             if (_match.IsInningsComplete)
                 StartNextInnings();
@@ -404,33 +408,51 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 BeginDelivery();
         }
         if (((keyboard.IsKeyDown(Keys.O) && !_previousKeyboard.IsKeyDown(Keys.O)) ||
-             ControllerPressed(MatchControllerActions.CycleOvers)) && _match.IsMatchComplete)
+             ControllerPressed(MatchControllerActions.CycleOvers)) && _match.IsMatchComplete && !_simulationPaused)
         {
             var currentIndex = Array.IndexOf(OversChoices, _selectedOversPerInnings);
             _selectedOversPerInnings = OversChoices[(currentIndex + 1) % OversChoices.Length];
+            _gameSettings.OversPerInnings = _selectedOversPerInnings;
+            SaveGameSettings();
             StartNewMatch();
         }
         if (((keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) ||
-             ControllerPressed(MatchControllerActions.CycleDifficulty)) && _match.IsMatchComplete)
+             ControllerPressed(MatchControllerActions.CycleDifficulty)) && _match.IsMatchComplete && !_simulationPaused)
         {
             _cpuDifficulty = CpuDifficultyModel.Next(_cpuDifficulty);
+            _gameSettings.Difficulty = _cpuDifficulty;
+            SaveGameSettings();
             StartNewMatch();
         }
-        if ((keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) ||
-            ControllerPressed(MatchControllerActions.SelectStandardDelivery)) SelectNextDelivery(0);
-        if ((keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) ||
-            ControllerPressed(MatchControllerActions.SelectWideDelivery)) SelectNextDelivery(1);
-        if ((keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) ||
-            ControllerPressed(MatchControllerActions.SelectNoBallDelivery)) SelectNextDelivery(2);
+        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D1) && !_previousKeyboard.IsKeyDown(Keys.D1)) ||
+            ControllerPressed(MatchControllerActions.SelectStandardDelivery))) SelectNextDelivery(0);
+        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D2) && !_previousKeyboard.IsKeyDown(Keys.D2)) ||
+            ControllerPressed(MatchControllerActions.SelectWideDelivery))) SelectNextDelivery(1);
+        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) ||
+            ControllerPressed(MatchControllerActions.SelectNoBallDelivery))) SelectNextDelivery(2);
         if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
         if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
-        if (!IsCpuBattingControlled &&
+        if (!IsCpuBattingControlled && !_simulationPaused &&
             ((keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) ||
              ControllerPressed(MatchControllerActions.CancelRun))) CancelRun();
         if ((keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P)) ||
             ControllerPressed(MatchControllerActions.Pause))
         {
             _simulationPaused = !_simulationPaused;
+        }
+        if (_simulationPaused &&
+            ((keyboard.IsKeyDown(Keys.H) && !_previousKeyboard.IsKeyDown(Keys.H)) ||
+             ControllerPressed(MatchControllerActions.ToggleHighContrast)))
+        {
+            _gameSettings.HighContrast = !_gameSettings.HighContrast;
+            SaveGameSettings();
+        }
+        if (_simulationPaused &&
+            ((keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T)) ||
+             ControllerPressed(MatchControllerActions.ToggleLargeText)))
+        {
+            _gameSettings.LargeText = !_gameSettings.LargeText;
+            SaveGameSettings();
         }
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
@@ -447,7 +469,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _playerAnimator.PlayNext();
         }
-        if (!IsCpuBattingControlled)
+        if (!IsCpuBattingControlled && !_simulationPaused)
         {
             if ((keyboard.IsKeyDown(Keys.A) && !_previousKeyboard.IsKeyDown(Keys.A)) ||
                 ControllerPressed(MatchControllerActions.Defend)) StartShot("defence");
@@ -816,6 +838,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void DrawDebugOverlay()
     {
+        if (_simulationPaused)
+        {
+            DrawPauseMenu();
+            return;
+        }
+
         if (!_showDebugOverlay)
         {
             var eventText = _shotOutcome.Length > 72 ? _shotOutcome[..69] + "..." : _shotOutcome;
@@ -843,12 +871,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         ? "1-3 or D-pad: delivery    N/RB: next    P/Start: pause"
                         : "Enter/B: run    X/LB: cancel    N/RB: next    R: restart    P/Start: pause"
             };
+            var scale = _gameSettings.LargeText ? 1.25f : 1f;
+            var lineSpacing = (int)MathF.Round(25 * scale);
+            var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
+                _gameSettings.LargeText ? GraphicsDevice.Viewport.Width - 40 : 660);
+            var panelHeight = 20 + (int)MathF.Ceiling(matchLines.Length * lineSpacing + 30 * scale);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, 660, 166), Color.White);
+            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, panelWidth, panelHeight),
+                _gameSettings.HighContrast ? Color.Black : Color.White);
             for (var index = 0; index < matchLines.Length; index++)
             {
-                var color = index == 0 ? new Color(242, 206, 116) : Color.White;
-                _spriteBatch.DrawString(_debugFont, matchLines[index], new Vector2(34, 24 + index * 25), color);
+                var color = index == 0
+                    ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
+                    : Color.White;
+                DrawOverlayText(matchLines[index], new Vector2(34, 24 + index * lineSpacing), color, scale);
             }
             _spriteBatch.End();
             return;
@@ -875,17 +911,59 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N ball/innings    R restart    O overs    D difficulty at result    P pause    Esc quit",
             "Pad A/X/Y shots    B run    LB cancel/difficulty    RB next/overs    D-pad delivery/steps    Start pause    Back quit"
         };
-        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32, 18 + lines.Length * 23);
+        var debugScale = _gameSettings.LargeText ? 1.2f : 1f;
+        var debugLineSpacing = (int)MathF.Round(23 * debugScale);
+        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32,
+            18 + (int)MathF.Ceiling(lines.Length * debugLineSpacing + 5 * debugScale));
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_debugPanel, panel, new Color(255, 255, 255, 190));
+        _spriteBatch.Draw(_debugPanel, panel,
+            _gameSettings.HighContrast ? Color.Black : new Color(255, 255, 255, 190));
         for (var index = 0; index < lines.Length; index++)
         {
-            var color = index == 0 ? new Color(242, 206, 116) : Color.White;
-            _spriteBatch.DrawString(_debugFont, lines[index], new Vector2(30, 17 + index * 23), color);
+            var color = index == 0
+                ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
+                : Color.White;
+            DrawOverlayText(lines[index], new Vector2(30, 17 + index * debugLineSpacing), color, debugScale);
         }
         _spriteBatch.End();
     }
+
+    private void DrawPauseMenu()
+    {
+        var viewport = GraphicsDevice.Viewport;
+        var scale = _gameSettings.LargeText ? 1.3f : 1.1f;
+        var lineSpacing = (int)MathF.Round(34 * scale);
+        var scoreLine = $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText} overs";
+        var lines = new[]
+        {
+            "SUPER CRICKET  /  PAUSED",
+            scoreLine,
+            $"CPU difficulty: {_cpuDifficulty}",
+            $"H / Pad Y: high contrast  {(_gameSettings.HighContrast ? "ON" : "OFF")}",
+            $"T / Pad X: larger text  {(_gameSettings.LargeText ? "ON" : "OFF")}",
+            "P / Start: resume match",
+            "Escape / Back: quit",
+            _settingsStatusMessage ?? "Match and accessibility settings save on this device."
+        };
+        var panelWidth = Math.Min(900, viewport.Width - 40);
+        var panelHeight = 44 + lines.Length * lineSpacing;
+        var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);
+        var panelY = Math.Max(20, (viewport.Height - panelHeight) / 2);
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        _spriteBatch.Draw(_debugPanel, new Rectangle(0, 0, viewport.Width, viewport.Height), new Color(0, 0, 0, 210));
+        _spriteBatch.Draw(_debugPanel, new Rectangle(panelX, panelY, panelWidth, panelHeight), Color.Black);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var color = index == 0 ? Color.Yellow : Color.White;
+            DrawOverlayText(lines[index], new Vector2(panelX + 28, panelY + 18 + index * lineSpacing), color, scale);
+        }
+        _spriteBatch.End();
+    }
+
+    private void DrawOverlayText(string text, Vector2 position, Color color, float scale) =>
+        _spriteBatch.DrawString(_debugFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
 
     private static MatchControllerButtons ReadControllerButtons(GamePadState state)
     {
@@ -903,6 +981,41 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (state.IsButtonDown(Buttons.DPadLeft)) buttons |= MatchControllerButtons.DPadLeft;
         if (state.IsButtonDown(Buttons.DPadRight)) buttons |= MatchControllerButtons.DPadRight;
         return buttons;
+    }
+
+    private void LoadGameSettings()
+    {
+        try
+        {
+            _gameSettings = GameSettingsStore.Load(GameSettingsStore.DefaultPath);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or
+            UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
+        {
+            _gameSettings = new GameSettings();
+            _settingsStatusMessage = exception is InvalidDataException
+                ? "Saved settings were invalid; defaults are active. Change a setting to replace them."
+                : "Settings could not be read; defaults are active for this session.";
+        }
+
+        _cpuDifficulty = _gameSettings.Difficulty;
+        _selectedOversPerInnings = _gameSettings.OversPerInnings;
+    }
+
+    private void SaveGameSettings()
+    {
+        try
+        {
+            _gameSettings.Difficulty = _cpuDifficulty;
+            _gameSettings.OversPerInnings = _selectedOversPerInnings;
+            GameSettingsStore.Save(GameSettingsStore.DefaultPath, _gameSettings);
+            _settingsStatusMessage = null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+            InvalidOperationException or System.Security.SecurityException)
+        {
+            _settingsStatusMessage = "Settings could not be saved; changes last for this session.";
+        }
     }
 
     private void StartNewMatch()

@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard and mouse remain fully supported; a mapped GamePad now covers core batting, running, bowling-selection, pause, and result actions. Physical controller testing remains part of playtesting.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–41 rules, positioning, live overlay, first match loop, roster skills, team-kit palette, synthetic and physics-grounded headless match batches, skill-driven CPU bowling and batting, adaptive field placement, rating-aware outcomes, seeded score calibration, CPU singles/doubles, Rookie/Standard/Pro difficulty, and core controller mapping are complete. Live GUI balance, remaining settings, accessibility, and playtesting remain open in Phase 5.
+- Steps 23–42 rules, positioning, live overlay, first match loop, roster skills, team-kit palette, synthetic and physics-grounded headless match batches, skill-driven CPU bowling and batting, adaptive field placement, rating-aware outcomes, seeded score calibration, CPU singles/doubles, Rookie/Standard/Pro difficulty, core controller mapping, saved match preferences, and pause-menu accessibility controls are complete. Live GUI balance, audio controls, visual/accessibility confirmation, and playtesting remain open in Phase 5.
 - Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -69,8 +69,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 39 — Let the live CPU plan and complete safe singles and doubles from the ball, fielders, and return timing.
 - [x] Step 40 — Add Rookie, Standard, and Pro CPU difficulty profiles and let players choose the level between matches.
 - [x] Step 41 — Add context-aware controller mappings for batting, running, delivery selection, pause, and match results.
+- [x] Step 42 — Save match and accessibility preferences and provide a keyboard/controller-operable pause settings panel.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–41 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–42 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -368,6 +369,12 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - At the result, A restarts with the current settings, the left shoulder changes difficulty, and the right shoulder changes overs. README and the on-screen match panel list the mappings; keyboard controls remain available.
 - Release build, action-mapping scenarios for human batting, CPU batting, and match results, and the full headless review passed. No game window was opened and no physical controller was tested; those remain in the playtest gate.
 
+### Step 42 notes
+
+- Added versioned JSON settings in the user's local application-data directory for CPU difficulty, overs per innings, high contrast, and larger text. Missing files use defaults; malformed or unsupported settings are rejected. Saving writes a temporary file and atomically replaces the saved file.
+- Added a pause panel with keyboard and GamePad toggles for high contrast and larger text. These settings apply to the match overlay and persist immediately; failed reads/writes are reported in the panel while the current session remains playable.
+- Release build, settings round-trip/default/invalid-data checks, paused controller mapping checks (including paused results), and the full `tools/review.ps1 -SkipGame -SkipCaptures` review passed. The game window and capture paths were not run; visual balance, sound controls, and playtesting remain open.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -442,7 +449,7 @@ Build roster and tuning editors around validated files. Run automated matches to
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
 
-**Current progress (Step 41):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive field tactics, and synthetic and physics-grounded automated match batches. In the live second innings, the CPU selects a shot from ratings and chase pressure, plans timing and footwork from exported clips and delivery physics, and picks a lane using the actual field and fielder ratings with rating-scaled execution error. At contact, it checks the outgoing ball, current field, pickup/throw timing, and boundary before planning a safe single or double. Rookie, Standard, and Pro tune CPU timing, placement, bowling accuracy, batting aggression, and outcome probabilities without changing physics or match rules. Keyboard and GamePad controls cover live play and result actions. Automated physics batches use the exported batting clips, ball-flight simulation, fielding movement, deliveries, and match rules, with deterministic CSV metrics. `tools/review.ps1 -SkipGame -SkipCaptures` checks repeatable short batches and a six-match 10-over score/event envelope without starting the game host. The live loop includes the two-innings target chase, results, restart, and overs-length selection. Phase 5 remains open for saved settings, audio controls, essential accessibility, live balance, physical controller testing, and human playtesting.
+**Current progress (Step 42):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive field tactics, and synthetic and physics-grounded automated match batches. In the live second innings, the CPU selects a shot from ratings and chase pressure, plans timing and footwork from exported clips and delivery physics, and picks a lane using the actual field and fielder ratings with rating-scaled execution error. At contact, it checks the outgoing ball, current field, pickup/throw timing, and boundary before planning a safe single or double. Rookie, Standard, and Pro tune CPU timing, placement, bowling accuracy, batting aggression, and outcome probabilities without changing physics or match rules. Keyboard and GamePad controls cover live play and result actions. Difficulty, overs length, high contrast, and larger text save to a versioned local settings file and can be changed from the pause panel. Automated physics batches use the exported batting clips, ball-flight simulation, fielding movement, deliveries, and match rules, with deterministic CSV metrics. `tools/review.ps1 -SkipGame -SkipCaptures` checks repeatable short batches and a six-match 10-over score/event envelope without starting the game host. The live loop includes the two-innings target chase, results, restart, and overs-length selection. Phase 5 remains open for audio controls, live visual/balance review, visual/accessibility confirmation, physical controller testing, and human playtesting.
 
 ## Phase 6 — Stabilize and choose expansion
 
@@ -481,7 +488,7 @@ Initial work package (complete):
 4. Implement fixed-step ball flight, pitch collision, and trajectory visualization.
 5. Save and replay one delivery preset through an initial Delivery Lab.
 
-The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. Steps 23–41 completed the one-over rules loop, live batting overlay, first two-innings match/roster slice, safe CPU singles/doubles, selectable CPU difficulty, and core controller mapping; the remaining Phase 5 match work and Phase 4 visual and performance checks continue.
+The initial milestone was an animated practice delivery with a reliable asset pipeline and observable simulation. Steps 23–42 completed the one-over rules loop, live batting overlay, first two-innings match/roster slice, safe CPU singles/doubles, selectable CPU difficulty, core controller mapping, saved match preferences, and pause accessibility controls; the remaining Phase 5 match work and Phase 4 visual and performance checks continue.
 
 ## References
 

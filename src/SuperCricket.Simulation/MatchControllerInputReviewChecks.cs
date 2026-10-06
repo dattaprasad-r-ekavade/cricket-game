@@ -24,6 +24,27 @@ public static class MatchControllerInputReviewChecks
         Require(heldActions == MatchControllerActions.None,
             "a held controller button repeatedly retriggered an edge action");
 
+        var pausedButtons = MatchControllerButtons.X | MatchControllerButtons.Y |
+            MatchControllerButtons.A | MatchControllerButtons.B | MatchControllerButtons.DPadLeft |
+            MatchControllerButtons.Start;
+        var pausedActions = MatchControllerInputModel.ReadPressedActions(
+            pausedButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
+            isMatchComplete: false, isPaused: true);
+        Require(HasAll(pausedActions, MatchControllerActions.Pause |
+                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText) &&
+            !HasAny(pausedActions, MatchControllerActions.Defend | MatchControllerActions.Drive |
+                MatchControllerActions.Run | MatchControllerActions.SelectStandardDelivery),
+            "paused controller inputs did not expose settings without triggering match actions");
+
+        var pausedResultActions = MatchControllerInputModel.ReadPressedActions(
+            pausedButtons, MatchControllerButtons.None, isCpuBattingControlled: false,
+            isMatchComplete: true, isPaused: true);
+        Require(HasAll(pausedResultActions, MatchControllerActions.Pause |
+                MatchControllerActions.ToggleHighContrast | MatchControllerActions.ToggleLargeText) &&
+            !HasAny(pausedResultActions, MatchControllerActions.RestartMatch |
+                MatchControllerActions.CycleDifficulty | MatchControllerActions.CycleOvers),
+            "paused result controls did not prioritize accessibility settings over result actions");
+
         var bowlingButtons = MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadUp |
             MatchControllerButtons.DPadDown | MatchControllerButtons.RightShoulder;
         var bowlingActions = MatchControllerInputModel.ReadPressedActions(

@@ -20,6 +20,8 @@ The match scene uses metres in world space and includes a procedural stadium pre
 
 Controller mapping: A defends, X drives, Y lofts, and B starts a run. The left shoulder cancels a run; the right shoulder bowls the next ball. The D-pad selects the next delivery while the CPU bats and moves the batter off side/leg side while the human bats. Start pauses or resumes; Back exits. At a result, A replays the current match, the left shoulder cycles CPU difficulty, and the right shoulder cycles overs.
 
+While paused, H or GamePad Y toggles high contrast, and T or GamePad X toggles larger text. CPU difficulty, overs length, and accessibility preferences save to `%LOCALAPPDATA%\SuperCricket\settings.json`.
+
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application

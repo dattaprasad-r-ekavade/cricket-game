@@ -37,7 +37,9 @@ public enum MatchControllerActions
     StepLegSide = 1 << 12,
     RestartMatch = 1 << 13,
     CycleOvers = 1 << 14,
-    CycleDifficulty = 1 << 15
+    CycleDifficulty = 1 << 15,
+    ToggleHighContrast = 1 << 16,
+    ToggleLargeText = 1 << 17
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -47,12 +49,20 @@ public static class MatchControllerInputModel
         MatchControllerButtons currentButtons,
         MatchControllerButtons previousButtons,
         bool isCpuBattingControlled,
-        bool isMatchComplete)
+        bool isMatchComplete,
+        bool isPaused = false)
     {
         var pressed = currentButtons & ~previousButtons;
         var actions = MatchControllerActions.None;
         if (Has(pressed, MatchControllerButtons.Back)) actions |= MatchControllerActions.Exit;
         if (Has(pressed, MatchControllerButtons.Start)) actions |= MatchControllerActions.Pause;
+
+        if (isPaused)
+        {
+            if (Has(pressed, MatchControllerButtons.Y)) actions |= MatchControllerActions.ToggleHighContrast;
+            if (Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.ToggleLargeText;
+            return actions;
+        }
 
         if (isMatchComplete)
         {
