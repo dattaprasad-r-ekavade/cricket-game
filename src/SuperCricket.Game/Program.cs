@@ -8,7 +8,8 @@ float? captureRunUpTimeSeconds = null;
 float? captureDeliveryTimeSeconds = null;
 string? captureFielderAction = null;
 float? captureActionTimeSeconds = null;
-if (args.Length > 0)
+var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
+if (args.Length > 0 && !verifyGameplay)
 {
     if (args[0] != "--capture-frame" || args.Length < 2 || args.Length % 2 != 0)
     {
@@ -59,7 +60,8 @@ using var game = new SuperCricket.Game.Game1(
     captureRunUpTimeSeconds,
     captureDeliveryTimeSeconds,
     captureFielderAction,
-    captureActionTimeSeconds);
+    captureActionTimeSeconds,
+    verifyGameplay);
 game.Run();
 
 static string GetCaptureUsage() =>

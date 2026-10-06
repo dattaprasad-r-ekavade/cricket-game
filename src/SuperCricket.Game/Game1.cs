@@ -13,7 +13,7 @@ using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
 
-public class Game1 : Microsoft.Xna.Framework.Game
+public partial class Game1 : Microsoft.Xna.Framework.Game
 {
     private enum FielderSequencePhase
     {
@@ -29,6 +29,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly string? _capturePath;
+    private readonly bool _verifyGameplay;
     private readonly float? _captureRunUpTimeSeconds;
     private readonly float? _captureDeliveryTimeSeconds;
     private readonly string? _captureFielderActionClip;
@@ -129,13 +130,15 @@ public class Game1 : Microsoft.Xna.Framework.Game
         float? captureRunUpTimeSeconds = null,
         float? captureDeliveryTimeSeconds = null,
         string? captureFielderActionClip = null,
-        float? captureFielderActionTimeSeconds = null)
+        float? captureFielderActionTimeSeconds = null,
+        bool verifyGameplay = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
             captureFielderActionClip is not null && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null))
             throw new ArgumentException("Choose one bowler preview time or a fielder action and its preview time.");
         _capturePath = capturePath;
+        _verifyGameplay = verifyGameplay;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
         _captureFielderActionClip = captureFielderActionClip;
@@ -304,12 +307,18 @@ public class Game1 : Microsoft.Xna.Framework.Game
             }
             _simulationPaused = true;
         }
+        if (_verifyGameplay)
+        {
+            RunGameplayReviewChecks();
+            Exit();
+        }
     }
 
-    protected override void Update(GameTime gameTime)
+    protected override void Update(GameTime gameTime) => UpdateMatch(gameTime, Keyboard.GetState());
+
+    private void UpdateMatch(GameTime gameTime, KeyboardState keyboard)
     {
         var updateStart = Stopwatch.GetTimestamp();
-        var keyboard = Keyboard.GetState();
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
             keyboard.IsKeyDown(Keys.Escape))
         {
@@ -335,7 +344,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         {
             _simulationPaused = !_simulationPaused;
         }
-        if (keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
+        if (!_simulationPaused && keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T))
         {
             _playerAnimator.PlayNext();
         }
@@ -346,7 +355,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         _previousKeyboard = keyboard;
         _camera.Update(gameTime);
         var elapsedSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        if (_captureTarget is null)
+        if (_captureTarget is null && !_simulationPaused)
         {
             _previousBatWorld = _currentBatWorld;
             _playerAnimator.Update(elapsedSeconds);
@@ -354,9 +363,9 @@ public class Game1 : Microsoft.Xna.Framework.Game
             UpdateFielderAnimations(elapsedSeconds);
         }
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
-        if (_isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
+        if (!_simulationPaused && _isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
             UpdateRun(elapsedSeconds);
-        if (_fielderThrowActive)
+        if (!_simulationPaused && _fielderThrowActive)
             UpdateFielderThrow();
 
         if (!_simulationPaused && !_deliveryComplete && _bowlerReleased)
@@ -816,7 +825,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void StartShot(string name)
     {
-        if (_shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
+        if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
 
         _chosenShot = _shotSet.Get(name);
@@ -827,7 +836,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void StartRun()
     {
-        if (_deliveryComplete || _isRunning)
+        if (_simulationPaused || _deliveryComplete || _isRunning)
             return;
         if (!_battedBall)
         {
@@ -843,6 +852,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
 
     private void CancelRun()
     {
+        if (_simulationPaused) return;
         if (_runRequestedPending)
         {
             _runRequestedPending = false;
@@ -1004,6 +1014,8 @@ public class Game1 : Microsoft.Xna.Framework.Game
             }
             else
             {
+                _batterRuns = 0;
+                _completedRuns = 0;
                 _dismissal = DismissalKind.Caught;
                 _shotOutcome = $"OUT: caught by fielder {contact.FielderIndex + 1}";
             }
@@ -1041,7 +1053,10 @@ public class Game1 : Microsoft.Xna.Framework.Game
         if (_battedBall && horizontalDistance >= _deliveryPreset.FieldBoundaryRadiusMeters - 0.001f)
         {
             var isSix = frame.BounceCount == 0 && frame.Position.Y > _deliveryPreset.FieldSurfaceHeightMeters + 1f;
-            _batterRuns += isSix ? 6 : 4;
+            var boundaryRuns = isSix ? 6 : 4;
+            var runningRuns = _completedRuns + (_isRunning && _runElapsed >= _runDurationSeconds * 0.5f ? 1 : 0);
+            _batterRuns = Math.Max(boundaryRuns, runningRuns);
+            _completedRuns = runningRuns > boundaryRuns ? runningRuns : 0;
             _shotOutcome = isSix ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
             _isRunning = false;
         }

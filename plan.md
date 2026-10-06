@@ -37,6 +37,7 @@ Visual fidelity depends on assets, rigging, animation, lighting, and camera work
 - [x] Step 19 — Author catch, pickup, and throw actions for fielders; sync run-out throws to the exported release event.
 - [x] Step 20 — Sweep the moving bat against the ball and derive shot outcomes from swing velocity and sweet-spot contact; add a local batting analyzer.
 - [x] Step 21 — Calibrate shot timing from exported batter/bowler clips against full delivery presets with a repeatable batting-practice sweep.
+- [x] Step 22 — Review and regression-test gameplay, fix pause/scoring/analyzer defects, and add one repeatable review command.
 
 Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package.
 
@@ -193,6 +194,14 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `verify-batting-practice` as a real-asset regression gate. Against standard pace, all three exported shots find contact: defence 26/45 tested input timings, drive 19/45, and loft 18/45. Best-quality results occurred at +0.200 s for defence (quality 0.91, 14.3 m/s in-play), and +0.250 s for drive (0.90, four at 22.9 m/s) and loft (0.90, six at 27.1 m/s).
 - Repeated standard-pace analysis produced identical CSV hashes. The wide preset currently produces no contact timings for any of the three shots, identifying the need for batter footwork/reach before wide-ball shot coverage improves; the analyzer can now quantify that change.
 - Release build and real-asset batting verification passed; the sample over remains 10/2. The sweep assumes the batter remains at the crease and reports the ball's boundary outcome without fielder interception or running, so those remain separate match outcomes.
+
+### Step 22 notes
+
+- Added `tools/review.ps1` and the game's `--verify-gameplay` mode. The latter loads real content and drives the normal match update with scripted inputs, checking pause/resume, pickup/throw/run-out completion, six legal deliveries, wide/no-ball scoring, and all three shots at simulated 30/60/120 FPS. Boundary and catch cases arrange state explicitly to cover scoring branches.
+- Reproduced and fixed animation/running/throw advancement during pause, boundaries adding their allowance to earlier completed runs, and legal catches retaining completed runs and replacing the wrong batter. Boundary scoring now preserves the greater running allowance when applicable, including an already-crossed run; no-ball catches preserve runs and the penalty.
+- Reproduced and fixed analyzer contact before shot input, clipped a tick at the actual input time, cleared contact timestamps on misses, and derived reported launch angle from final outgoing velocity. Added overlapping-blade and upward-swing regressions.
+- The full review command passed: Release build with zero warnings/errors, all shipped player/shot/field/delivery validators, shared simulation diagnostics, rules scenario (10/2 in 1.0 overs), invalid-step rejection, and gameplay checks. Two standard sweeps had SHA256 `CF01930726FE8ACE1671C625E3888C961533BD893A9AE332B36E05994D3B4F5A`. Standard/no-ball contact windows now contain 25/18/17 contacts for defence/drive/loft; the wide sweep has none. This removed one false late-input contact per shot.
+- Captured start, bowler follow-through, and three fielder actions through the DirectX renderer, and visually reviewed start/catch/throw/follow-through. Detailed findings, evidence, and remaining limitations are recorded in `docs/reviews/2026-10-06.md`. Art remains visibly primitive; fielding/collision heuristics, full-match playtesting, and GPU performance validation remain wider roadmap work.
 
 ## Technical foundation
 

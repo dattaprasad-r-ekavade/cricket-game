@@ -358,6 +358,11 @@ static void VerifyBatting(string shotSetPath)
         var highContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, 1f), shot);
         var lowContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, -1f), shot);
         var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, -8f), Vector2.Zero, shot);
+        var upwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 8f, 0f), Vector2.Zero, shot);
+        var actualAngle = MathF.Atan2(upwardSwing.OutgoingVelocity.Y,
+            new Vector2(upwardSwing.OutgoingVelocity.X, upwardSwing.OutgoingVelocity.Z).Length()) * 180f / MathF.PI;
+        if (MathF.Abs(upwardSwing.LaunchAngleDegrees - actualAngle) > 0.001f)
+            throw new InvalidDataException($"Reported launch angle differs from outgoing velocity for '{shot.Name}'.");
 
         if (center.ContactQuality <= edge.ContactQuality ||
             highContact.LaunchAngleDegrees <= lowContact.LaunchAngleDegrees ||
@@ -429,6 +434,24 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     var shotSet = BattingShotSet.Load(shotSetPath);
     var delivery = DeliveryPreset.Load(deliveryPath);
     var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery);
+
+    // A broad blade guarantees overlap at release, including while still in stance.
+    // It exposes collisions incorrectly accepted before a positive input delay.
+    var overlapBatter = PlayerAsset.Load(batterPath);
+    var blade = overlapBatter.Meshes.Find(mesh => mesh.Name == "Bat Blade")!;
+    for (var index = 0; index < blade.Positions.Length; index++)
+        blade.Positions[index] = index < 3 ? -100f : 100f;
+    var overlapResults = BattingPracticeAnalyzer.Analyze(overlapBatter, bowler, shotSet, delivery, 0.019f);
+    if (!overlapResults.Any(sample => sample.InputDelaySeconds > 0f && sample.ContactQuality.HasValue))
+        throw new InvalidDataException("Pre-input overlap fixture did not exercise delayed contact.");
+    foreach (var sample in overlapResults.Concat(results))
+    {
+        if (sample.ContactQuality.HasValue &&
+            (!sample.ContactTimeSeconds.HasValue || sample.ContactTimeSeconds.Value < MathF.Max(0f, sample.InputDelaySeconds) - 0.000001f))
+            throw new InvalidDataException("Batting practice accepted contact before the shot input.");
+        if (!sample.ContactQuality.HasValue && sample.ContactTimeSeconds.HasValue)
+            throw new InvalidDataException("A missed shot must not report a contact time.");
+    }
 
     foreach (var shot in shotSet.Shots)
     {

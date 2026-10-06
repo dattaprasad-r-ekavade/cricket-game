@@ -91,26 +91,32 @@ public static class BattingPracticeAnalyzer
         for (var step = 0; step < maximumSteps && previousFrame.Phase != BallMotionPhase.Settled; step++)
         {
             var currentFrame = ball.Step();
+            // Input can land between fixed ticks. Only sweep the portion after it.
+            var contactStartTime = MathF.Max(previousFrame.TimeSeconds, inputDelaySeconds);
+            var contactDeltaSeconds = currentFrame.TimeSeconds - contactStartTime;
+            var startFraction = Math.Clamp((contactStartTime - previousFrame.TimeSeconds) /
+                (currentFrame.TimeSeconds - previousFrame.TimeSeconds), 0f, 1f);
+            var contactStartPosition = Vector3.Lerp(previousFrame.Position, currentFrame.Position, startFraction);
             var batStart = batterSampler.GetBatWorld(
                 stance,
                 shotClip,
-                stanceTimeAtRelease + previousFrame.TimeSeconds,
-                previousFrame.TimeSeconds - inputDelaySeconds);
+                stanceTimeAtRelease + contactStartTime,
+                contactStartTime - inputDelaySeconds);
             var batEnd = batterSampler.GetBatWorld(
                 stance,
                 shotClip,
                 stanceTimeAtRelease + currentFrame.TimeSeconds,
                 currentFrame.TimeSeconds - inputDelaySeconds);
 
-            if (SweptBattingContactResolver.TryResolve(
-                previousFrame.Position,
+            if (contactDeltaSeconds > 0f && SweptBattingContactResolver.TryResolve(
+                contactStartPosition,
                 currentFrame.Position,
                 batStart,
                 batEnd,
                 batterSampler.BladeMinimum,
                 batterSampler.BladeMaximum,
                 requiredExpansion,
-                delivery.FixedTimeStepSeconds,
+                contactDeltaSeconds,
                 out var contact))
             {
                 var impact = BattingImpactModel.Calculate(
@@ -120,8 +126,7 @@ public static class BattingPracticeAnalyzer
                     shot);
                 ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
                 var outcome = SimulateOutgoingBall(ball, delivery);
-                var contactTime = previousFrame.TimeSeconds +
-                    (currentFrame.TimeSeconds - previousFrame.TimeSeconds) * contact.HitFraction;
+                var contactTime = contactStartTime + contactDeltaSeconds * contact.HitFraction;
                 return new BattingPracticeSample(
                     shot.Name,
                     delivery.Name,
@@ -137,12 +142,12 @@ public static class BattingPracticeAnalyzer
             }
 
             if (currentFrame.Position.Z <= BatterZ - MissPlaneOffsetMeters)
-                return Miss(shot, delivery, inputDelaySeconds, currentFrame.TimeSeconds, "MissedBat");
+                return Miss(shot, delivery, inputDelaySeconds, "MissedBat");
 
             previousFrame = currentFrame;
         }
 
-        return Miss(shot, delivery, inputDelaySeconds, previousFrame.TimeSeconds, "SettledBeforeContact");
+        return Miss(shot, delivery, inputDelaySeconds, "SettledBeforeContact");
     }
 
     private static string SimulateOutgoingBall(BallFlightSimulator ball, DeliveryPreset delivery)
@@ -179,13 +184,12 @@ public static class BattingPracticeAnalyzer
         BattingShotData shot,
         DeliveryPreset delivery,
         float inputDelaySeconds,
-        float timeSeconds,
         string outcome) => new(
             shot.Name,
             delivery.Name,
             inputDelaySeconds,
             outcome,
-            timeSeconds,
+            null,
             null,
             null,
             null,

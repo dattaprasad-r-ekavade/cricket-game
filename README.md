@@ -33,6 +33,8 @@ The match scene uses metres in world space and includes a procedural stadium pre
 
 ## Delivery tools
 
+Run the current review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, an over, extras, boundaries, catches, and the pickup/throw sequence.
+
 ```powershell
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json
@@ -50,7 +52,7 @@ The simulation command writes a CSV trajectory to `artifacts/standard-pace-traje
 
 `analyze-batting` writes a CSV of shot speed, launch angle, and contact quality across the nine normalized blade contact points and three sample swing speeds. `verify-batting` checks moving-bat and moving-ball collision, outside-blade misses, sweet-spot quality, blade-height launch response, and swing-speed response using the same simulation code as the game.
 
-`analyze-batting-practice` samples the exported batter clips against a real delivery preset and the bowler's run-up/release timing. It sweeps input time from 0.5 s before release until the ball reaches the batter, then writes the contact window, sweet-spot quality, bat-point speed, outgoing speed, and in-play/four/six result for every shot. Pass an optional final step size in seconds to refine the timing grid; `verify-batting-practice` requires all three shots to find contact against the supplied delivery.
+`analyze-batting-practice` samples the exported batter clips against a real delivery preset and the bowler's run-up/release timing. It sweeps input time from 0.5 s before release until the ball reaches the batter, then writes the contact window, sweet-spot quality, bat-point speed, outgoing speed, and in-play/four/six result for every shot. Contact is eligible only after shot input; misses have blank contact metrics, and launch angle describes the final outgoing velocity including bat movement. Outcomes are ballistic estimates without fielders or running. Pass an optional final step size in seconds to refine the timing grid; `verify-batting-practice` requires all three shots to find contact against the supplied delivery and checks an overlapping-blade fixture for pre-input contact.
 
 Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the starter rig and game asset with:
 

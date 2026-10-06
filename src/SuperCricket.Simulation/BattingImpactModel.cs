@@ -51,7 +51,9 @@ public static class BattingImpactModel
         if (!IsFinite(outgoingVelocity) || outgoingVelocity.LengthSquared() <= 0.000001f)
             throw new InvalidOperationException("Batting impact produced an invalid outgoing ball velocity.");
 
-        return new BattingImpactResult(outgoingVelocity, quality, launchAngle);
+        var outgoingHorizontalSpeed = new Vector2(outgoingVelocity.X, outgoingVelocity.Z).Length();
+        var actualLaunchAngle = MathF.Atan2(outgoingVelocity.Y, outgoingHorizontalSpeed) * (180f / MathF.PI);
+        return new BattingImpactResult(outgoingVelocity, quality, actualLaunchAngle);
     }
 
     private static Vector3 ClampMagnitude(Vector3 value, float maximum)
