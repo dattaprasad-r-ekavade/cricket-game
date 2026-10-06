@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -118,7 +119,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private CpuLiveBattingPlan? _cpuBattingPlan;
     private bool _cpuShotStarted;
     private float _runElapsed;
-    private float _runDurationSeconds = 1.35f;
+    private float _runDurationSeconds = CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
     private bool _fielderThrowActive;
     private bool _fielderThrowBallReleased;
     private bool _fielderBallSecured;
@@ -470,6 +471,19 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                     _battedBall = true;
                     _fieldingSide.Reset();
                     _shotOutcome = $"HIT: {_chosenShot.Name}, {impact.ContactQuality:0.00} quality at {impact.OutgoingVelocity.Length():0.0} m/s";
+                    if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
+                    {
+                        var fieldingPlayers = _match.FieldingPlayers;
+                        var fieldingRatings = fieldingPlayers.Select(player => player.Fielding).ToArray();
+                        _runRequestedPending = CpuLiveRunningDecisionModel.Choose(
+                            cpuPlan.AttemptRun,
+                            _deliveryPreset,
+                            ToNumerics(battingContact.Position),
+                            impact.OutgoingVelocity,
+                            _fieldingSide.Positions,
+                            fieldingRatings,
+                            _runDurationSeconds).AttemptRun;
+                    }
                     if (_runRequestedPending)
                         StartRun();
                 }

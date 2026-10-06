@@ -109,6 +109,8 @@ public static class CpuLiveBattingPlanReviewChecks
             }
         }
 
+        CpuLiveRunningDecisionReviewChecks.Run(standardDelivery);
+
         Console.WriteLine("PASS: CPU live batting selects repeatable, rating-aware shots and analyzer-grounded timing and footwork for standard and wide deliveries.");
     }
 
