@@ -44,6 +44,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly int _profileFrameTarget;
     private readonly float? _captureRunUpTimeSeconds;
     private readonly float? _captureDeliveryTimeSeconds;
+    private readonly float? _captureBallFlightTimeSeconds;
     private readonly string? _captureFielderActionClip;
     private readonly float? _captureFielderActionTimeSeconds;
     private readonly string? _captureBatterFootworkActionClip;
@@ -184,9 +185,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         int profileFrameCount = 0,
         string? liveMatchReviewPath = null,
         string? captureBatterFootworkActionClip = null,
-        float? captureBatterFootworkActionTimeSeconds = null)
+        float? captureBatterFootworkActionTimeSeconds = null,
+        float? captureBallFlightTimeSeconds = null)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
+            captureBallFlightTimeSeconds is not null &&
+                (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null ||
+                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
             (captureFielderActionClip is null) != (captureFielderActionTimeSeconds is null) ||
             (captureBatterFootworkActionClip is null) != (captureBatterFootworkActionTimeSeconds is null) ||
             (captureFielderActionClip is not null && captureBatterFootworkActionClip is not null) ||
@@ -205,12 +210,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _showDebugOverlay = captureDebugOverlay;
         _captureRunUpTimeSeconds = captureRunUpTimeSeconds;
         _captureDeliveryTimeSeconds = captureDeliveryTimeSeconds;
+        _captureBallFlightTimeSeconds = captureBallFlightTimeSeconds;
         _captureFielderActionClip = captureFielderActionClip;
         _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
         _captureBatterFootworkActionClip = captureBatterFootworkActionClip;
         _captureBatterFootworkActionTimeSeconds = captureBatterFootworkActionTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
-            throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, or square-leg.", nameof(captureCameraPreset));
+            throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, square-leg, or ball-follow.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
@@ -380,10 +386,27 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         $"Delivery capture time must be between 0 and {deliveryDuration:0.###} seconds.");
                 SetBowlerDeliveryCapturePose(deliveryTime);
             }
+            else if (_captureBallFlightTimeSeconds is { } ballFlightTime)
+            {
+                if (ballFlightTime > _deliveryPreset.MaximumSimulationSeconds)
+                    throw new ArgumentOutOfRangeException("captureBallFlightTimeSeconds", ballFlightTime,
+                        $"Ball-flight capture time must be between 0 and {_deliveryPreset.MaximumSimulationSeconds:0.###} seconds.");
+                SetBowlerCaptureReleasePose();
+                var sampleCount = (int)MathF.Round(ballFlightTime / _ballFlight.FixedTimeStepSeconds);
+                for (var step = 0; step < sampleCount && _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled; step++)
+                {
+                    var frame = _ballFlight.Step();
+                    _trajectoryVertices.Add(new VertexPositionColor(
+                        ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
+                        new Color(248, 181, 82)));
+                }
+            }
             else
             {
                 SetBowlerCaptureReleasePose();
             }
+            if (_camera.FollowsBall)
+                _camera.FollowBall(ToXna(_ballFlight.CurrentFrame.Position), 0f);
             _simulationPaused = true;
         }
         if (_verifyGameplay)
@@ -677,6 +700,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _simulationAccumulator = 0f;
         }
+
+        var cameraBallPosition = _fielderThrowActive
+            ? ToXna(GetFielderThrowBallPosition())
+            : ToXna(_ballFlight.CurrentFrame.Position);
+        _camera.FollowBall(cameraBallPosition, elapsedSeconds);
 
         _frameTimeMilliseconds = gameTime.ElapsedGameTime.TotalMilliseconds;
         _fpsElapsed += gameTime.ElapsedGameTime.TotalSeconds;

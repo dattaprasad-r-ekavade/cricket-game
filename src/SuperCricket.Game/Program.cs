@@ -6,6 +6,7 @@ string? capturePath = null;
 string? captureCamera = null;
 float? captureRunUpTimeSeconds = null;
 float? captureDeliveryTimeSeconds = null;
+float? captureBallFlightTimeSeconds = null;
 string? captureFielderAction = null;
 string? captureBatterFootworkAction = null;
 float? captureActionTimeSeconds = null;
@@ -62,6 +63,11 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode)
                 float.IsFinite(parsedDeliverySeconds) && parsedDeliverySeconds >= 0f:
                 captureDeliveryTimeSeconds = parsedDeliverySeconds;
                 break;
+            case "--ball-flight-time" when captureBallFlightTimeSeconds is null &&
+                float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedBallFlightSeconds) &&
+                float.IsFinite(parsedBallFlightSeconds) && parsedBallFlightSeconds >= 0f:
+                captureBallFlightTimeSeconds = parsedBallFlightSeconds;
+                break;
             case "--fielder-action" when captureFielderAction is null:
                 captureFielderAction = value;
                 break;
@@ -80,9 +86,12 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode)
     }
 
     var hasActionCapture = captureFielderAction is not null || captureBatterFootworkAction is not null;
+    var captureTimeCount = (captureRunUpTimeSeconds is null ? 0 : 1) +
+        (captureDeliveryTimeSeconds is null ? 0 : 1) + (captureBallFlightTimeSeconds is null ? 0 : 1);
     if (hasActionCapture != (captureActionTimeSeconds is not null) ||
+        captureTimeCount > 1 ||
         captureFielderAction is not null && captureBatterFootworkAction is not null ||
-        hasActionCapture && (captureRunUpTimeSeconds is not null || captureDeliveryTimeSeconds is not null) ||
+        hasActionCapture && captureTimeCount > 0 ||
         captureBatterFootworkAction is not null && captureBatterFootworkAction is not
             ("batting-step-offside" or "batting-step-legside"))
         throw new ArgumentException(GetCaptureUsage());
@@ -100,8 +109,9 @@ using var game = new SuperCricket.Game.Game1(
     profileFrameCount,
     liveMatchReviewPath,
     captureBatterFootworkAction,
-    captureBatterFootworkAction is null ? null : captureActionTimeSeconds);
+    captureBatterFootworkAction is null ? null : captureActionTimeSeconds,
+    captureBallFlightTimeSeconds);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg] [--run-up-time <seconds> | --delivery-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
+    "Usage: SuperCricket.Game --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds>] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";

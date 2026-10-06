@@ -11,22 +11,25 @@ public sealed class OrbitCamera
     private const float MaxDistance = 100f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
-    private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target)[] _presets =
+    private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target, bool FollowsBall)[] _presets =
     [
-        ("Broadcast", 0.18f, 0.48f, 54f, Vector3.Zero),
-        ("Behind striker", 0f, 0.23f, 29f, new Vector3(0f, 0f, -5f)),
-        ("Bowler end", MathHelper.Pi, 0.28f, 31f, Vector3.Zero),
-        ("Square leg", MathHelper.PiOver2, 0.38f, 52f, Vector3.Zero)
+        ("Broadcast", 0.18f, 0.48f, 54f, Vector3.Zero, false),
+        ("Behind striker", 0f, 0.23f, 29f, new Vector3(0f, 0f, -5f), false),
+        ("Bowler end", MathHelper.Pi, 0.28f, 31f, Vector3.Zero, false),
+        ("Square leg", MathHelper.PiOver2, 0.38f, 52f, Vector3.Zero, false),
+        ("Ball follow", 0f, 0.36f, 9f, Vector3.Zero, true)
     ];
     private int _presetIndex;
     private int _previousWheel;
     private string? _focusName;
+    private bool _hasBallTarget;
 
     public float Yaw { get; private set; }
     public float Elevation { get; private set; }
     public float Distance { get; private set; }
     public Vector3 Target { get; private set; }
     public string PresetName => _focusName ?? _presets[_presetIndex].Name;
+    public bool FollowsBall => _focusName is null && _presets[_presetIndex].FollowsBall;
 
     public OrbitCamera() => ApplyPreset(0);
 
@@ -54,11 +57,31 @@ public sealed class OrbitCamera
 
     public void Focus(Vector3 target, float distance, float yaw, float elevation, string name = "Focus")
     {
+        _hasBallTarget = false;
         Target = target;
         Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
         Yaw = yaw;
         Elevation = MathHelper.Clamp(elevation, MinElevation, MaxElevation);
         _focusName = name;
+    }
+
+    public void FollowBall(Vector3 position, float elapsedSeconds)
+    {
+        if (!FollowsBall)
+        {
+            _hasBallTarget = false;
+            return;
+        }
+
+        if (!_hasBallTarget)
+        {
+            Target = position;
+            _hasBallTarget = true;
+            return;
+        }
+
+        var blend = 1f - MathF.Exp(-18f * MathF.Max(0f, elapsedSeconds));
+        Target = Vector3.Lerp(Target, position, blend);
     }
 
     public bool SelectPreset(string name)
@@ -79,6 +102,7 @@ public sealed class OrbitCamera
     {
         _presetIndex = index;
         _focusName = null;
+        _hasBallTarget = false;
         var preset = _presets[index];
         Yaw = preset.Yaw;
         Elevation = preset.Elevation;

@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using NumericsVector3 = System.Numerics.Vector3;
 
@@ -25,6 +26,21 @@ public partial class Game1
             _match.Reset(_selectedOversPerInnings);
             BeginDelivery();
         }
+
+        var ballCamera = new OrbitCamera();
+        Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
+            MathF.Abs(ballCamera.Distance - 9f) < 0.001f,
+            "ball-follow camera preset was not selectable at its readable tracking distance");
+        ballCamera.FollowBall(new Vector3(2f, 1f, -4f), 0f);
+        Require(ballCamera.Target == new Vector3(2f, 1f, -4f),
+            "ball-follow camera did not focus the initial ball position");
+        ballCamera.FollowBall(new Vector3(6f, 2f, -12f), 0.05f);
+        Require(ballCamera.Target.X is > 2f and < 6f && ballCamera.Target.Z is < -4f and > -12f,
+            "ball-follow camera did not ease toward the moving ball");
+        ballCamera.SelectPreset("broadcast");
+        Require(!ballCamera.FollowsBall && ballCamera.Target == Vector3.Zero,
+            "switching camera presets did not stop ball tracking and restore the broadcast view");
+        Console.WriteLine("PASS: ball-follow camera tracks and eases across a delivery; broadcast remains a fixed preset.");
 
         Reset();
         Tick(0f, Keys.J);
