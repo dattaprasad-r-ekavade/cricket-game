@@ -6,7 +6,7 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-Step 55 adds moment-to-moment feedback for contact quality and actual bounce, plus a speed-tinted ball trail. Automated checks and captures pass; the owner still needs to retest camera readability and batting/bowling feedback on keyboard, and GamePad play remains untested. A4a/A4b remain in progress; A4c's delivery-feedback items are implemented, with contact replay and guided practice still open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md), and [docs/steps/step-55-immediate-delivery-feedback.md](docs/steps/step-55-immediate-delivery-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
+Step 57 responds to the keyboard retest after Step 55: the owner still found batting/bowling camera framing poor and could not see the feedback. Human batting now starts behind the striker, the role cameras use tighter lenses, the normal HUD takes less screen height, and live/persistent feedback emphasizes the player's own shot or bowling accuracy. Captures and automated checks pass; the owner still needs to retest Step 57 in play, and GamePad play remains untested. A4a/A4b remain in progress; A4c's delivery-feedback items are implemented, with contact replay and guided practice still open. Implementation notes live in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md), [docs/steps/step-51-camera-and-feedback.md](docs/steps/step-51-camera-and-feedback.md), [docs/steps/step-52-batting-timing.md](docs/steps/step-52-batting-timing.md), [docs/steps/step-53-camera-discoverability.md](docs/steps/step-53-camera-discoverability.md), [docs/steps/step-54-pitch-map-feedback.md](docs/steps/step-54-pitch-map-feedback.md), [docs/steps/step-55-immediate-delivery-feedback.md](docs/steps/step-55-immediate-delivery-feedback.md), and [docs/steps/step-57-keyboard-camera-feedback.md](docs/steps/step-57-keyboard-camera-feedback.md); Cricket 07 research is in [docs/reviews/cricket07-research.md](docs/reviews/cricket07-research.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
@@ -73,7 +73,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] Immediate in-world feedback: a bat-contact flash scaled by quality, ball-trail colour by speed, and the actual pitch spot marked briefly.
 
 **A4d — Gameplay cameras**
-- [x] Tighten the default broadcast to 22 m, behind-striker to 16 m, bowler-end to 18 m, and square-leg to 27 m; frame the bowler-end target marker centrally.
+- [x] Use closer role views: behind-striker at 13 m / 40° for human batting, bowler-end at 18 m / 40° for human bowling, with broadcast and square-leg as wider alternatives; frame the bowler-end target centrally.
 - [x] Select batting/bowling camera by player role for each delivery and follow the ball after bat contact.
 - [x] Show the camera shortcut in phase prompts; V cycles views on keyboard and left-stick click cycles views on GamePad.
 - [ ] Confirm batting, bowling, and fielding readability in a human keyboard retest; controller retest remains open.

@@ -11,13 +11,13 @@ public sealed class OrbitCamera
     private const float MaxDistance = 100f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
-    private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target, bool FollowsBall)[] _presets =
+    private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
-        ("Broadcast", 0.34f, 0.36f, 22f, new Vector3(0f, 0f, -1f), false),
-        ("Behind striker", MathHelper.Pi, 0.28f, 16f, new Vector3(0f, 0f, -2.5f), false),
-        ("Bowler end", 0f, 0.30f, 18f, new Vector3(0f, 0f, 2.5f), false),
-        ("Square leg", MathHelper.PiOver2, 0.36f, 27f, Vector3.Zero, false),
-        ("Ball follow", 0f, 0.36f, 9f, Vector3.Zero, true)
+        ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
+        ("Behind striker", MathHelper.Pi, 0.34f, 13f, 40f, new Vector3(0f, 0f, -3.5f), false),
+        ("Bowler end", 0f, 0.30f, 18f, 40f, new Vector3(0f, 0f, 2.5f), false),
+        ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
+        ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
     private int _presetIndex;
     private int _previousWheel;
@@ -27,6 +27,7 @@ public sealed class OrbitCamera
     public float Yaw { get; private set; }
     public float Elevation { get; private set; }
     public float Distance { get; private set; }
+    public float FieldOfViewDegrees { get; private set; }
     public Vector3 Target { get; private set; }
     public string PresetName => _focusName ?? _presets[_presetIndex].Name;
     public bool FollowsBall => _focusName is null && _presets[_presetIndex].FollowsBall;
@@ -107,6 +108,7 @@ public sealed class OrbitCamera
         Yaw = preset.Yaw;
         Elevation = preset.Elevation;
         Distance = preset.Distance;
+        FieldOfViewDegrees = preset.FieldOfViewDegrees;
         Target = preset.Target;
     }
 

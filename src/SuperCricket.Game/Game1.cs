@@ -846,7 +846,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _worldEffect.World = Matrix.Identity;
         _worldEffect.View = Matrix.CreateLookAt(_camera.Position, _camera.Target, Vector3.Up);
         _worldEffect.Projection = Matrix.CreatePerspectiveFieldOfView(
-            MathHelper.ToRadians(48f),
+            MathHelper.ToRadians(_camera.FieldOfViewDegrees),
             GraphicsDevice.Viewport.AspectRatio,
             0.05f,
             250f);
@@ -933,7 +933,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         DrawDeliveryFeedbackCard();
         DrawDebugOverlay();
-        DrawContactFeedbackBanner();
+        DrawLiveFeedbackBanner();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
 
@@ -1147,19 +1147,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                         : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
             var matchLines = new List<string>
             {
-                $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}",
+                $"SUPER CRICKET / SHORT MATCH  |  CPU {_cpuDifficulty}  |  TRAIL cool = slower / warm = faster",
                 ScoreStatusText,
                 batterText,
                 _match.IsMatchComplete ? "Match finished" : eventText,
                 GetPrimaryControlHint()
             };
-            if (_bowlerReleased)
-                matchLines.Add("Ball trail: cool = slower; warm = faster");
             var scale = _gameSettings.LargeText ? 1.25f : 1f;
-            var lineSpacing = (int)MathF.Round(25 * scale);
+            var lineSpacing = (int)MathF.Round(22 * scale);
+            var contentWidth = 0f;
+            foreach (var line in matchLines)
+                contentWidth = Math.Max(contentWidth, _debugFont.MeasureString(line).X * scale);
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
-                _gameSettings.LargeText ? GraphicsDevice.Viewport.Width - 40 : 1050);
-            var panelHeight = 20 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 30 * scale);
+                (int)MathF.Ceiling(contentWidth + 28 * scale));
+            var panelHeight = 14 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 14 * scale);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, panelWidth, panelHeight),
                 _gameSettings.HighContrast ? Color.Black : Color.White);
@@ -1491,7 +1492,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             ? _bowlingTargetMarkerPosition
             : null;
         if (!_captureCameraPresetSpecified)
-            _camera.SelectPreset(IsCpuBattingControlled ? "bowler-end" : "broadcast");
+            _camera.SelectPreset(GetRoleCameraPreset(IsCpuBattingControlled));
 
         if (IsCpuBattingControlled)
         {
@@ -1513,6 +1514,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
         }
     }
+
+    private static string GetRoleCameraPreset(bool isHumanBowling) =>
+        isHumanBowling ? "bowler-end" : "behind-striker";
 
     private void UpdateCpuBatting(float flightElapsed)
     {
