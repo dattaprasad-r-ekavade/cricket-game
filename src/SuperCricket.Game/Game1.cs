@@ -668,7 +668,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             _runHoldElapsed = 0f;
         }
         _previousKeyboard = keyboard;
-        _camera.Update(gameTime, _developerMode);
+        _camera.Update(gameTime, _developerMode, keyboard);
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
             UpdateCpuBatting(flightElapsed);
@@ -1094,7 +1094,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var gamePad = _lastInputWasGamePad;
         var pause = gamePad ? "Start: pause" : "P: pause";
-        var camera = gamePad ? "L3: camera" : "V: camera";
+        var camera = gamePad ? "L3: camera" : "V: camera    PgUp/Dn: zoom";
         string WithCamera(string hint) => $"{hint}    {camera}";
         if (_match.IsMatchComplete)
             return gamePad
@@ -1227,7 +1227,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             "GamePad batting: left stick aim | A ground/defend | Y loft",
             "Running: Enter/B starts; tap again for another; hold to turn back",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "V/L3: camera | R/A replay | D/LB difficulty | O/RB overs when match ends",
+            "V/L3: camera | PgUp/Dn: zoom | R/A replay | D/LB difficulty | O/RB overs when match ends",
             $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
             $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
             _settingsStatusMessage ?? (_audioUnavailable

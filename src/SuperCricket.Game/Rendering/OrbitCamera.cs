@@ -9,13 +9,15 @@ public sealed class OrbitCamera
 {
     private const float MinDistance = 4f;
     private const float MaxDistance = 100f;
+    private const float MinPlayerZoomDistance = 6f;
+    private const float MaxPlayerZoomDistance = 32f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
     private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
-        ("Behind striker", MathHelper.Pi, 0.34f, 13f, 40f, new Vector3(0f, 0f, -3.5f), false),
-        ("Bowler end", 0f, 0.30f, 18f, 40f, new Vector3(0f, 0f, 2.5f), false),
+        ("Behind striker", MathHelper.Pi + 0.26f, 0.29f, 11.5f, 38f, new Vector3(0f, 0f, -3f), false),
+        ("Bowler end", 0.24f, 0.28f, 15f, 38f, new Vector3(0f, 0f, 1.8f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
@@ -54,6 +56,13 @@ public sealed class OrbitCamera
     public void CyclePreset()
     {
         ApplyPreset((_presetIndex + 1) % _presets.Length);
+    }
+
+    public void ZoomBy(float distanceChangeMeters)
+    {
+        if (!float.IsFinite(distanceChangeMeters))
+            throw new ArgumentOutOfRangeException(nameof(distanceChangeMeters), "Camera zoom change must be finite.");
+        Distance = MathHelper.Clamp(Distance + distanceChangeMeters, MinPlayerZoomDistance, MaxPlayerZoomDistance);
     }
 
     public void Focus(Vector3 target, float distance, float yaw, float elevation, string name = "Focus")
@@ -112,9 +121,8 @@ public sealed class OrbitCamera
         Target = preset.Target;
     }
 
-    public void Update(GameTime gameTime, bool allowDeveloperControls)
+    public void Update(GameTime gameTime, bool allowDeveloperControls, KeyboardState keyboard)
     {
-        var keyboard = Keyboard.GetState();
         var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         const float orbitSpeed = 1.0f;
         const float elevationSpeed = 0.7f;
@@ -126,6 +134,12 @@ public sealed class OrbitCamera
             if (keyboard.IsKeyDown(Keys.PageUp)) Elevation += elevationSpeed * seconds;
             if (keyboard.IsKeyDown(Keys.PageDown)) Elevation -= elevationSpeed * seconds;
             if (keyboard.IsKeyDown(Keys.Home)) Reset();
+        }
+        else
+        {
+            const float playerZoomSpeedMetersPerSecond = 7f;
+            if (keyboard.IsKeyDown(Keys.PageUp)) ZoomBy(playerZoomSpeedMetersPerSecond * seconds);
+            if (keyboard.IsKeyDown(Keys.PageDown)) ZoomBy(-playerZoomSpeedMetersPerSecond * seconds);
         }
 
         Elevation = MathHelper.Clamp(Elevation, MinElevation, MaxElevation);
@@ -141,6 +155,9 @@ public sealed class OrbitCamera
         var wheelDelta = mouse.ScrollWheelValue - _previousWheel;
         if (allowDeveloperControls)
             Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f, MinDistance, MaxDistance);
+        else if (wheelDelta != 0)
+            Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f,
+                MinPlayerZoomDistance, MaxPlayerZoomDistance);
         _previousWheel = mouse.ScrollWheelValue;
     }
 

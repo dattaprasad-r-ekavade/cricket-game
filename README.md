@@ -25,12 +25,12 @@ The match scene uses metres in world space and includes a procedural stadium pre
 | Aim and bat | Left/Right aim; Space ground/defend; Shift loft | Left stick aim; A ground/defend; Y loft |
 | Run | Enter starts; tap again to request another; hold to turn back | B starts; tap again to request another; hold to turn back |
 | Bowl | Arrows move the pitch target; C changes the next delivery; N sends the next ball | D-pad/left stick move the pitch target; LB changes the next delivery; RB sends the next ball |
-| Match | P pause; Esc quit; V changes camera | Start pause; Back quit; L3 changes camera |
+| Match | P pause; Esc quit; V changes camera; PgUp/PgDn zoom | Start pause; Back quit; L3 changes camera |
 | Result | R replay; D difficulty; O overs | A replay; LB difficulty; RB overs |
 
 The match HUD shows only the actions available in the current phase. Open the pause menu with P/Start for the full controls and settings. While paused, H or GamePad Y toggles high contrast, T or GamePad X toggles larger text, and -/+ or GamePad LB/RB lowers or raises effects volume. Bat contact, boundaries, wickets, and extras play short procedural prototype cues. Match, accessibility, and effects-volume preferences save to `%LOCALAPPDATA%\SuperCricket\settings.json`.
 
-Run `dotnet run --project src/SuperCricket.Game -- --debug` to enable developer controls: A/S/D shot selection, J/L aim, Q/E authored footwork, T animation cycling, 1–4 delivery presets, camera orbit and elevation, mouse-wheel zoom, Home camera reset, and F1 diagnostics. Capture either footwork pose deterministically with `--batter-footwork <clip> --action-time <seconds>`.
+Run `dotnet run --project src/SuperCricket.Game -- --debug` to enable developer controls: A/S/D shot selection, J/L aim, Q/E authored footwork, T animation cycling, 1–4 delivery presets, camera orbit and elevation, mouse-wheel zoom, Home camera reset, and F1 diagnostics. In a normal match, Page Up/Down or the mouse wheel adjusts camera zoom. Capture either footwork pose deterministically with `--batter-footwork <clip> --action-time <seconds>`.
 
 The CPU leaves a clear wide delivery when chase pressure is low and may take the shot when it needs runs.
 

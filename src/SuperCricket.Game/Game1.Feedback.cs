@@ -9,8 +9,8 @@ namespace SuperCricket.Game;
 
 public partial class Game1
 {
-    private const float BounceSpotFeedbackDurationSeconds = 2.2f;
-    private const float ContactFeedbackDurationSeconds = 1.65f;
+    private const float BounceSpotFeedbackDurationSeconds = 4.5f;
+    private const float ContactFeedbackDurationSeconds = 4f;
     private const float PitchMapLateralHalfExtentMeters = 9f;
     private const float PitchMapLengthMarginMeters = 2f;
     private float _deliverySpeedKilometersPerHour;
@@ -171,9 +171,20 @@ public partial class Game1
             title = GetContactFeedbackLabel();
             if (title.Length == 0)
                 return;
+            var timing = GetBattingTimingText();
+            var timingDetail = timing switch
+            {
+                "PERFECT" => "PERFECT TIMING",
+                { } assessment => $"TIMING {assessment}",
+                _ => ""
+            };
+            var shotLabel = _chosenShot?.Name ?? "Shot";
+            var qualityLabel = $"{_contactFeedbackQuality!.Value:P0} contact";
             detail = _contactFeedbackIsMiss
                 ? "Your swing missed the ball"
-                : $"Your shot | {_contactFeedbackQuality!.Value:P0} contact quality";
+                : string.IsNullOrWhiteSpace(timingDetail)
+                    ? $"{shotLabel} | {qualityLabel}"
+                    : $"{shotLabel} | {timingDetail} | {qualityLabel}";
             accent = GetContactFeedbackColor();
             remaining = _contactFeedbackRemainingSeconds;
         }
@@ -191,9 +202,9 @@ public partial class Game1
         }
 
         var viewport = GraphicsDevice.Viewport;
-        var titleScale = _gameSettings.LargeText ? 1.65f : 1.5f;
-        var detailScale = _gameSettings.LargeText ? 1.12f : 1.02f;
-        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 510 : 470);
+        var titleScale = _gameSettings.LargeText ? 1.9f : 1.75f;
+        var detailScale = _gameSettings.LargeText ? 1.28f : 1.16f;
+        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 760 : 660);
         var textWidth = panelWidth - 54;
         var detailLines = WrapFeedbackLines(new[] { detail }, textWidth, detailScale);
         var lineSpacing = (int)MathF.Round(25 * detailScale);
@@ -201,7 +212,7 @@ public partial class Game1
             30 + 38 + detailLines.Count * lineSpacing);
         var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
         var hudBottom = 20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f);
-        var panelX = Math.Max(20, viewport.Width - panelWidth - 20);
+        var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);
         var panelY = Math.Min((int)MathF.Ceiling(hudBottom + 12f), viewport.Height - panelHeight - 20);
         panelY = Math.Max(20, panelY);
         var panel = new Rectangle(panelX, panelY, panelWidth, panelHeight);

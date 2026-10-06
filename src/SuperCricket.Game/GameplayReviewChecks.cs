@@ -41,12 +41,13 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 13f) < 0.001f,
-            "the batting delivery did not start with the closer behind-striker camera");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 11.5f) < 0.001f,
+            "the batting delivery did not start with the closer shoulder-offset behind-striker camera");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("PgUp/Dn: zoom", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
             "the normal batting HUD did not show compact shot controls and the camera shortcut");
         _lastInputWasGamePad = true;
@@ -144,13 +145,28 @@ public partial class Game1
             MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 13f) < 0.001f &&
-            MathF.Abs(ballCamera.FieldOfViewDegrees - 40f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 3.5f) < 0.001f &&
-            ballCamera.Yaw > 3f && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 18f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 40f) < 0.001f &&
-            ballCamera.Yaw == 0f &&
-            MathF.Abs(ballCamera.Target.Z - 2.5f) < 0.001f,
-            "zoomed batting and bowling cameras did not use their close pitch framing");
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 11.5f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 3f) < 0.001f &&
+            ballCamera.Yaw > MathHelper.Pi && ballCamera.SelectPreset("bowler-end") &&
+            MathF.Abs(ballCamera.Distance - 15f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f &&
+            ballCamera.Yaw > 0f &&
+            MathF.Abs(ballCamera.Target.Z - 1.8f) < 0.001f,
+            "batting and bowling cameras did not use closer shoulder-offset pitch framing");
+        var keyboardZoomDistance = ballCamera.Distance;
+        var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
+        ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));
+        Require(ballCamera.Distance < keyboardZoomDistance,
+            "Page Down did not zoom the gameplay camera closer");
+        ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageUp));
+        Require(MathF.Abs(ballCamera.Distance - keyboardZoomDistance) < 0.001f,
+            "Page Up did not zoom the gameplay camera back out");
+        var defaultBowlingDistance = ballCamera.Distance;
+        ballCamera.ZoomBy(-2f);
+        Require(MathF.Abs(ballCamera.Distance - (defaultBowlingDistance - 2f)) < 0.001f,
+            "manual camera zoom did not move closer by the requested distance");
+        ballCamera.ZoomBy(-100f);
+        Require(MathF.Abs(ballCamera.Distance - 6f) < 0.001f,
+            "manual camera zoom did not respect its minimum distance");
         Require(GetRoleCameraPreset(isHumanBowling: false) == "behind-striker" &&
             GetRoleCameraPreset(isHumanBowling: true) == "bowler-end",
             "delivery camera selection did not put each human role in its view of the pitch");
