@@ -6,21 +6,21 @@
       "animationClip": "defensive-block",
       "launchAngleDegrees": 3.0,
       "horizontalAim": 0.0,
-      "speedTransfer": 0.48
+      "speedTransfer": 0.413
     },
     {
       "name": "drive",
       "animationClip": "front-foot-drive",
       "launchAngleDegrees": 12.0,
       "horizontalAim": 0.15,
-      "speedTransfer": 0.78
+      "speedTransfer": 0.671
     },
     {
       "name": "loft",
       "animationClip": "lofted-drive",
       "launchAngleDegrees": 35.0,
       "horizontalAim": 0.42,
-      "speedTransfer": 0.92
+      "speedTransfer": 0.791
     }
   ]
 }

@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–37 rules, positioning, live overlay, first match loop, roster skills, team-kit palette, synthetic and physics-grounded headless match batches, skill-driven CPU bowling and batting, adaptive field placement, and rating-aware outcomes are complete. Multi-run decisions, field/delivery balance, settings, accessibility, and playtesting remain open in Phase 5.
+- Steps 23–38 rules, positioning, live overlay, first match loop, roster skills, team-kit palette, synthetic and physics-grounded headless match batches, skill-driven CPU bowling and batting, adaptive field placement, rating-aware outcomes, and seeded score calibration are complete. Multi-run decisions, live GUI balance, settings, accessibility, and playtesting remain open in Phase 5.
 - Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -65,8 +65,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 35 — Add live CPU batting decisions grounded in the exported swing clips and delivery physics.
 - [x] Step 36 — Make live CPU running decisions from the struck ball, fielders, and pickup/throw timing.
 - [x] Step 37 — Simulate automated match batches through shot clips, ball flight, fielding, and production match rules.
+- [x] Step 38 — Calibrate shot transfer and CPU placement against seeded 10-over physics batches.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–37 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–38 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -309,7 +310,7 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added a renderer-free CPU bowling model. It chooses stock, outside-off, inswing, or outswing using wicket pressure, chase rate, and striker power; bowling skill scales pace, line control, and swing execution. It deep-copies the stock preset so delivery-by-delivery changes do not leak into later balls.
 - Wired the model into normal live stock deliveries. The game creates a per-match seed and derives per-ball seeds from match state and player identities. Explicit wide/no-ball presets remain available as diagnostic overrides.
 - Added seeded checks for repeatable decisions, pressure response, skill-scaled control and pace, valid physics inputs, source-preset preservation, and invalid ratings/state. The Release build and code-only review passed with zero warnings/errors; the game host and GUI were not started.
-- Adaptive field placement is Step 33; live CPU batting and running are Steps 35–36, and physics-grounded batch outcomes are Step 37. GUI calibration and the remaining Phase 5 settings, multi-run, and balance work remain open.
+- Adaptive field placement is Step 33; live CPU batting and running are Steps 35–36, physics-grounded batches are Step 37, and seeded score calibration is Step 38. Multi-run decisions, live GUI calibration, and the remaining Phase 5 settings and accessibility work remain open.
 
 ### Step 33 notes
 
@@ -339,6 +340,12 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `simulate-physics-match-batch`, which runs both innings using exported batting clips, actual incoming and outgoing ball-flight simulation, the adaptive field, fielder ratings and movement, delivery extras, and production match rules. CSV output includes contacts, misses, catches, pickups, boundaries, run intents, safe attempts, completed runs, run-outs, wickets, and extras.
 - CPU shot placement now scores candidate lanes against the current field and fielder ratings. The chosen lane is applied to the live shot and to the headless flight simulation; the authored shot asset is never mutated.
 - Extended `verify-cpu-batting` for field-aware placement and aim-driven trajectory changes. The code-only review repeats a seeded three-match physics batch, compares CSV hashes, and checks match results and event/run metrics. Release build and review passed; no game or GUI was started.
+
+### Step 38 notes
+
+- Calibrated the editable defence/drive/loft `speedTransfer` values to `0.413`, `0.671`, and `0.791` for the current 42 m boundary, and added seed-based shot-placement execution error that scales with timing and power ratings.
+- A seeded batch of six 10-over matches averaged 100 runs per innings (range 70–135) and produced 285 boundaries, 186 ground pickups, 13 catches, and 6 run-outs. The review command now checks a broad score envelope and requires each event type; live visual balance remains for the later GUI pass.
+- Release build and the full code-only review passed with zero warnings or errors. The game host and GUI were not started.
 
 ## Technical foundation
 
@@ -414,7 +421,7 @@ Build roster and tuning editors around validated files. Run automated matches to
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
 
-**Current progress (Step 37):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive field tactics, and both synthetic and physics-grounded automated match batches. In the live second innings, the CPU selects a shot from ratings and chase pressure, plans timing and footwork from exported clips and delivery physics, and picks a lane using the actual field and fielder ratings. At contact, it checks the outgoing ball, current field, pickup/throw timing, and boundary before attempting a single. Automated physics batches use the same exported batting clips, ball-flight simulation, fielding movement, deliveries, and match rules, with deterministic CSV metrics. `verify-cpu-batting` and the code-only review cover live batting and running decisions plus repeatable full-physics match batches without starting the game host. The live loop includes the two-innings target chase, results, restart, and overs-length selection. Phase 5 remains open for multi-run decisions, field/delivery balance, difficulty/settings, controller mapping, accessibility, save requirements, and human playtesting.
+**Current progress (Step 38):** the first match implementation has fictional team rosters, batting-order identities, timing/power/bowling/fielding ratings, skill-based bowler rotation and fielder movement, pressure-aware CPU bowling variation, adaptive field tactics, and synthetic and physics-grounded automated match batches. In the live second innings, the CPU selects a shot from ratings and chase pressure, plans timing and footwork from exported clips and delivery physics, and picks a lane using the actual field and fielder ratings with rating-scaled execution error. At contact, it checks the outgoing ball, current field, pickup/throw timing, and boundary before attempting a single. Automated physics batches use the same exported batting clips, ball-flight simulation, fielding movement, deliveries, and match rules, with deterministic CSV metrics. `tools/review.ps1 -SkipGame -SkipCaptures` checks repeatable short batches and a six-match 10-over score/event envelope without starting the game host. The live loop includes the two-innings target chase, results, restart, and overs-length selection. Phase 5 remains open for multi-run decisions, live GUI balance, difficulty/settings, controller mapping, accessibility, save requirements, and human playtesting.
 
 ## Phase 6 — Stabilize and choose expansion
 

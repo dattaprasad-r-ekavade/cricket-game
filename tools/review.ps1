@@ -126,6 +126,37 @@ try {
     $physicsBatchRepeatHash = (Get-FileHash -LiteralPath $physicsBatchRepeatPath).Hash
     if ($physicsBatchHash -ne $physicsBatchRepeatHash) { throw 'Repeated physics match-batch output differs.' }
     Write-Output "PASS: physics match batch replayed exactly with $physicsPlans shot plans, $physicsBoundaries boundaries, and $physicsCompletedRuns completed runs."
+    $physicsBalancePath = 'artifacts/review-physics-balance-10-over.csv'
+    Invoke-CheckedDotNet @($toolsDll, 'simulate-physics-match-batch', $coastalRosterPath, $highlandRosterPath,
+        'assets/fields/practice-attack.json', $batterPath, $bowlerPath, $shotsPath,
+        'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
+        'assets/deliveries/no-ball-pace.json', '6', '10', '7300', $physicsBalancePath)
+    $physicsBalanceRows = @(Import-Csv -LiteralPath $physicsBalancePath)
+    if ($physicsBalanceRows.Count -ne 6 -or
+        @($physicsBalanceRows | Where-Object { [string]::IsNullOrWhiteSpace($_.result) }).Count -gt 0) {
+        throw 'Physics balance batch did not complete all six seeded 10-over matches.'
+    }
+    $physicsBalancePlans = ($physicsBalanceRows | Measure-Object -Property shot_plans -Sum).Sum
+    $physicsBalanceContacts = ($physicsBalanceRows | Measure-Object -Property contacts -Sum).Sum
+    $physicsBalanceMisses = ($physicsBalanceRows | Measure-Object -Property misses -Sum).Sum
+    $physicsBalancePickups = ($physicsBalanceRows | Measure-Object -Property ground_pickups -Sum).Sum
+    $physicsBalanceBoundaries = ($physicsBalanceRows | Measure-Object -Property boundaries -Sum).Sum
+    $physicsBalanceCatches = ($physicsBalanceRows | Measure-Object -Property catches -Sum).Sum
+    $physicsBalanceRunOuts = ($physicsBalanceRows | Measure-Object -Property run_outs -Sum).Sum
+    $physicsBalanceCombinedRuns =
+        ($physicsBalanceRows | Measure-Object -Property first_runs -Sum).Sum +
+        ($physicsBalanceRows | Measure-Object -Property second_runs -Sum).Sum
+    $physicsAverageRunsPerInnings = $physicsBalanceCombinedRuns / ($physicsBalanceRows.Count * 2)
+    $physicsInningsScores = @($physicsBalanceRows | ForEach-Object { [int]$_.first_runs; [int]$_.second_runs })
+    if ($physicsBalancePlans -ne ($physicsBalanceContacts + $physicsBalanceMisses) -or
+        $physicsBalancePickups -le 0 -or $physicsBalanceBoundaries -le 0 -or
+        $physicsBalanceCatches -le 0 -or $physicsBalanceRunOuts -le 0 -or
+        $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 120 -or
+        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 50 -or
+        ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 150) {
+        throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
+    }
+    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with boundaries, pickups, catches, and run-outs."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')

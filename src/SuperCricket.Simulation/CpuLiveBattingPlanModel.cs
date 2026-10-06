@@ -65,7 +65,12 @@ public static class CpuLiveBattingPlanModel
             delivery,
             fieldingPositions,
             fieldingRatings);
-        return plan with { HorizontalAim = horizontalAim };
+        var executedAim = CpuShotPlacementModel.ApplyExecutionError(
+            horizontalAim,
+            striker.Timing,
+            striker.Power,
+            seed ^ unchecked((int)0x4cf5ad43));
+        return plan with { HorizontalAim = executedAim };
     }
 
     internal static CpuLiveBattingPlan ChooseFromSamples(

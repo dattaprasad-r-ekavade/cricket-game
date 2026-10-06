@@ -73,6 +73,26 @@ public static class CpuShotPlacementModel
         return minimumArrivalMargin - MathF.Abs(horizontalAim - shot.HorizontalAim) * 0.05f;
     }
 
+    public static float ApplyExecutionError(
+        float intendedAim,
+        int batterTiming,
+        int batterPower,
+        int seed)
+    {
+        if (!float.IsFinite(intendedAim) || intendedAim is < -1f or > 1f)
+            throw new ArgumentOutOfRangeException(nameof(intendedAim), "Shot direction must be between -1 and 1.");
+        if (batterTiming is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(batterTiming), "Batter timing must be between 0 and 100.");
+        if (batterPower is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(batterPower), "Batter power must be between 0 and 100.");
+
+        var placementSkill = (batterTiming * 0.65f + batterPower * 0.35f) / 100f;
+        var maximumAimError = 0.45f + (1f - placementSkill) * 0.90f;
+        var random = new Random(seed);
+        var aimError = ((float)random.NextDouble() * 2f - 1f) * maximumAimError;
+        return Math.Clamp(intendedAim + aimError, -1f, 1f);
+    }
+
     private static void ValidateInputs(
         BattingShotData shot,
         int batterPower,

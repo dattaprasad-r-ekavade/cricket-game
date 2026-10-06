@@ -116,9 +116,14 @@ public static class CpuLiveBattingPlanReviewChecks
                             delivery,
                             formation.StartingPositions,
                             fielders.Select(fielder => fielder.Fielding).ToArray());
+                        var expectedExecutedAim = CpuShotPlacementModel.ApplyExecutionError(
+                            expectedAim,
+                            striker.Timing,
+                            striker.Power,
+                            8142 ^ unchecked((int)0x4cf5ad43));
                         Require(placedPlan.Shot == CpuShotChoice.Drive &&
-                            MathF.Abs(placedPlan.HorizontalAim - expectedAim) < 0.0001f,
-                            "the live CPU plan did not use the deterministic field-aware shot lane");
+                            MathF.Abs(placedPlan.HorizontalAim - expectedExecutedAim) < 0.0001f,
+                            "the live CPU plan did not use deterministic, rating-scaled field-aware placement");
                         var authoredGapScore = CpuShotPlacementModel.EvaluateGapScore(
                             placedShot,
                             striker.Power,
@@ -126,15 +131,15 @@ public static class CpuLiveBattingPlanReviewChecks
                             formation.StartingPositions,
                             fielders.Select(fielder => fielder.Fielding).ToArray(),
                             placedShot.HorizontalAim);
-                        var selectedGapScore = CpuShotPlacementModel.EvaluateGapScore(
+                        var bestGapScore = CpuShotPlacementModel.EvaluateGapScore(
                             placedShot,
                             striker.Power,
                             delivery,
                             formation.StartingPositions,
                             fielders.Select(fielder => fielder.Fielding).ToArray(),
-                            placedPlan.HorizontalAim);
-                        Require(selectedGapScore + 0.0001f >= authoredGapScore,
-                            "field-aware shot placement selected a worse lane than the authored aim");
+                            expectedAim);
+                        Require(bestGapScore + 0.0001f >= authoredGapScore,
+                            "field-aware shot placement selected a worse intended lane than the authored aim");
 
                         var alternateAim = placedShot.HorizontalAim <= 0.5f ? 0.75f : -0.75f;
                         var authoredTrajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
@@ -169,8 +174,21 @@ public static class CpuLiveBattingPlanReviewChecks
         }
 
         CpuLiveRunningDecisionReviewChecks.Run(standardDelivery);
+        VerifyPlacementExecutionSkill();
 
-        Console.WriteLine("PASS: CPU live batting selects repeatable, rating-aware shots and analyzer-grounded timing and footwork for standard and wide deliveries.");
+        Console.WriteLine("PASS: CPU live batting selects repeatable, rating-aware shots and timing, footwork, field-aware placement, and running decisions for standard and wide deliveries.");
+    }
+
+    private static void VerifyPlacementExecutionSkill()
+    {
+        var skilledError = Enumerable.Range(0, 64)
+            .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(0f, 90, 90, seed)));
+        var developingError = Enumerable.Range(0, 64)
+            .Average(seed => MathF.Abs(CpuShotPlacementModel.ApplyExecutionError(0f, 25, 25, seed)));
+        var repeatedAim = CpuShotPlacementModel.ApplyExecutionError(0.25f, 75, 70, 4817);
+        Require(developingError > skilledError &&
+            repeatedAim == CpuShotPlacementModel.ApplyExecutionError(0.25f, 75, 70, 4817),
+            "placement execution did not scale with batting skill and remain deterministic");
     }
 
     private static void Require(bool condition, string message)
