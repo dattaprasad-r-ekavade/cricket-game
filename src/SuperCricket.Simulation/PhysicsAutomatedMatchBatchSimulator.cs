@@ -145,6 +145,20 @@ public static class PhysicsAutomatedMatchBatchSimulator
             shotSet,
             random.Next(),
             fielding.Positions);
+        if (decision.Leave)
+        {
+            telemetry.Leaves++;
+            ResolveMissedDelivery(session, delivery);
+            match.CompleteDelivery();
+            if (session.Dismissal == DismissalKind.Bowled)
+                telemetry.BowledDismissals++;
+            if (session.Extra == DeliveryExtra.Wide)
+                telemetry.WideDeliveries++;
+            if (session.Extra == DeliveryExtra.NoBall)
+                telemetry.NoBallDeliveries++;
+            return;
+        }
+
         telemetry.ShotPlans++;
         if (decision.AttemptRun)
             telemetry.RunIntents++;
@@ -241,14 +255,14 @@ public static class PhysicsAutomatedMatchBatchSimulator
     {
         var ball = new BallFlightSimulator(delivery);
         var previous = ball.CurrentFrame;
-        var wicketLineZ = -delivery.PitchLengthMeters / 2f;
+        var wicketLineZ = BattingPracticeAnalyzer.BatterWicketLineZ;
         var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             var current = ball.Step();
             if (TryCrossPlane(previous.Position, current.Position, wicketLineZ, out var crossing))
             {
-                var isWide = MathF.Abs(crossing.X) > delivery.PitchWidthMeters / 2f + 0.55f;
+                var isWide = CricketDeliveryRuleModel.IsWide(crossing.X, delivery.PitchWidthMeters);
                 var hitsWickets = MathF.Abs(crossing.X) <= 0.12f + delivery.BallRadiusMeters &&
                     crossing.Y >= 0f && crossing.Y <= 0.71f + delivery.BallRadiusMeters;
                 session.ResolveIncoming(isWide, hitsWickets);
@@ -403,6 +417,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         public int BowledDismissals { get; set; }
         public int WideDeliveries { get; set; }
         public int NoBallDeliveries { get; set; }
+        public int Leaves { get; set; }
 
         public PhysicsMatchMetrics ToMetrics() => new(
             ShotPlans,
@@ -419,7 +434,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             RunOuts,
             BowledDismissals,
             WideDeliveries,
-            NoBallDeliveries);
+            NoBallDeliveries,
+            Leaves);
     }
 
     private static void ValidateDelivery(

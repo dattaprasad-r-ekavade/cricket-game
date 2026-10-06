@@ -174,10 +174,48 @@ public static class CpuLiveBattingPlanReviewChecks
             }
         }
 
+        VerifyLeaveDecisions(
+            striker, bowler, fielders, batterAsset, bowlerAsset, shotSet, standardDelivery, wideDelivery);
         CpuLiveRunningDecisionReviewChecks.Run(standardDelivery);
         VerifyPlacementExecutionSkill();
 
-        Console.WriteLine("PASS: CPU live batting selects repeatable, rating-aware shots and timing, footwork, field-aware placement, and running decisions for standard and wide deliveries.");
+        Console.WriteLine("PASS: CPU live batting selects repeatable shots, can leave clear wides under low pressure, and plans timing, footwork, placement, and running for standard and wide deliveries.");
+    }
+
+    private static void VerifyLeaveDecisions(
+        TeamPlayerData striker,
+        TeamPlayerData bowler,
+        IReadOnlyList<TeamPlayerData> fielders,
+        PlayerAsset batterAsset,
+        PlayerAsset bowlerAsset,
+        BattingShotSet shotSet,
+        DeliveryPreset standardDelivery,
+        DeliveryPreset wideDelivery)
+    {
+        var calmSituation = new BowlingSituation(0, 2, 0, 0, Target: null);
+        var calmWidePlan = CpuLiveBattingPlanModel.Choose(
+            striker, bowler, fielders, calmSituation, FieldingTactic.Balanced,
+            wideDelivery, batterAsset, bowlerAsset, shotSet, seed: 8142);
+        var calmWideReplay = CpuLiveBattingPlanModel.Choose(
+            striker, bowler, fielders, calmSituation, FieldingTactic.Balanced,
+            wideDelivery, batterAsset, bowlerAsset, shotSet, seed: 8142);
+        var standardPlan = CpuLiveBattingPlanModel.Choose(
+            striker, bowler, fielders, calmSituation, FieldingTactic.Balanced,
+            standardDelivery, batterAsset, bowlerAsset, shotSet, seed: 8142);
+        var highPressureSituation = new BowlingSituation(0, 2, 0, 0, Target: 40);
+        var highPressureWidePlan = CpuLiveBattingPlanModel.Choose(
+            striker, bowler, fielders, highPressureSituation, FieldingTactic.Balanced,
+            wideDelivery, batterAsset, bowlerAsset, shotSet, seed: 8142);
+        var wicketLineTime = BattingPracticeAnalyzer.GetWicketLineTimeSeconds(wideDelivery);
+
+        Require(calmWidePlan.Leave && calmWidePlan == calmWideReplay && !calmWidePlan.AttemptRun &&
+            calmWidePlan.PredictedContactQuality is null && calmWidePlan.FootworkOffsetMeters == 0f &&
+            calmWidePlan.InputDelaySeconds is >= 0f && calmWidePlan.InputDelaySeconds < wicketLineTime,
+            "the calm CPU did not make a repeatable, timely leave decision for a wide delivery");
+        Require(!standardPlan.Leave,
+            "the CPU left a standard delivery that could be played");
+        Require(!highPressureWidePlan.Leave,
+            "the CPU ignored a wide delivery when chase pressure was high");
     }
 
     private static void VerifyPlacementExecutionSkill()

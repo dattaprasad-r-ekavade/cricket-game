@@ -1137,6 +1137,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (upcomingSimulationTime < plan.InputDelaySeconds)
             return;
 
+        if (plan.Leave)
+        {
+            _shotOutcome = "CPU leaves the wide delivery.";
+            _cpuShotStarted = true;
+            return;
+        }
+
         StartShot(plan.Shot switch
         {
             CpuShotChoice.Defence => "defence",
@@ -1532,7 +1539,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var contact = ToXna(wicketLinePosition);
         var resolution = CurrentDelivery.ResolveIncoming(
-            isWide: MathF.Abs(contact.X) > _deliveryPreset.PitchWidthMeters / 2f + 0.55f,
+            isWide: CricketDeliveryRuleModel.IsWide(contact.X, _deliveryPreset.PitchWidthMeters),
             hitsWickets: MathF.Abs(contact.X) <= 0.12f + _deliveryPreset.BallRadiusMeters &&
                 contact.Y >= 0f && contact.Y <= PracticeGround.WicketHeight + _deliveryPreset.BallRadiusMeters);
         switch (resolution)

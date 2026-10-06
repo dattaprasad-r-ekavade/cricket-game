@@ -9,7 +9,8 @@ public readonly record struct CpuLiveBattingPlan(
     float FootworkOffsetMeters,
     bool AttemptRun,
     float? PredictedContactQuality,
-    float HorizontalAim);
+    float HorizontalAim,
+    bool Leave = false);
 
 /// <summary>Chooses a repeatable live shot, timing, footwork, placement, and running intent.</summary>
 public static class CpuLiveBattingPlanModel
@@ -39,6 +40,19 @@ public static class CpuLiveBattingPlanModel
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)
             throw new ArgumentException($"Invalid CPU batting delivery: {string.Join(" ", deliveryErrors)}", nameof(delivery));
+
+        if (CpuLeaveDecisionModel.ShouldLeave(delivery, outcome.Pressure))
+        {
+            var wicketLineTime = BattingPracticeAnalyzer.GetWicketLineTimeSeconds(delivery);
+            return new CpuLiveBattingPlan(
+                outcome.Shot,
+                MathF.Max(0f, wicketLineTime - 0.1f),
+                0f,
+                AttemptRun: false,
+                PredictedContactQuality: null,
+                HorizontalAim: 0f,
+                Leave: true);
+        }
 
         var shotName = outcome.Shot switch
         {

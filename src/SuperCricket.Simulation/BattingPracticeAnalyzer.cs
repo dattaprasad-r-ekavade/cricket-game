@@ -135,6 +135,36 @@ public static class BattingPracticeAnalyzer
         return previous.TimeSeconds;
     }
 
+    public static bool TryGetWicketLinePosition(DeliveryPreset delivery, out Vector3 position)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        var ball = new BallFlightSimulator(delivery);
+        var previous = ball.CurrentFrame;
+        var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
+        for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
+        {
+            var frame = ball.Step();
+            if (previous.Position.Z > BatterWicketLineZ && frame.Position.Z <= BatterWicketLineZ)
+            {
+                var fraction = Math.Clamp(
+                    (previous.Position.Z - BatterWicketLineZ) / (previous.Position.Z - frame.Position.Z),
+                    0f,
+                    1f);
+                position = Vector3.Lerp(previous.Position, frame.Position, fraction);
+                return true;
+            }
+            if (frame.Position.Z <= BatterWicketLineZ)
+            {
+                position = frame.Position;
+                return true;
+            }
+            previous = frame;
+        }
+
+        position = default;
+        return false;
+    }
+
     public static BattingPracticeTrajectory AnalyzeShotTrajectory(
         PlayerAsset batter,
         PlayerAsset bowler,

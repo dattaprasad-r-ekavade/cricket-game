@@ -22,6 +22,8 @@ Controller mapping: A defends, X drives, Y lofts, and B starts a run. The left s
 
 While paused, H or GamePad Y toggles high contrast, and T or GamePad X toggles larger text. CPU difficulty, overs length, and accessibility preferences save to `%LOCALAPPDATA%\SuperCricket\settings.json`.
 
+The CPU leaves a clear wide delivery when chase pressure is low and may take the shot when it needs runs.
+
 ## Repository layout
 
 - `src/SuperCricket.Game` — MonoGame desktop application

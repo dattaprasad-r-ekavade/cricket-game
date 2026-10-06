@@ -146,6 +146,7 @@ static int Run(string[] arguments)
             CpuBattingOutcomeReviewChecks.Run();
             MatchControllerInputReviewChecks.Run();
             GameSettingsReviewChecks.Run();
+            CricketDeliveryRuleReviewChecks.Run();
             return 0;
         }
 
@@ -646,7 +647,7 @@ static void SimulatePhysicsMatchBatch(
     Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
     if (physicsMetrics.Length > 0)
     {
-        Console.WriteLine($"Physics events: {physicsMetrics.Sum(item => item.Contacts)} contacts, {physicsMetrics.Sum(item => item.Misses)} misses, {physicsMetrics.Sum(item => item.Catches)} catches, {physicsMetrics.Sum(item => item.GroundPickups)} pickups, {physicsMetrics.Sum(item => item.Boundaries)} boundaries.");
+        Console.WriteLine($"Physics events: {physicsMetrics.Sum(item => item.Contacts)} contacts, {physicsMetrics.Sum(item => item.Misses)} misses, {physicsMetrics.Sum(item => item.Leaves)} leaves, {physicsMetrics.Sum(item => item.Catches)} catches, {physicsMetrics.Sum(item => item.GroundPickups)} pickups, {physicsMetrics.Sum(item => item.Boundaries)} boundaries.");
         Console.WriteLine($"Running: {physicsMetrics.Sum(item => item.RunIntents)} intents, {physicsMetrics.Sum(item => item.SafeRunAttempts)} safe runs, {physicsMetrics.Sum(item => item.TwoRunPlans)} double plans, {physicsMetrics.Sum(item => item.TwoRunScores)} doubles scored, {physicsMetrics.Sum(item => item.RunOuts)} run-outs.");
     }
     Console.WriteLine($"Match results written to {Path.GetFullPath(outputPath)}");
@@ -664,7 +665,7 @@ static void WriteMatchBatchCsv(
 
     using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
     {
-        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries");
+        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries,leaves");
         foreach (var result in results)
         {
             var physics = result.PhysicsMetrics ?? default;
@@ -694,7 +695,8 @@ static void WriteMatchBatchCsv(
                 physics.RunOuts.ToString(CultureInfo.InvariantCulture),
                 physics.BowledDismissals.ToString(CultureInfo.InvariantCulture),
                 physics.WideDeliveries.ToString(CultureInfo.InvariantCulture),
-                physics.NoBallDeliveries.ToString(CultureInfo.InvariantCulture)));
+                physics.NoBallDeliveries.ToString(CultureInfo.InvariantCulture),
+                physics.Leaves.ToString(CultureInfo.InvariantCulture)));
         }
     }
 
