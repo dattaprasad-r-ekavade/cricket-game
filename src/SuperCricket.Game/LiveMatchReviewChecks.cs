@@ -13,7 +13,7 @@ namespace SuperCricket.Game;
 public partial class Game1
 {
     private readonly record struct LiveMatchReviewCase(int FrameRate, CpuDifficulty Difficulty, int Overs, int Seed, bool HumanLeaves = false, int FixtureFirstInningsRuns = 0);
-    private readonly record struct LiveMatchReviewResult(string Trace, string Summary, int CpuContacts, int CpuLeaves, int CpuCompletedRuns, bool Defended);
+    private readonly record struct LiveMatchReviewResult(string Trace, string Summary, int CpuContacts, int CpuLeaves, int CpuCompletedRuns, int YorkerDeliveries, bool Defended);
 
     private void RunLiveMatchReviewChecks(string outputPath)
     {
@@ -35,6 +35,7 @@ public partial class Game1
         var totalContacts = 0;
         var totalLeaves = 0;
         var totalRuns = 0;
+        var totalYorkers = 0;
         var defendedTargets = 0;
         foreach (var scenario in cases)
         {
@@ -45,6 +46,7 @@ public partial class Game1
             totalContacts += first.CpuContacts;
             totalLeaves += first.CpuLeaves;
             totalRuns += first.CpuCompletedRuns;
+            totalYorkers += first.YorkerDeliveries;
             if (first.Defended) defendedTargets++;
             Console.WriteLine($"PASS: live CPU {scenario.Difficulty}, {scenario.FrameRate} fps, {scenario.Overs} overs, seed {scenario.Seed}, fixture runs {scenario.FixtureFirstInningsRuns}: {first.Summary}");
         }
@@ -54,8 +56,9 @@ public partial class Game1
         RequireLiveReview(totalContacts > 0, "the CPU never contacted a delivery");
         RequireLiveReview(totalRuns > 0, "the CPU never completed a run");
         RequireLiveReview(totalLeaves > 0, "the suite never exercised a live wide leave");
+        RequireLiveReview(totalYorkers > 0, "the CPU batting suite never faced a selected yorker");
         RequireLiveReview(defendedTargets > 0, "the suite never exercised a live defended target");
-        Console.WriteLine($"Live-match review passed: {cases.Count} match traces replayed exactly, {totalContacts} CPU contacts, {totalLeaves} leaves, {totalRuns} completed runs, {defendedTargets} defended targets.");
+        Console.WriteLine($"Live-match review passed: {cases.Count} match traces replayed exactly, {totalContacts} CPU contacts, {totalLeaves} leaves, {totalYorkers} yorkers, {totalRuns} completed runs, {defendedTargets} defended targets.");
         Console.WriteLine($"Delivery trace written to {outputPath}");
     }
 
@@ -109,6 +112,7 @@ public partial class Game1
         var cpuContacts = 0;
         var cpuLeaves = 0;
         var cpuCompletedRuns = 0;
+        var cpuYorkers = 0;
         var cpuDeliveries = 0;
         var completedDeliveries = 0;
         var inningsDelivery = 0;
@@ -200,6 +204,7 @@ public partial class Game1
                         "CPU wide leave swung or failed to resolve a wide");
                 }
                 if (_battedBall) cpuContacts++;
+                if (bowledPreset == 3) cpuYorkers++;
                 cpuCompletedRuns += result.CompletedRuns;
                 RequireLiveReview(plannedRuns <= 2, "CPU planned more than two consecutive runs");
             }
@@ -214,8 +219,8 @@ public partial class Game1
 
             if (cpu)
             {
-                // Exercise diagnostic extras once each; the stock delivery still uses real CPU bowling variation.
-                Press(cpuDeliveries switch { 1 => Keys.D2, 2 => Keys.D3, _ => Keys.D1 });
+                // Exercise wide/no-ball extras and a yorker against the production CPU batter.
+                Press(cpuDeliveries switch { 1 => Keys.D2, 2 => Keys.D3, 3 => Keys.D4, _ => Keys.D1 });
             }
             Press(Keys.N);
         }
@@ -232,7 +237,7 @@ public partial class Game1
             _match.OversPerInnings == scenario.Overs && _cpuDifficulty == scenario.Difficulty,
             "restart failed to restore the configured match");
         return new LiveMatchReviewResult(trace.ToString(), summary, cpuContacts, cpuLeaves, cpuCompletedRuns,
-            firstInnings.Runs > secondInnings.Runs);
+            cpuYorkers, firstInnings.Runs > secondInnings.Runs);
     }
 
     private static string OptionalLiveReview(float? value) => value?.ToString("0.000000", CultureInfo.InvariantCulture) ?? string.Empty;

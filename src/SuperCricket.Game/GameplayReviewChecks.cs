@@ -170,6 +170,36 @@ public partial class Game1
         }
         Console.WriteLine("PASS: wide and no-ball gameplay scoring.");
 
+        Reset();
+        for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
+        Require(_deliveryComplete, "standard delivery did not complete before yorker selection");
+        Tick(0f, Keys.D4);
+        Require(_nextDeliveryPresetIndex == 3, "D4 did not select the yorker for the next delivery");
+        Tick(0f, Keys.N);
+        Require(_activeDeliveryPresetIndex == 3 && _deliveryPreset.Name == "Yorker pace",
+            "the selected yorker preset was not loaded for the next ball");
+        var yorkerFlight = new BallFlightSimulator(_deliveryPreset);
+        var previousYorkerFrame = yorkerFlight.CurrentFrame;
+        BallFlightFrame? yorkerBounce = null;
+        BallFlightFrame? yorkerWicketCrossing = null;
+        var wicketLineZ = -_deliveryPreset.ReleasePosition.Z;
+        for (var step = 0; step < 600 && yorkerWicketCrossing is null; step++)
+        {
+            var frame = yorkerFlight.Step();
+            if (yorkerBounce is null && frame.BounceCount == 1)
+                yorkerBounce = frame;
+            if (previousYorkerFrame.Position.Z > wicketLineZ && frame.Position.Z <= wicketLineZ)
+                yorkerWicketCrossing = frame;
+            previousYorkerFrame = frame;
+        }
+        var pitchEndZ = -_deliveryPreset.PitchLengthMeters / 2f;
+        Require(yorkerBounce is { } bounce && bounce.Position.Z > pitchEndZ && bounce.Position.Z <= -9f &&
+            MathF.Abs(bounce.Position.Y - (_deliveryPreset.PitchSurfaceHeightMeters + _deliveryPreset.BallRadiusMeters)) < 0.01f,
+            "yorker did not bounce on the pitch near the striker's crease");
+        Require(yorkerWicketCrossing is { } crossing && crossing.Position.Y < 0.3f,
+            "yorker did not stay low as it crossed the wicket line");
+        Console.WriteLine($"PASS: D4 selects a low yorker that pitches at z={yorkerBounce!.Value.Position.Z:0.00} m and reaches the wicket line at y={yorkerWicketCrossing!.Value.Position.Y:0.00} m.");
+
         foreach (var frameRate in new[] { 30, 60, 120 })
         {
             foreach (var (key, delay) in new[] { (Keys.A, 0.2f), (Keys.S, 0.25f), (Keys.D, 0.25f) })

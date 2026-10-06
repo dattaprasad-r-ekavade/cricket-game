@@ -16,7 +16,8 @@ public static class MatchControllerInputReviewChecks
                 MatchControllerActions.Run | MatchControllerActions.CancelRun | MatchControllerActions.NextBall |
                 MatchControllerActions.StepOffSide | MatchControllerActions.StepLegSide) &&
             !HasAny(battingActions, MatchControllerActions.SelectStandardDelivery |
-                MatchControllerActions.SelectWideDelivery | MatchControllerActions.SelectNoBallDelivery),
+                MatchControllerActions.SelectWideDelivery | MatchControllerActions.SelectNoBallDelivery |
+                MatchControllerActions.SelectYorkerDelivery),
             "controller batting buttons did not map to the documented match actions");
 
         var heldActions = MatchControllerInputModel.ReadPressedActions(
@@ -49,12 +50,14 @@ public static class MatchControllerInputReviewChecks
             "paused result controls did not prioritize accessibility settings over result actions");
 
         var bowlingButtons = MatchControllerButtons.DPadLeft | MatchControllerButtons.DPadUp |
-            MatchControllerButtons.DPadDown | MatchControllerButtons.RightShoulder;
+            MatchControllerButtons.DPadDown | MatchControllerButtons.DPadRight |
+            MatchControllerButtons.RightShoulder;
         var bowlingActions = MatchControllerInputModel.ReadPressedActions(
             bowlingButtons, MatchControllerButtons.None, isCpuBattingControlled: true, isMatchComplete: false);
         Require(HasAll(bowlingActions,
                 MatchControllerActions.SelectStandardDelivery | MatchControllerActions.SelectWideDelivery |
-                MatchControllerActions.SelectNoBallDelivery | MatchControllerActions.NextBall) &&
+                MatchControllerActions.SelectNoBallDelivery | MatchControllerActions.SelectYorkerDelivery |
+                MatchControllerActions.NextBall) &&
             !HasAny(bowlingActions, MatchControllerActions.StepOffSide | MatchControllerActions.StepLegSide),
             "controller bowling buttons did not select deliveries in the CPU batting innings");
 

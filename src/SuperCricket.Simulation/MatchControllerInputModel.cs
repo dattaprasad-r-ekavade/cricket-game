@@ -41,7 +41,8 @@ public enum MatchControllerActions
     ToggleHighContrast = 1 << 16,
     ToggleLargeText = 1 << 17,
     DecreaseEffectsVolume = 1 << 18,
-    IncreaseEffectsVolume = 1 << 19
+    IncreaseEffectsVolume = 1 << 19,
+    SelectYorkerDelivery = 1 << 20
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -88,6 +89,7 @@ public static class MatchControllerInputModel
             if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.SelectStandardDelivery;
             if (Has(pressed, MatchControllerButtons.DPadUp)) actions |= MatchControllerActions.SelectWideDelivery;
             if (Has(pressed, MatchControllerButtons.DPadDown)) actions |= MatchControllerActions.SelectNoBallDelivery;
+            if (Has(pressed, MatchControllerButtons.DPadRight)) actions |= MatchControllerActions.SelectYorkerDelivery;
         }
         else
         {

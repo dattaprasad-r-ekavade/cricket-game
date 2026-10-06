@@ -301,7 +301,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         [
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "standard-pace.json")),
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "wide-pace.json")),
-            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json"))
+            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json")),
+            DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "yorker-pace.json"))
         ];
         _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
         _match = new LimitedOversMatch(
@@ -466,6 +467,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             ControllerPressed(MatchControllerActions.SelectWideDelivery))) SelectNextDelivery(1);
         if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D3) && !_previousKeyboard.IsKeyDown(Keys.D3)) ||
             ControllerPressed(MatchControllerActions.SelectNoBallDelivery))) SelectNextDelivery(2);
+        if (!_simulationPaused && ((keyboard.IsKeyDown(Keys.D4) && !_previousKeyboard.IsKeyDown(Keys.D4)) ||
+            ControllerPressed(MatchControllerActions.SelectYorkerDelivery))) SelectNextDelivery(3);
         if (keyboard.IsKeyDown(Keys.V) && !_previousKeyboard.IsKeyDown(Keys.V)) _camera.CyclePreset();
         if (keyboard.IsKeyDown(Keys.F1) && !_previousKeyboard.IsKeyDown(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
         if (!IsCpuBattingControlled && !_simulationPaused &&
@@ -937,7 +940,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             else if (IsCpuBattingControlled)
             {
                 matchLines.Add($"CPU batting ({_cpuDifficulty}). Choose a bowling delivery.");
-                matchLines.Add("1-3 or D-pad: delivery    N/RB: next    P/Start: pause");
+                matchLines.Add("1-4 or D-pad: delivery    N/RB: next    P/Start: pause");
             }
             else
             {
@@ -983,7 +986,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
             $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
             "Arrows orbit    PgUp/PgDn height    wheel zoom    V camera    Home broadcast    F1 hide debug",
-            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-3 bowl    N ball/innings    R restart    O overs    D difficulty at result    P pause    Esc quit",
+            "A defend    S drive    D loft    Q/E step off/leg    Enter run    X cancel    1-4 bowl    N ball/innings    R restart    O overs    D difficulty at result    P pause    Esc quit",
             "Pad A/X/Y shots    B run    LB cancel/difficulty    RB next/overs    D-pad delivery/steps    Start pause    Back quit"
         };
         var debugScale = _gameSettings.LargeText ? 1.2f : 1f;

@@ -83,15 +83,29 @@ try {
         throw 'Automatic match batch included a result without a match outcome.'
     }
     Write-Output 'PASS: match batch CSV contains 32 completed, scored matches.'
-    foreach ($presetName in @('standard', 'wide', 'no-ball')) {
+    foreach ($presetName in @('standard', 'wide', 'no-ball', 'yorker')) {
         $deliveryPath = "assets/deliveries/$presetName-pace.json"
         Invoke-CheckedDotNet @($toolsDll, 'validate', $deliveryPath)
         Invoke-CheckedDotNet @($toolsDll, 'simulate', $deliveryPath, "artifacts/review-$presetName-flight.csv")
         Invoke-CheckedDotNet @($toolsDll, 'analyze-batting-practice', $batterPath, $bowlerPath, $shotsPath,
             $deliveryPath, "artifacts/review-$presetName-batting.csv")
     }
+    $yorkerPreset = Get-Content -LiteralPath 'assets/deliveries/yorker-pace.json' -Raw | ConvertFrom-Json
+    $yorkerFlight = @(Import-Csv -LiteralPath 'artifacts/review-yorker-flight.csv')
+    $yorkerBounce = $yorkerFlight | Where-Object { [int]$_.bounces -ge 1 } | Select-Object -First 1
+    $yorkerWicketLineZ = -[double]$yorkerPreset.releasePosition.z
+    $yorkerCrossing = $yorkerFlight | Where-Object { [double]$_.z_m -le $yorkerWicketLineZ } | Select-Object -First 1
+    $pitchEndZ = -[double]$yorkerPreset.pitchLengthMeters / 2
+    if ($null -eq $yorkerBounce -or [double]$yorkerBounce.z_m -le $pitchEndZ -or
+        [double]$yorkerBounce.z_m -gt -9.0 -or $null -eq $yorkerCrossing -or
+        [double]$yorkerCrossing.y_m -ge 0.3) {
+        throw 'Yorker flight did not bounce on the pitch near the striker and stay low through the wicket line.'
+    }
+    Write-Output "PASS: yorker bounced at z=$([double]$yorkerBounce.z_m) m and crossed the wicket line at y=$([double]$yorkerCrossing.y_m) m."
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting-practice', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/standard-pace.json')
+    Invoke-CheckedDotNet @($toolsDll, 'verify-batting-practice', $batterPath, $bowlerPath, $shotsPath,
+        'assets/deliveries/yorker-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-cpu-batting', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
         $highlandRosterPath, $coastalRosterPath, 'assets/fields/practice-attack.json')
