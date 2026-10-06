@@ -25,7 +25,7 @@ The match scene uses metres in world space and includes a procedural stadium pre
 - `src/SuperCricket.Content` — validated delivery, player, and batting shot formats
 - `src/SuperCricket.Tools` — local commands for validating content, analyzing batting and field coverage, and replaying scenarios
 - `assets` — editable delivery and field presets plus Blender-authored batter and bowler source/export
-- `assets/teams` — validated fictional team rosters with batting order and batting attributes
+- `assets/teams` — validated fictional team rosters with batting order, ratings, and kit colors
 - `assets/textures` — seamless generated albedo tiles for the outfield and pitch
 - `assets/batting/shots.json` — editable shot intent and launch tuning
 - `tools/blender` — Blender scripts that generate and export players, add the fielder lower legs, and author fielding actions
@@ -36,7 +36,7 @@ The match scene uses metres in world space and includes a procedural stadium pre
 
 ## Delivery tools
 
-Run the current review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, a two-innings match, extras, boundaries, catches, and pickup/throw run-outs. `verify-match` checks innings limits, target chasing, and results; `verify-fielding` covers low catches, ground pickups, and airborne versus rope-skim boundary crossings.
+Run the full review checks on Windows with `pwsh -File tools/review.ps1`. This builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, exercises the actual match update, and saves renderer captures under `artifacts/`. Use `-SkipCaptures` to omit screenshots. For a code-only review that does not start the game host, run `pwsh -File tools/review.ps1 -SkipGame -SkipCaptures`; this keeps the build, content validators, analyzers, and simulation checks. The game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, a two-innings match, extras, boundaries, catches, and pickup/throw run-outs. `verify-match` checks innings limits, target chasing, and results; `verify-fielding` covers low catches, ground pickups, and airborne versus rope-skim boundary crossings.
 
 To capture a scene with the debug overlay and its release marker, pass `--show-debug-overlay` to the game's `--capture-frame` command; `tools/review.ps1` saves one under `artifacts/review-debug-overlay.png`.
 

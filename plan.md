@@ -22,7 +22,7 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - Keyboard is the playable control set. A controller mapping stays in scope for the short-match release; GamePad currently only handles Back/Escape.
 - Short-match visual bar: readable stylized prototype (13-bone kit, vertex-colored players, static crowd, textured ground). Cricket 07 fidelity stays the long-term presentation ambition, not the Phase 5 gate.
 - CLI tools are the Delivery, Shot, and Field labs. In-game work is an F1 overlay for contact and release markers, not a second editor.
-- Steps 23–28 rules, positioning, live-overlay, first match-loop, and initial roster gates are complete; opponent, settings, accessibility, and playtesting work remains open in Phase 5.
+- Steps 23–29 rules, positioning, live-overlay, first match-loop, initial roster, and team-kit palette gates are complete; opponent, settings, accessibility, and playtesting work remains open in Phase 5.
 - Lateral footwork is in so the existing shots can reach the wide preset. An authored batting step and broader delivery coverage remain before expanding the shot catalogue.
 - A second stadium, career mode, spin catalogue, MCP service over the CLI, and a general engine rewrite stay deferred.
 
@@ -56,8 +56,9 @@ Revisited 6 October 2026 at `3f90c38`. Detail: `docs/reviews/2026-10-06-planning
 - [x] Step 26 — Show contact, sweet-spot, and release markers on the F1 overlay.
 - [x] Step 27 — Add a two-innings short-match loop with a target chase, result text, restart, and compact overs selection.
 - [x] Step 28 — Add validated fictional team rosters, batting-order identities, and timing/power attributes.
+- [x] Step 29 — Add validated team kit palettes and apply the batting/fielding team's colors to the shared player model.
 
-Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–28 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
+Each completed step is recorded in its own commit and pushed to `origin/main`. The milestones below are the wider roadmap beyond this initial work package. Steps 23–29 from the 6 October 2026 planning review are complete; continue the remaining Phase 0–6 gates in dependency order before calling development complete.
 
 ### Step 1 notes
 
@@ -275,6 +276,13 @@ Each completed step is recorded in its own commit and pushed to `origin/main`. T
 - Added `validate-team`, malformed-roster rejection to `tools/review.ps1`, and repeatable checks for roster rules, wicket substitutions, and both live batting attributes. Every roster player still shares the starter batter model; bowling/fielding ratings, opponent decisions, and distinct team appearance remain open.
 - Removed the duplicate `practice-attack.json` content-copy entry. A clean Release review passed: both real player assets validate and load, invalid scale is rejected, all simulation/gameplay checks pass, and the renderer captures are produced.
 
+### Step 29 notes
+
+- Added primary and accent `#RRGGBB` kit colors to both fictional team files. The roster validator checks each color, and the content model converts valid colors to normalized RGB values for rendering.
+- The skinned renderer recolors the shared batter/bowler asset's shirt, forearms, collar, sleeve bands, and crest accents. The current innings' batting and fielding teams supply their respective palettes, so the colors swap with the teams.
+- Added `-SkipGame` to `tools/review.ps1` and documented the code-only invocation `pwsh -File tools/review.ps1 -SkipGame -SkipCaptures`. It still builds Release and runs CLI asset, simulation, rules, and analyzer checks without starting the game host.
+- The code-only Release review passed with zero warnings or errors, including both roster files, invalid primary/accent color rejection, RGB conversion checks, innings-side checks, simulation scenarios, and repeatable analyzer output. Per the current no-GUI-testing instruction, palette appearance is not visually verified; renderer capture and in-game review remain for the later GUI pass.
+
 ## Technical foundation
 
 Use C# and MonoGame. Keep the first platform small and validate the graphics backend before investing in renderer features. Use Blender for source models, rigs, animation, and stadium authoring. The current runtime route is a validated `.scplayer.json` export from Blender with a MonoGame skinned renderer; retain deployment checks as the format evolves. If adding glTF/GLB, test skinning, animation, materials, coordinate conversion, and deployment explicitly.
@@ -339,7 +347,7 @@ Build a Stadium and Presentation panel for placement, camera bookmarks, lighting
 
 **Gate:** capture an entire over at the intended visual level, with consistent movement and cameras. Measure CPU/GPU frame times and animation cost with the full fielding side on the target hardware. Aim for stable 60 fps at the agreed resolution and tune from measurements.
 
-**Open after Step 28:** stadium, cameras, light, ground textures, static crowd, and skinned fielders are in. The short-match visual bar is a readable stylized prototype, now captured as an original reference board. A richer rig, kit textures, audio, post-process, and GPU timing stay in this phase. Two 300-frame live profiles at 1440×900 with VSync measured frame interval P95 at 18.40 and 18.57 ms, with maxima near 40 ms. CPU update and draw-submission P95 stayed below 5 ms; GPU time is not measured. The full-match sustained-60-fps gate remains open.
+**Open after Step 29:** stadium, cameras, light, ground textures, static crowd, skinned fielders, and team-specific flat-color kit palettes are in. The short-match visual bar is a readable stylized prototype, now captured as an original reference board. Palette appearance still needs GUI review; richer kit materials, audio, post-process, and GPU timing stay in this phase. Two 300-frame live profiles at 1440×900 with VSync measured frame interval P95 at 18.40 and 18.57 ms, with maxima near 40 ms. CPU update and draw-submission P95 stayed below 5 ms; GPU time is not measured. The full-match sustained-60-fps gate remains open.
 
 ## Phase 5 — Complete short match
 
@@ -349,7 +357,7 @@ Build roster and tuning editors around validated files. Run automated matches to
 
 **Gate:** complete a match repeatedly from start to results without debug intervention. Playtesters understand controls and can point to specific gameplay problems.
 
-**Current progress (Step 28):** the first match implementation has fictional team rosters, batting-order identities, timing/power effects, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. Simulation and live game checks cover roster substitutions, a two-over chase, defended target, tied match, and UI progression through both innings. The full `tools/review.ps1` suite passes. Phase 5 remains open for opponent decisions, bowling/fielding attributes, difficulty/settings, controller mapping, accessibility, save requirements, automated match batches, and human playtesting.
+**Current progress (Step 29):** the first match implementation has fictional team rosters, batting-order identities, timing/power effects, validated kit palettes, first-innings completion, team change, target calculation, immediate chase completion, result margins, restart, and an in-game overs-length cycle. The headless code review covers roster substitutions and colors, two-innings chasing, defended targets, ties, fielding, and repeatable batting/field analyzers. GUI gameplay and palette appearance remain deferred by the current instruction. Phase 5 remains open for opponent decisions, bowling/fielding attributes, difficulty/settings, controller mapping, accessibility, save requirements, automated match batches, and human playtesting.
 
 ## Phase 6 — Stabilize and choose expansion
 

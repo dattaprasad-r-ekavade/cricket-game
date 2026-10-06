@@ -120,7 +120,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "validate-team")
         {
             var team = TeamRosterAsset.Load(arguments[1]);
-            Console.WriteLine($"Valid team roster: {team.Name} ({team.ShortName}), {team.Players.Count} players.");
+            Console.WriteLine($"Valid team roster: {team.Name} ({team.ShortName}), {team.Players.Count} players; kit {team.PrimaryKitColorHex}/{team.AccentKitColorHex}.");
             foreach (var player in team.Players.OrderBy(player => player.BattingOrder))
                 Console.WriteLine($"  {player.BattingOrder,2}. {player.Name} ({player.Role}) — timing {player.Timing}, power {player.Power}");
             return 0;

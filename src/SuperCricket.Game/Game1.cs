@@ -599,19 +599,28 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             }
         }
 
+        var battingPrimaryColor = ToXna(_match.BattingTeam.PrimaryKitColor);
+        var battingAccentColor = ToXna(_match.BattingTeam.AccentKitColor);
+        var fieldingPrimaryColor = ToXna(_match.FieldingTeam.PrimaryKitColor);
+        var fieldingAccentColor = ToXna(_match.FieldingTeam.AccentKitColor);
         for (var fielderIndex = 0; fielderIndex < _fielderAnimators.Length; fielderIndex++)
         {
             _bowlerRenderer.Draw(
                 GetFielderWorld(fielderIndex, ballPosition),
                 _worldEffect.View,
                 _worldEffect.Projection,
-                _fielderAnimators[fielderIndex].GetSkinMatrices());
+                _fielderAnimators[fielderIndex].GetSkinMatrices(),
+                fieldingPrimaryColor,
+                fieldingAccentColor);
         }
 
         var skinMatrices = _playerAnimator.GetSkinMatrices();
-        _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
-        _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection, skinMatrices);
-        _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection, _bowlerAnimator.GetSkinMatrices());
+        _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection,
+            skinMatrices, battingPrimaryColor, battingAccentColor);
+        _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection,
+            skinMatrices, battingPrimaryColor, battingAccentColor);
+        _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection,
+            _bowlerAnimator.GetSkinMatrices(), fieldingPrimaryColor, fieldingAccentColor);
         if (_showDebugOverlay)
         {
             GraphicsDevice.DepthStencilState = DepthStencilState.None;

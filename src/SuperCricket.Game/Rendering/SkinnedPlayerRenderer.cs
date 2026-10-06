@@ -16,6 +16,8 @@ public sealed class SkinnedPlayerRenderer : IDisposable
     private readonly SkinnedEffect _effect;
     private readonly Texture2D _whiteTexture;
     private readonly List<MeshBuffers> _meshes;
+    private readonly Vector3 _primaryKitBaseColor;
+    private readonly Vector3 _accentKitBaseColor;
 
     public SkinnedPlayerRenderer(GraphicsDevice graphicsDevice, PlayerAsset asset)
     {
@@ -33,18 +35,41 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         _whiteTexture = new Texture2D(graphicsDevice, 1, 1);
         _whiteTexture.SetData([Color.White]);
         _effect.Texture = _whiteTexture;
+        _primaryKitBaseColor = FindDiffuseColor(asset, "Shirt") ?? Vector3.One;
+        _accentKitBaseColor = FindDiffuseColor(asset, "Player Detail | Jersey Collar") ?? _primaryKitBaseColor;
         _meshes = asset.Meshes
-            .GroupBy(mesh => (mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z))
-            .Select(group => new MeshBuffers(
-                graphicsDevice,
-                group.ToList(),
-                new Vector3(group.Key.X, group.Key.Y, group.Key.Z)))
+            .GroupBy(mesh => (
+                mesh.DiffuseColor.X,
+                mesh.DiffuseColor.Y,
+                mesh.DiffuseColor.Z,
+                KitColorSlot: GetKitColorSlot(mesh.Name)))
+            .Select(group =>
+            {
+                var baseColor = group.Key.KitColorSlot switch
+                {
+                    KitColorSlot.Primary => _primaryKitBaseColor,
+                    KitColorSlot.Accent => _accentKitBaseColor,
+                    _ => Vector3.One
+                };
+                return new MeshBuffers(
+                    graphicsDevice,
+                    group.ToList(),
+                    new Vector3(group.Key.X, group.Key.Y, group.Key.Z),
+                    group.Key.KitColorSlot,
+                    baseColor);
+            })
             .ToList();
     }
 
     public int MaterialBatchCount => _meshes.Count;
 
-    public void Draw(Matrix world, Matrix view, Matrix projection, Matrix[] skinMatrices)
+    public void Draw(
+        Matrix world,
+        Matrix view,
+        Matrix projection,
+        Matrix[] skinMatrices,
+        Vector3 primaryKitColor,
+        Vector3 accentKitColor)
     {
         _effect.World = world;
         _effect.View = view;
@@ -53,7 +78,12 @@ public sealed class SkinnedPlayerRenderer : IDisposable
 
         foreach (var mesh in _meshes)
         {
-            _effect.DiffuseColor = mesh.DiffuseColor;
+            _effect.DiffuseColor = mesh.KitColorSlot switch
+            {
+                KitColorSlot.Primary => ClampColor(mesh.TeamColorRatio * primaryKitColor),
+                KitColorSlot.Accent => ClampColor(mesh.TeamColorRatio * accentKitColor),
+                _ => mesh.DiffuseColor
+            };
             _graphicsDevice.SetVertexBuffer(mesh.VertexBuffer);
             _graphicsDevice.Indices = mesh.IndexBuffer;
 
@@ -70,6 +100,36 @@ public sealed class SkinnedPlayerRenderer : IDisposable
 
         _graphicsDevice.SetVertexBuffer(null);
         _graphicsDevice.Indices = null;
+    }
+
+    private static Vector3? FindDiffuseColor(PlayerAsset asset, string meshName)
+    {
+        var mesh = asset.Meshes.Find(candidate => string.Equals(candidate.Name, meshName, StringComparison.OrdinalIgnoreCase));
+        return mesh is null ? null : new Vector3(mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z);
+    }
+
+    private static KitColorSlot GetKitColorSlot(string meshName)
+    {
+        if (string.Equals(meshName, "Shirt", StringComparison.OrdinalIgnoreCase) ||
+            meshName.StartsWith("Forearm ", StringComparison.OrdinalIgnoreCase))
+            return KitColorSlot.Primary;
+        if (meshName.Contains("Jersey Collar", StringComparison.OrdinalIgnoreCase) ||
+            meshName.Contains("Sleeve Band", StringComparison.OrdinalIgnoreCase) ||
+            meshName.Contains("Chest Crest Mark", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(meshName, "Player Detail | Crest Stripe", StringComparison.OrdinalIgnoreCase))
+            return KitColorSlot.Accent;
+        return KitColorSlot.None;
+    }
+
+    private static Vector3 ClampColor(Vector3 value) => Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+
+    private static float ColorRatio(float value, float reference) => reference > 0.001f ? value / reference : 1f;
+
+    private enum KitColorSlot
+    {
+        None,
+        Primary,
+        Accent
     }
 
     public void Dispose()
@@ -102,7 +162,12 @@ public sealed class SkinnedPlayerRenderer : IDisposable
 
     private sealed class MeshBuffers : IDisposable
     {
-        public MeshBuffers(GraphicsDevice graphicsDevice, IReadOnlyList<PlayerMeshData> meshes, Vector3 diffuseColor)
+        public MeshBuffers(
+            GraphicsDevice graphicsDevice,
+            IReadOnlyList<PlayerMeshData> meshes,
+            Vector3 diffuseColor,
+            KitColorSlot kitColorSlot,
+            Vector3 referenceColor)
         {
             var vertexCount = meshes.Sum(mesh => mesh.Positions.Length / 3);
             var indexCount = meshes.Sum(mesh => mesh.Indices.Length);
@@ -141,12 +206,19 @@ public sealed class SkinnedPlayerRenderer : IDisposable
             IndexBuffer.SetData(indices);
             IndexCount = indexCount;
             DiffuseColor = diffuseColor;
+            KitColorSlot = kitColorSlot;
+            TeamColorRatio = new Vector3(
+                ColorRatio(diffuseColor.X, referenceColor.X),
+                ColorRatio(diffuseColor.Y, referenceColor.Y),
+                ColorRatio(diffuseColor.Z, referenceColor.Z));
         }
 
         public VertexBuffer VertexBuffer { get; }
         public IndexBuffer IndexBuffer { get; }
         public int IndexCount { get; }
         public Vector3 DiffuseColor { get; }
+        public KitColorSlot KitColorSlot { get; }
+        public Vector3 TeamColorRatio { get; }
 
         public void Dispose()
         {

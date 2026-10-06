@@ -1,4 +1,5 @@
 using System.IO;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,7 +24,22 @@ public sealed class TeamRosterAsset
     public int Version { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
     public string ShortName { get; set; } = string.Empty;
+    public string PrimaryKitColorHex { get; set; } = "#1575B8";
+    public string AccentKitColorHex { get; set; } = "#F2BB46";
+    public Vector3 PrimaryKitColor => ParseKitColor(PrimaryKitColorHex);
+    public Vector3 AccentKitColor => ParseKitColor(AccentKitColorHex);
     public List<TeamPlayerData> Players { get; set; } = [];
+
+    public static Vector3 ParseKitColor(string? value)
+    {
+        if (!IsHexColor(value))
+            throw new ArgumentException("Kit color must use #RRGGBB format.", nameof(value));
+
+        return new Vector3(
+            Convert.ToByte(value!.Substring(1, 2), 16) / 255f,
+            Convert.ToByte(value.Substring(3, 2), 16) / 255f,
+            Convert.ToByte(value.Substring(5, 2), 16) / 255f);
+    }
 
     public static TeamRosterAsset Load(string path)
     {
@@ -44,6 +60,10 @@ public sealed class TeamRosterAsset
             errors.Add("Team name must contain between 1 and 32 characters.");
         if (string.IsNullOrWhiteSpace(ShortName) || ShortName.Trim().Length > 6)
             errors.Add("Team short name must contain between 1 and 6 characters.");
+        if (!IsHexColor(PrimaryKitColorHex))
+            errors.Add("Primary kit color must use #RRGGBB format.");
+        if (!IsHexColor(AccentKitColorHex))
+            errors.Add("Accent kit color must use #RRGGBB format.");
         if (Players is null || Players.Count != RosterSize)
         {
             errors.Add($"A team roster must contain exactly {RosterSize} players.");
@@ -102,6 +122,8 @@ public sealed class TeamRosterAsset
         {
             Name = safeName,
             ShortName = shortName,
+            PrimaryKitColorHex = "#1575B8",
+            AccentKitColorHex = "#F2BB46",
             Players = Enumerable.Range(1, RosterSize).Select(order => new TeamPlayerData
             {
                 Id = $"player-{order:00}",
@@ -112,6 +134,19 @@ public sealed class TeamRosterAsset
                 Power = 50
             }).ToList()
         };
+    }
+
+    private static bool IsHexColor(string? value)
+    {
+        if (value is not { Length: 7 } || value[0] != '#')
+            return false;
+        for (var index = 1; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (character is not (>= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F'))
+                return false;
+        }
+        return true;
     }
 }
 

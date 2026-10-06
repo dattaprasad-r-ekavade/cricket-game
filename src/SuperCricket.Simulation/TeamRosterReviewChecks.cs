@@ -15,6 +15,11 @@ public static class TeamRosterReviewChecks
         away.ShortName = "HIG";
         Require(home.Validate().Count == 0 && away.Validate().Count == 0,
             "valid eleven-player rosters were rejected");
+        Require(Vector3.DistanceSquared(home.PrimaryKitColor, new Vector3(0x15 / 255f, 0x75 / 255f, 0xB8 / 255f)) < 0.000001f &&
+            Vector3.DistanceSquared(home.AccentKitColor, new Vector3(0xF2 / 255f, 0xBB / 255f, 0x46 / 255f)) < 0.000001f,
+            "a valid #RRGGBB kit palette parsed to the wrong RGB values");
+        RequireThrows(() => _ = TeamRosterAsset.ParseKitColor("blue"),
+            "the kit palette parser accepted an invalid color");
 
         var duplicateOrder = TeamRosterAsset.CreatePlaceholder("Invalid XI");
         duplicateOrder.Players[1].BattingOrder = 1;
@@ -24,6 +29,14 @@ public static class TeamRosterReviewChecks
         invalidRating.Players[0].Power = 101;
         Require(invalidRating.Validate().Any(error => error.Contains("power", StringComparison.OrdinalIgnoreCase)),
             "a rating above 100 was accepted");
+        var invalidColor = TeamRosterAsset.CreatePlaceholder("Invalid Color XI");
+        invalidColor.PrimaryKitColorHex = "blue";
+        Require(invalidColor.Validate().Any(error => error.Contains("#RRGGBB", StringComparison.OrdinalIgnoreCase)),
+            "a kit color outside #RRGGBB format was accepted");
+        var invalidAccentColor = TeamRosterAsset.CreatePlaceholder("Invalid Accent XI");
+        invalidAccentColor.AccentKitColorHex = "#12G45Z";
+        Require(invalidAccentColor.Validate().Any(error => error.Contains("accent kit color", StringComparison.OrdinalIgnoreCase)),
+            "an invalid accent kit color was accepted");
         RequireThrows(() => new LimitedOversMatch(duplicateOrder, away),
             "the match accepted an invalid roster");
 

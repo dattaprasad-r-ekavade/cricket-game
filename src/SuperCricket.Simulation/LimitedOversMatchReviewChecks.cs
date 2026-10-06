@@ -1,12 +1,20 @@
+using SuperCricket.Content;
+
 namespace SuperCricket.Simulation;
 
 public static class LimitedOversMatchReviewChecks
 {
     public static void Run()
     {
-        var chase = new LimitedOversMatch(oversPerInnings: 2);
+        var firstTeam = TeamRosterAsset.CreatePlaceholder("Coastal XI");
+        firstTeam.PrimaryKitColorHex = "#1575B8";
+        var secondTeam = TeamRosterAsset.CreatePlaceholder("Highland XI");
+        secondTeam.PrimaryKitColorHex = "#8F2443";
+        var chase = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings: 2);
         Require(chase.FirstTeamName == "Coastal XI" && chase.BattingTeamName == "Coastal XI",
             "the match did not begin with the first fictional team batting");
+        Require(ReferenceEquals(chase.BattingTeam, firstTeam) && ReferenceEquals(chase.FieldingTeam, secondTeam),
+            "the first innings assigned the wrong teams to the batting and fielding sides");
         RequireThrows(chase.StartNextInnings, "the second innings started before the first was complete");
 
         var firstBall = chase.BeginDelivery(isNoBall: false);
@@ -22,6 +30,8 @@ public static class LimitedOversMatchReviewChecks
         chase.StartNextInnings();
         Require(chase.InningsNumber == 2 && chase.BattingTeamName == "Highland XI" && chase.Target == 5,
             "the second innings did not swap teams and set a target one above the first score");
+        Require(ReferenceEquals(chase.BattingTeam, secondTeam) && ReferenceEquals(chase.FieldingTeam, firstTeam),
+            "the second innings did not swap the batting and fielding team identities");
 
         var chasingBoundary = chase.BeginDelivery(isNoBall: false);
         chasingBoundary.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);

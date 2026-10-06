@@ -53,6 +53,7 @@ public sealed class LimitedOversMatch
     public int OversPerInnings { get; private set; }
     public int InningsNumber { get; private set; }
     public TeamRosterAsset BattingTeam => InningsNumber == 1 ? _firstTeam : _secondTeam;
+    public TeamRosterAsset FieldingTeam => InningsNumber == 1 ? _secondTeam : _firstTeam;
     public string BattingTeamName => BattingTeam.Name;
     public MatchState CurrentInnings => _innings;
     public DeliverySession? CurrentDelivery => _innings.CurrentDelivery;

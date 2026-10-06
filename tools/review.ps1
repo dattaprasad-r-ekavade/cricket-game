@@ -1,4 +1,4 @@
-param([switch]$SkipCaptures)
+param([switch]$SkipCaptures, [switch]$SkipGame)
 
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -34,6 +34,28 @@ try {
         Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
     }
     Write-Output 'PASS: invalid team batting rating rejected.'
+    try {
+        $invalidRoster = Get-Content -LiteralPath $coastalRosterPath -Raw | ConvertFrom-Json
+        $invalidRoster.primaryKitColorHex = 'blue'
+        $invalidRoster | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidRosterPath -Encoding utf8
+        $null = & dotnet $toolsDll validate-team $invalidRosterPath 2>&1
+        if ($LASTEXITCODE -ne 1) { throw 'Team validator accepted an invalid kit color.' }
+    }
+    finally {
+        Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
+    }
+    Write-Output 'PASS: invalid team kit color rejected.'
+    try {
+        $invalidRoster = Get-Content -LiteralPath $coastalRosterPath -Raw | ConvertFrom-Json
+        $invalidRoster.accentKitColorHex = '#12G45Z'
+        $invalidRoster | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidRosterPath -Encoding utf8
+        $null = & dotnet $toolsDll validate-team $invalidRosterPath 2>&1
+        if ($LASTEXITCODE -ne 1) { throw 'Team validator accepted an invalid accent kit color.' }
+    }
+    finally {
+        Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
+    }
+    Write-Output 'PASS: invalid team accent kit color rejected.'
     $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
     try {
         $invalidScaleAsset = Get-Content -LiteralPath $batterPath -Raw | ConvertFrom-Json
@@ -78,7 +100,9 @@ try {
     if ($LASTEXITCODE -ne 1) { throw 'Invalid timing step did not fail with exit code 1.' }
     Write-Output "PASS: repeated batting CSV hash $firstHash; wide-ball footwork contacts; invalid input rejected."
 
-    Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
+    if (!$SkipGame) {
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
+    }
     if (!$SkipCaptures) {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--profile-frames', '90')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',

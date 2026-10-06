@@ -2,6 +2,8 @@
   "version": 1,
   "name": "Highland XI",
   "shortName": "HIG",
+  "primaryKitColorHex": "#8F2443",
+  "accentKitColorHex": "#F1E4C2",
   "players": [
     { "id": "highland-01", "name": "Asha Balan", "battingOrder": 1, "role": "Wicketkeeper", "timing": 70, "power": 58 },
     { "id": "highland-02", "name": "Naren Gill", "battingOrder": 2, "role": "Batter", "timing": 75, "power": 74 },

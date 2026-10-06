@@ -2,6 +2,8 @@
   "version": 1,
   "name": "Coastal XI",
   "shortName": "COA",
+  "primaryKitColorHex": "#1575B8",
+  "accentKitColorHex": "#F2BB46",
   "players": [
     { "id": "coastal-01", "name": "Mira Sen", "battingOrder": 1, "role": "Wicketkeeper", "timing": 76, "power": 52 },
     { "id": "coastal-02", "name": "Rian Das", "battingOrder": 2, "role": "Batter", "timing": 82, "power": 65 },
