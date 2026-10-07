@@ -7,6 +7,68 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Fact]
+    public void LiveFeedbackPrefersBowlingAccuracyWhenOtherFeedbackIsPresent()
+    {
+        var content = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            isHumanBowling: true,
+            activeTarget: new Vector3(0f, 0f, -4f),
+            firstBounce: new Vector3(0.2f, 0f, -4.2f),
+            contactQuality: 0.95f,
+            timingCue: new BattingTimingCue(BattingTimingCueState.SwingNow, 0.5f, 0.4f, 0.6f, 0f)));
+
+        Assert.NotNull(content);
+        Assert.Equal("BOWLING | ON TARGET", content.Value.Title);
+        Assert.Contains("from your aim", content.Value.Detail);
+        Assert.Equal(new Color(74, 224, 255), content.Value.Accent);
+        Assert.Equal(5f, content.Value.RemainingSeconds);
+    }
+
+    [Fact]
+    public void LiveFeedbackBuildsBattingContactDetailWithTiming()
+    {
+        var content = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            contactQuality: 0.91f,
+            shotName: "Drive",
+            timingText: "EARLY 80 ms"));
+
+        Assert.NotNull(content);
+        Assert.Equal("BATTING | MIDDLE", content.Value.Title);
+        Assert.Equal("Drive | TIMING EARLY 80 ms | 91% contact", content.Value.Detail);
+        Assert.Equal(new Color(135, 255, 159), content.Value.Accent);
+        Assert.Equal(5f, content.Value.RemainingSeconds);
+    }
+
+    [Fact]
+    public void LiveFeedbackBuildsControllerTimingPromptAndBounceHint()
+    {
+        var content = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            timingCue: new BattingTimingCue(BattingTimingCueState.SwingNow, 0.5f, 0.4f, 0.6f, 0f),
+            isGamePad: true,
+            highContrast: true,
+            hasPredictedBounce: true,
+            difficulty: CpuDifficulty.Pro));
+
+        Assert.NotNull(content);
+        Assert.Equal("SWING NOW", content.Value.Title);
+        Assert.Equal("Press A / Y now for on-time contact | ring = projected bounce", content.Value.Detail);
+        Assert.Equal(Color.Yellow, content.Value.Accent);
+        Assert.Equal(1f, content.Value.RemainingSeconds);
+    }
+
+    [Fact]
+    public void LiveFeedbackBuildsBounceSummaryOrReturnsNoBanner()
+    {
+        var bounce = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            firstBounce: Vector3.Zero));
+        Assert.NotNull(bounce);
+        Assert.Equal("YOUR DELIVERY | SHORT", bounce.Value.Title);
+        Assert.Equal("on the stumps | 8.7 m from you", bounce.Value.Detail);
+
+        var absent = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(remainingSeconds: 0f));
+        Assert.Null(absent);
+    }
+
+    [Fact]
     public void BallTrailColorMapsSlowMediumAndFastSpeedsToCoolWarmAndHot()
     {
         Assert.Equal(new Color(68, 220, 255), MatchHudPresenter.GetBallTrailColor(8f));
@@ -365,6 +427,36 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(new Rectangle(280, 170, 720, 96), narrow);
         Assert.True(narrow.Bottom <= 696);
     }
+
+    private static LiveFeedbackBannerState CreateLiveFeedbackState(
+        bool isHumanBowling = false,
+        Vector3? activeTarget = null,
+        Vector3? firstBounce = null,
+        float remainingSeconds = 5f,
+        float? contactQuality = null,
+        bool contactIsMiss = false,
+        string? shotName = null,
+        string? timingText = null,
+        BattingTimingCue? timingCue = null,
+        bool isGamePad = false,
+        bool highContrast = false,
+        bool hasPredictedBounce = false,
+        CpuDifficulty difficulty = CpuDifficulty.Standard,
+        float batterWicketLineZ = -8.72f) => new(
+            isHumanBowling,
+            activeTarget,
+            firstBounce,
+            remainingSeconds,
+            contactQuality,
+            contactIsMiss,
+            shotName,
+            timingText,
+            timingCue,
+            isGamePad,
+            highContrast,
+            hasPredictedBounce,
+            difficulty,
+            batterWicketLineZ);
 
     private static string Hint(bool isGamePad, MatchHudPhase phase) =>
         MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(isGamePad, phase, "Yorker"));

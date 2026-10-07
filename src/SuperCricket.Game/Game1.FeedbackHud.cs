@@ -10,87 +10,29 @@ public partial class Game1
 {
     private void DrawLiveFeedbackBanner()
     {
-        string title;
-        string detail;
-        Color accent;
-        float remaining;
         var timingCue = GetLiveBattingTimingCue();
-
-        if (IsHumanBowling && _activeBowlingTargetPosition is { } target &&
-            _firstBouncePosition is { } landing && _liveFeedbackBannerRemainingSeconds > 0f)
-        {
-            var summary = MatchHudPresenter.GetBowlingFeedbackSummary(target, landing, NearBatterZ);
-            title = summary.Title;
-            var aimDistance = Vector2.Distance(new Vector2(target.X, target.Z), new Vector2(landing.X, landing.Z));
-            detail = $"{summary.Detail} | {aimDistance:0.0} m from your aim";
-            accent = _gameSettings.HighContrast ? Color.Yellow : new Color(74, 224, 255);
-            title = $"BOWLING | {title}";
-            remaining = _liveFeedbackBannerRemainingSeconds;
-        }
-        else if (!IsHumanBowling && _liveFeedbackBannerRemainingSeconds > 0f &&
-            (_contactFeedbackQuality is not null || _contactFeedbackIsMiss) && _chosenShot is not null)
-        {
-            title = $"BATTING | {GetContactFeedbackLabel()}";
-            if (title.Length == 0)
-                return;
-            var timing = GetBattingTimingText();
-            var timingDetail = timing switch
-            {
-                "PERFECT" => "PERFECT TIMING",
-                { } assessment => $"TIMING {assessment}",
-                _ => ""
-            };
-            var shotLabel = _chosenShot?.Name ?? "Shot";
-            var qualityLabel = _contactFeedbackQuality is { } quality
-                ? $"{quality:P0} contact"
-                : "no contact";
-            detail = _contactFeedbackIsMiss
-                ? "Your swing missed the ball"
-                : string.IsNullOrWhiteSpace(timingDetail)
-                    ? $"{shotLabel} | {qualityLabel}"
-                    : $"{shotLabel} | {timingDetail} | {qualityLabel}";
-            accent = GetContactFeedbackColor();
-            remaining = _liveFeedbackBannerRemainingSeconds;
-        }
-        else if (timingCue is { } cue)
-        {
-            title = cue.State switch
-            {
-                BattingTimingCueState.Waiting => "WATCH THE MARKER",
-                BattingTimingCueState.SwingNow => "SWING NOW",
-                _ => "LATE SHOT POSSIBLE"
-            };
-            var shotButtons = _lastInputWasGamePad ? "A / Y" : "Space / Shift";
-            detail = cue.State switch
-            {
-                BattingTimingCueState.Waiting => $"Press {shotButtons} as the marker enters green",
-                BattingTimingCueState.SwingNow => $"Press {shotButtons} now for on-time contact",
-                _ => $"Window passed; press {shotButtons} for late contact"
-            };
-            accent = cue.State switch
-            {
-                BattingTimingCueState.Waiting => _gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74),
-                BattingTimingCueState.SwingNow => _gameSettings.HighContrast ? Color.Yellow : new Color(135, 255, 159),
-                _ => _gameSettings.HighContrast ? Color.White : new Color(255, 164, 77)
-            };
-            if (_predictedBouncePosition is not null)
-                detail += _cpuDifficulty == CpuDifficulty.Pro
-                    ? " | ring = projected bounce"
-                    : " | ring = bounce point; bat outline = contact zone";
-            remaining = 1f;
-        }
-        else if (!IsHumanBowling && _firstBouncePosition is { } bounce &&
-            _liveFeedbackBannerRemainingSeconds > 0f)
-        {
-            title = $"YOUR DELIVERY | {MatchHudPresenter.GetPitchLengthLabel(bounce, NearBatterZ).ToUpperInvariant()}";
-            detail = $"{MatchHudPresenter.GetPitchLineLabel(bounce)} | {MathF.Abs(bounce.Z - NearBatterZ):0.0} m from you";
-            accent = _gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74);
-            remaining = _liveFeedbackBannerRemainingSeconds;
-        }
-        else
-        {
+        var hasContactFeedback = !IsHumanBowling && _liveFeedbackBannerRemainingSeconds > 0f &&
+            (_contactFeedbackQuality is not null || _contactFeedbackIsMiss) && _chosenShot is not null;
+        var feedback = MatchHudPresenter.BuildLiveFeedbackBanner(new LiveFeedbackBannerState(
+            IsHumanBowling,
+            _activeBowlingTargetPosition,
+            _firstBouncePosition,
+            _liveFeedbackBannerRemainingSeconds,
+            _contactFeedbackQuality,
+            _contactFeedbackIsMiss,
+            _chosenShot?.Name,
+            hasContactFeedback ? GetBattingTimingText() : null,
+            timingCue,
+            _lastInputWasGamePad,
+            _gameSettings.HighContrast,
+            _predictedBouncePosition is not null,
+            _cpuDifficulty,
+            NearBatterZ));
+        if (feedback is not { } banner)
             return;
-        }
+
+        var detail = banner.Detail;
+        var accent = banner.Accent;
 
         var viewport = GraphicsDevice.Viewport;
         var titleScale = _gameSettings.LargeText ? 1.65f : 1.55f;
@@ -113,7 +55,7 @@ public partial class Game1
             hudBottom,
             panelWidth,
             panelHeight);
-        var fade = Math.Clamp(remaining / 0.32f, 0f, 1f);
+        var fade = Math.Clamp(banner.RemainingSeconds / 0.32f, 0f, 1f);
         accent = WithAlpha(accent, fade);
         var background = WithAlpha(_gameSettings.HighContrast ? Color.Black : new Color(5, 12, 16), 0.98f * fade);
 
@@ -121,7 +63,7 @@ public partial class Game1
         _spriteBatch.Draw(_feedbackMapPixel, panel, background);
         _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 9, panel.Height), accent);
         _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, panel.Width, 5), accent);
-        DrawOverlayText(title, new Vector2(panel.X + 22, panel.Y + 8), accent, titleScale);
+        DrawOverlayText(banner.Title, new Vector2(panel.X + 22, panel.Y + 8), accent, titleScale);
         for (var index = 0; index < detailLines.Count; index++)
             DrawOverlayText(detailLines[index], new Vector2(panel.X + 22, panel.Y + 46 + index * lineSpacing),
                 Color.White, detailScale);

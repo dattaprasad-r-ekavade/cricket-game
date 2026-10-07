@@ -74,9 +74,116 @@ internal readonly record struct ContactFeedbackPresentationState(
     float? Quality,
     bool HighContrast);
 
+internal readonly record struct LiveFeedbackBannerState(
+    bool IsHumanBowling,
+    Vector3? ActiveBowlingTargetPosition,
+    Vector3? FirstBouncePosition,
+    float RemainingSeconds,
+    float? ContactQuality,
+    bool ContactIsMiss,
+    string? ShotName,
+    string? TimingText,
+    BattingTimingCue? TimingCue,
+    bool IsGamePad,
+    bool HighContrast,
+    bool HasPredictedBounce,
+    CpuDifficulty Difficulty,
+    float BatterWicketLineZ);
+
+internal readonly record struct LiveFeedbackBannerContent(
+    string Title,
+    string Detail,
+    Color Accent,
+    float RemainingSeconds);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static LiveFeedbackBannerContent? BuildLiveFeedbackBanner(LiveFeedbackBannerState state)
+    {
+        if (state.IsHumanBowling && state.ActiveBowlingTargetPosition is { } target &&
+            state.FirstBouncePosition is { } landing && state.RemainingSeconds > 0f)
+        {
+            var summary = GetBowlingFeedbackSummary(target, landing, state.BatterWicketLineZ);
+            var aimDistance = Vector2.Distance(new Vector2(target.X, target.Z), new Vector2(landing.X, landing.Z));
+            return new LiveFeedbackBannerContent(
+                $"BOWLING | {summary.Title}",
+                $"{summary.Detail} | {aimDistance:0.0} m from your aim",
+                state.HighContrast ? Color.Yellow : new Color(74, 224, 255),
+                state.RemainingSeconds);
+        }
+
+        if (!state.IsHumanBowling && state.RemainingSeconds > 0f &&
+            (state.ContactQuality is not null || state.ContactIsMiss) && state.ShotName is not null)
+        {
+            var timingDetail = state.TimingText switch
+            {
+                "PERFECT" => "PERFECT TIMING",
+                { } assessment => $"TIMING {assessment}",
+                _ => string.Empty
+            };
+            var qualityLabel = state.ContactQuality is { } quality
+                ? $"{quality:P0} contact"
+                : "no contact";
+            var detail = state.ContactIsMiss
+                ? "Your swing missed the ball"
+                : string.IsNullOrWhiteSpace(timingDetail)
+                    ? $"{state.ShotName} | {qualityLabel}"
+                    : $"{state.ShotName} | {timingDetail} | {qualityLabel}";
+            var accent = GetContactFeedbackColor(new ContactFeedbackPresentationState(
+                state.ContactIsMiss,
+                state.ContactQuality,
+                state.HighContrast));
+            return new LiveFeedbackBannerContent(
+                $"BATTING | {GetContactFeedbackLabel(new ContactFeedbackPresentationState(
+                    state.ContactIsMiss,
+                    state.ContactQuality,
+                    state.HighContrast))}",
+                detail,
+                accent,
+                state.RemainingSeconds);
+        }
+
+        if (state.TimingCue is { } cue)
+        {
+            var title = cue.State switch
+            {
+                BattingTimingCueState.Waiting => "WATCH THE MARKER",
+                BattingTimingCueState.SwingNow => "SWING NOW",
+                _ => "LATE SHOT POSSIBLE"
+            };
+            var shotButtons = state.IsGamePad ? "A / Y" : "Space / Shift";
+            var detail = cue.State switch
+            {
+                BattingTimingCueState.Waiting => $"Press {shotButtons} as the marker enters green",
+                BattingTimingCueState.SwingNow => $"Press {shotButtons} now for on-time contact",
+                _ => $"Window passed; press {shotButtons} for late contact"
+            };
+            var accent = cue.State switch
+            {
+                BattingTimingCueState.Waiting => state.HighContrast ? Color.Yellow : new Color(255, 220, 74),
+                BattingTimingCueState.SwingNow => state.HighContrast ? Color.Yellow : new Color(135, 255, 159),
+                _ => state.HighContrast ? Color.White : new Color(255, 164, 77)
+            };
+            if (state.HasPredictedBounce)
+                detail += state.Difficulty == CpuDifficulty.Pro
+                    ? " | ring = projected bounce"
+                    : " | ring = bounce point; bat outline = contact zone";
+            return new LiveFeedbackBannerContent(title, detail, accent, 1f);
+        }
+
+        if (!state.IsHumanBowling && state.FirstBouncePosition is { } bounce && state.RemainingSeconds > 0f)
+        {
+            return new LiveFeedbackBannerContent(
+                $"YOUR DELIVERY | {GetPitchLengthLabel(bounce, state.BatterWicketLineZ).ToUpperInvariant()}",
+                $"{GetPitchLineLabel(bounce)} | {MathF.Abs(bounce.Z - state.BatterWicketLineZ):0.0} m from you",
+                state.HighContrast ? Color.Yellow : new Color(255, 220, 74),
+                state.RemainingSeconds);
+        }
+
+        return null;
+    }
+
     public static Color GetBallTrailColor(float speedMetersPerSecond)
     {
         if (!float.IsFinite(speedMetersPerSecond))
