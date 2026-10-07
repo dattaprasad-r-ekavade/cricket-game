@@ -1,12 +1,25 @@
-param([switch]$SkipCaptures, [switch]$SkipGame)
+param(
+    [switch]$RunGameChecks,
+    [switch]$CaptureVisuals,
+    [switch]$SkipCaptures,
+    [switch]$SkipGame)
 
 $ErrorActionPreference = 'Stop'
+$runGameChecks = $RunGameChecks -and !$SkipGame
+$captureVisuals = $CaptureVisuals -and !$SkipCaptures
 $repoPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Push-Location -LiteralPath $repoPath
 try {
     function Invoke-CheckedDotNet([string[]]$CommandArguments) {
         & dotnet @CommandArguments
         if ($LASTEXITCODE -ne 0) { throw "dotnet failed ($LASTEXITCODE): $($CommandArguments -join ' ')" }
+    }
+
+    if (!$runGameChecks -and !$captureVisuals) {
+        Write-Output 'Mode: headless review; game checks and visual captures are opt-in.'
+    }
+    else {
+        Write-Output "Mode: headless review plus$(if ($runGameChecks) { ' game checks' })$(if ($captureVisuals) { ' visual captures' })."
     }
 
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
@@ -233,7 +246,7 @@ try {
     if ($LASTEXITCODE -ne 1) { throw 'Invalid timing step did not fail with exit code 1.' }
     Write-Output "PASS: repeated batting CSV hash $firstHash; wide-ball footwork contacts; invalid input rejected."
 
-    if (!$SkipGame) {
+    if ($runGameChecks) {
         $settingsPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'SuperCricket/settings.json'
         $settingsHashBefore = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath).Hash } else { $null }
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
@@ -243,7 +256,7 @@ try {
         if ($settingsHashBefore -ne $settingsHashAfter) { throw 'Game review modes modified saved user preferences.' }
         Write-Output 'PASS: game review modes preserve saved user preferences.'
     }
-    if (!$SkipCaptures) {
+    if ($captureVisuals) {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--profile-frames', '90')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-start.png')
@@ -277,7 +290,7 @@ try {
                 '--capture-frame', "artifacts/review-fielder-$action.png", '--fielder-action', "fielder-$action", '--action-time', '0.4')
         }
     }
-    Write-Output 'Review checks passed. CSVs and optional renderer captures are in artifacts/.'
+    Write-Output 'Review checks passed. CSVs and any requested renderer captures are in artifacts/.'
 }
 finally {
     Pop-Location
