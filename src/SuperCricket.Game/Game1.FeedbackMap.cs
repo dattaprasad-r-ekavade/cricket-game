@@ -140,7 +140,7 @@ public partial class Game1
             _shotInputDelaySeconds is not { } actualInputDelay)
             return null;
 
-        var idealInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, shot.Name);
+        var idealInputDelay = FindShotIdealInputDelaySeconds(shot.Name);
         if (idealInputDelay is not { } ideal)
             return null;
 
@@ -172,7 +172,8 @@ public partial class Game1
             CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
             _battedBall = true;
             _chosenShot = _shotSet.Get("drive");
-            _shotInputDelaySeconds = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, _chosenShot.Name);
+            _shotInputDelaySeconds = FindCurrentIdealInputDelaySeconds(_chosenShot.Name);
+            _shotIdealInputDelaySeconds = _shotInputDelaySeconds;
             _contactQuality = 0.91f;
             _shotOutcome = "FOUR: reached the boundary";
         }

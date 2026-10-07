@@ -19,6 +19,7 @@ public partial class Game1
 {
     protected override void UnloadContent()
     {
+        CancelBattingTiming();
         _playerRenderer?.Dispose();
         _bowlerRenderer?.Dispose();
         _crowdVertexBuffer?.Dispose();

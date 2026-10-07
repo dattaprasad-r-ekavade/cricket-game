@@ -105,6 +105,8 @@ public partial class Game1
         _contactTimeSeconds = null;
         _contactQuality = null;
         _shotInputDelaySeconds = null;
+        _shotIdealInputDelaySeconds = null;
+        _shotBattingTimingRequest = null;
         _contactSweetSpotOffset = null;
         _playerAnimator.Play("practice-stance", 0.12f);
         _currentBatWorld = GetBatWorldTransform();
@@ -153,6 +155,7 @@ public partial class Game1
             _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
         }
+        PrepareBattingTiming();
     }
 
     private void UpdateCpuBatting(float flightElapsed)

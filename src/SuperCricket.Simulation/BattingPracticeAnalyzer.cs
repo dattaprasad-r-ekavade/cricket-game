@@ -24,7 +24,7 @@ public readonly record struct BattingPracticeTrajectory(
     IReadOnlyList<BallFlightFrame> OutgoingFrames);
 
 /// <summary>Replays actual exported swing clips against a delivery while sweeping the shot input time.</summary>
-public static class BattingPracticeAnalyzer
+public static partial class BattingPracticeAnalyzer
 {
     public const float MinimumInputDelaySeconds = -0.5f;
     public const float BatterWicketLineZ = -8.72f;
@@ -258,7 +258,8 @@ public static class BattingPracticeAnalyzer
         float inputDelaySeconds,
         float footworkOffsetMeters,
         TeamPlayerData? battingRatings,
-        bool captureOutgoingFrames)
+        bool captureOutgoingFrames,
+        bool resolveOutgoingOutcome = true)
     {
         var ball = new BallFlightSimulator(delivery);
         var previousFrame = ball.CurrentFrame;
@@ -268,6 +269,13 @@ public static class BattingPracticeAnalyzer
         for (var step = 0; step < maximumSteps && previousFrame.Phase != BallMotionPhase.Settled; step++)
         {
             var currentFrame = ball.Step();
+            if (currentFrame.TimeSeconds <= inputDelaySeconds)
+            {
+                if (currentFrame.Position.Z <= BatterZ - MissPlaneOffsetMeters)
+                    return MissTrajectory(shot, delivery, inputDelaySeconds, "MissedBat", footworkOffsetMeters);
+                previousFrame = currentFrame;
+                continue;
+            }
             // Input can land between fixed ticks. Only sweep the portion after it.
             var contactStartTime = MathF.Max(previousFrame.TimeSeconds, inputDelaySeconds);
             var contactDeltaSeconds = currentFrame.TimeSeconds - contactStartTime;
@@ -304,9 +312,14 @@ public static class BattingPracticeAnalyzer
                     contact.NormalizedSweetSpotOffset,
                     shot,
                     battingRatings);
-                ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
-                var outgoingFrames = captureOutgoingFrames ? new List<BallFlightFrame> { ball.CurrentFrame } : null;
-                var outcome = SimulateOutgoingBall(ball, delivery, outgoingFrames);
+                List<BallFlightFrame>? outgoingFrames = null;
+                var outcome = "Contact";
+                if (resolveOutgoingOutcome)
+                {
+                    ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
+                    outgoingFrames = captureOutgoingFrames ? new List<BallFlightFrame> { ball.CurrentFrame } : null;
+                    outcome = SimulateOutgoingBall(ball, delivery, outgoingFrames);
+                }
                 var contactTime = contactStartTime + contactDeltaSeconds * contact.HitFraction;
                 var sample = new BattingPracticeSample(
                     shot.Name,

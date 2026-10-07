@@ -32,7 +32,6 @@ public partial class Game1
     private bool _contactFeedbackIsMiss;
     private float? _shotInputDelaySeconds;
     private BattingTimingCalibrationAsset _battingTimingCalibration = null!;
-    private string CalibrationDeliveryName => _deliveryPresets[_activeDeliveryPresetIndex].Name;
     private bool IsHumanBowling => _activeBowlingTargetPosition is not null;
     private ContactFeedbackPresentationState ContactFeedbackPresentation => new(
         _contactFeedbackIsMiss,
@@ -199,7 +198,7 @@ public partial class Game1
     private BattingTimingCue? GetLiveBattingTimingCue()
     {
         if (IsCpuBattingControlled || IsHumanBowling || !_bowlerReleased || _deliveryComplete ||
-            _battedBall || _chosenShot is not null || _shotResolved ||
+            _battedBall || _chosenShot is not null || _shotResolved || _footworkTransitionActive ||
             (_simulationPaused && _captureTarget is null))
             return null;
 
@@ -210,7 +209,7 @@ public partial class Game1
         var safeWindowEnd = float.PositiveInfinity;
         foreach (var shotName in possibleShots)
         {
-            var idealInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, shotName);
+            var idealInputDelay = FindCurrentIdealInputDelaySeconds(shotName);
             if (idealInputDelay is not { } ideal)
                 return null;
             safeWindowStart = MathF.Max(safeWindowStart,

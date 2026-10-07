@@ -83,6 +83,7 @@ public partial class Game1
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+        RecordShotTiming(name);
         _shotInputDelaySeconds = _bowlerRunUpElapsed + _bowlerActionElapsed -
             (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
         _battingStepRecoveryActive = false;
@@ -131,6 +132,7 @@ public partial class Game1
     private void StepBatterFootwork(float direction)
     {
         _targetBatterFootworkOffsetX = BatterFootwork.AddStep(_targetBatterFootworkOffsetX, direction);
+        PrepareBattingTiming();
         _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f;
         if (_footworkTransitionActive && _chosenShot is null)
         {

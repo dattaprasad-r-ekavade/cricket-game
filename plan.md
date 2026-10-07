@@ -18,7 +18,7 @@ MonoGame remains the shipping host. Steps 69–77 complete the GLB runtime pilot
 | Audio | 1/10 | Procedural placeholder cues only |
 | Game feel validated by a human | 1/10 | Steps 29–44 were built without running the game window |
 
-**Diagnosis:** code is no longer the bottleneck — AI agents produce systems faster than they are validated. The gap to Cricket 07 is animation, character assets, rendering features, audio, and play-tested feel. Further gameplay systems will not close it.
+**Diagnosis:** correctness defects in batting reachability, running, and dismissals need priority alongside the open usability gates. The largest fidelity gaps remain animation, character assets, rendering, audio, and play-tested feel. Further gameplay systems should wait for that evidence.
 
 **Fidelity outlook:** physics and batting simulation can exceed Cricket 07; rendering can match or exceed it with a modern engine feature set; animation variety and broadcast presentation are realistically 50–70% of Cricket 07 within about 12 months. Licensed teams and players stay out of scope.
 
@@ -40,6 +40,14 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] A2. First human playtest (7 Oct 2026). Findings in [docs/playtests/2026-10-07.md](docs/playtests/2026-10-07.md).
 - [x] A3. Record the ranked problems.
 - [ ] A4. Fix the remaining control-learning and batting-timing problems below, then playtest the camera and result-card pass again.
+
+**Correctness work from the 7 October code review** (headless fixes can proceed while the human retest is pending):
+
+- [ ] Measure live/result timing from the actual paced and CPU-varied delivery; omit targets for unreachable balls and cover asynchronous replacement/failure. See [Step 105](docs/steps/step-105-prepared-delivery-timing.md).
+- [ ] Make ordinary beginner deliveries reachable with the available controls; centered Rookie seed 491 currently needs +0.45 m of footwork.
+- [ ] Resolve run-outs from a broken wicket and batter ground ownership; remove the automatic dismissal and 72% scoring cutoff when a ball settles.
+- [ ] Move turn-back continuously from the runners' current positions and preserve run-out risk until they reach their crease.
+- [ ] Animate the non-striker independently of the striker's shot.
 
 **Playtest 1 findings (blocking, in priority order):**
 
@@ -70,7 +78,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] When the human bowls, show the selected target, measured landing, and distance from aim.
 - [x] Add calibrated early/perfect/late timing feedback from measured best-contact delays; the result card reports the timing band and offset.
 - [x] Add a pitch map with the actual bounce and, for human bowling, the intended target marker.
-- A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
+- [ ] A short automatic replay of the contact moment from the behind-striker camera (skippable), using the existing deterministic capture state.
 - [x] Immediate in-world feedback: a bat-contact flash scaled by quality, ball-trail colour by speed, and the actual pitch spot marked briefly.
 
 **A4d — Gameplay cameras**
@@ -199,7 +207,7 @@ The CLI remains the lab (`validate`, `simulate`, `analyze-*`, `verify-*`, `--cap
 | 0 — Target and asset pipeline | Gate passed 6 Oct 2026: brief, reference board, asset contract, hardware baseline in `docs/design/` |
 | 1 — Bowling and ball simulation | Prototype complete: standard, wide, no-ball, yorker presets; deterministic flight and bounce |
 | 2 — Batting and animation | Mechanics complete (defence/drive/loft, footwork, aim, contact markers); **enjoyment gate open → Milestone A** |
-| 3 — Fielding and a complete over | Rules complete; fielder movement, throws, and run-out cuts remain simplified heuristics |
+| 3 — Fielding and a complete over | Prototype complete; running, dead-ball scoring, and run-out identity need correction before rules acceptance |
 | 4 — Visual target | Stylized prototype only → Milestones C and D |
 | 5 — Short match | Systems complete; playtesting, balance, authored audio open → Milestones A and E |
 | 6 — Stabilize | Not started → Milestone E |

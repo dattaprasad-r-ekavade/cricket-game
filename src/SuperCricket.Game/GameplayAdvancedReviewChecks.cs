@@ -56,10 +56,13 @@ public partial class Game1
         _chosenShot = _shotSet.Get("drive");
         _contactQuality = 0.91f;
         var idealDriveInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(_deliveryPreset.Name, _chosenShot.Name);
-        Require(idealDriveInputDelay is { } idealDelay && MathF.Abs(idealDelay - 0.25f) < 0.001f &&
+        var measuredDriveInputDelay = FindCurrentIdealInputDelaySeconds(_chosenShot.Name);
+        Require(idealDriveInputDelay is { } idealDelay && measuredDriveInputDelay is { } measuredDelay &&
+            MathF.Abs(idealDelay - measuredDelay) < 0.001f &&
             _battingTimingCalibration.FindIdealInputDelaySeconds("Uncalibrated delivery", "drive") is null,
             "batting timing calibration did not load the analyzer-derived drive target or reject unknown deliveries");
-        _shotInputDelaySeconds = idealDriveInputDelay;
+        _shotInputDelaySeconds = measuredDriveInputDelay;
+        _shotIdealInputDelaySeconds = measuredDriveInputDelay;
         var originalDelivery = _deliveryPreset;
         _deliveryPreset = _deliveryPreset.DeepCopy();
         _deliveryPreset.Name = $"{_deliveryPresets[_activeDeliveryPresetIndex].Name} - outswing";
