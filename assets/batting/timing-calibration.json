@@ -4,33 +4,33 @@
     {
       "deliveryName": "Standard pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.2 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.25 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.25 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.15 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.225 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.225 }
       ]
     },
     {
       "deliveryName": "Wide pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.3 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.35 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.35 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.275 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.325 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.325 }
       ]
     },
     {
       "deliveryName": "No-ball pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.2 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.25 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.25 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.15 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.225 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.225 }
       ]
     },
     {
       "deliveryName": "Yorker pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.2 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.275 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.275 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.175 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.25 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.25 }
       ]
     }
   ]

@@ -61,7 +61,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "analyze-batting-practice")
         {
             if (arguments.Length is < 5 or > 7)
-                throw new ArgumentException("Usage: analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+                throw new ArgumentException("Usage: analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
             var outputPath = arguments.Length > 5
                 ? arguments[5]
                 : Path.Combine("artifacts", "batting-practice.csv");
@@ -76,7 +76,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "verify-batting-practice")
         {
             if (arguments.Length != 5)
-                throw new ArgumentException("Usage: verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
+                throw new ArgumentException("Usage: verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");
             VerifyBattingPractice(arguments[1], arguments[2], arguments[3], arguments[4]);
             return 0;
         }
@@ -121,7 +121,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "verify-cpu-batting")
         {
             if (arguments.Length != 9)
-                throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
+                throw new ArgumentException("Usage: verify-cpu-batting <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
             return RunSimulationTests(
                 "FullyQualifiedName~CpuLiveBattingPlanReviewCheckTests",
                 arguments.Skip(1).ToArray());
@@ -168,7 +168,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "simulate-physics-match-batch")
         {
             if (arguments.Length is < 13 or > 14)
-                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
             if (!int.TryParse(arguments[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out var matchCount) ||
                 !int.TryParse(arguments[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out var oversPerInnings) ||
                 !int.TryParse(arguments[12], NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed))
@@ -201,7 +201,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "verify-footwork")
         {
             if (arguments.Length != 5)
-                throw new ArgumentException("Usage: verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
+                throw new ArgumentException("Usage: verify-footwork <batter-asset> <bowler-asset> <shots.json> <wide-delivery.json>");
             VerifyFootwork(arguments[1], arguments[2], arguments[3], arguments[4]);
             return 0;
         }
@@ -773,13 +773,13 @@ static string Optional(float? value) => value is { } number ? F(number) : string
 static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
-    Console.WriteLine("  validate-player <player.scplayer.json>");
+    Console.WriteLine("  validate-player <player-asset>");
     Console.WriteLine("  validate-team <team.json>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
-    Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
-    Console.WriteLine("  verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
-    Console.WriteLine("  verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
+    Console.WriteLine("  analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+    Console.WriteLine("  verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");
+    Console.WriteLine("  verify-cpu-batting <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
@@ -787,11 +787,11 @@ static void PrintUsage()
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
-    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-match-batch");
     Console.WriteLine("  verify-fielding");
-    Console.WriteLine("  verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
+    Console.WriteLine("  verify-footwork <batter-asset> <bowler-asset> <shots.json> <wide-delivery.json>");
 }
 
 internal sealed class OverScenarioDocument

@@ -75,8 +75,8 @@ internal static class TestAssets
 
         return
         [
-            Asset("characters", "practice-batter.scplayer.json"),
-            Asset("characters", "practice-bowler.scplayer.json"),
+            Asset("characters", "practice-batter-humanoid.glb"),
+            Asset("characters", "practice-bowler-humanoid.glb"),
             Asset("batting", "shots.json"),
             Asset("deliveries", "standard-pace.json"),
             Asset("deliveries", "wide-pace.json"),

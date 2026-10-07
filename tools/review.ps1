@@ -11,18 +11,17 @@ try {
 
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
-    $batterPath = 'assets/characters/practice-batter.scplayer.json'
-    $bowlerPath = 'assets/characters/practice-bowler.scplayer.json'
-    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-batter-humanoid.glb' --role batter --player-asset $batterPath
+    $batterSourcePath = 'assets/characters/practice-batter.scplayer.json'
+    $bowlerSourcePath = 'assets/characters/practice-bowler.scplayer.json'
+    $batterPath = 'assets/characters/practice-batter-humanoid.glb'
+    $bowlerPath = 'assets/characters/practice-bowler-humanoid.glb'
+    & python 'tools/blender/validate_humanoid_glb.py' $batterPath --role batter --player-asset $batterSourcePath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid batter GLB validation failed.' }
-    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-bowler-humanoid.glb' --role bowler --player-asset $bowlerPath
+    & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --player-asset $bowlerSourcePath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
-    foreach ($playerPath in @($batterPath, $bowlerPath)) {
+    foreach ($playerPath in @($batterSourcePath, $bowlerSourcePath, $batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
-    }
-    foreach ($playerGlbPath in @('assets/characters/practice-batter-humanoid.glb', 'assets/characters/practice-bowler-humanoid.glb')) {
-        Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerGlbPath)
     }
     $coastalRosterPath = 'assets/teams/coastal-xi.json'
     $highlandRosterPath = 'assets/teams/highland-xi.json'
@@ -65,7 +64,7 @@ try {
     Write-Output 'PASS: invalid team accent kit color rejected.'
     $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
     try {
-        $invalidScaleAsset = Get-Content -LiteralPath $batterPath -Raw | ConvertFrom-Json
+        $invalidScaleAsset = Get-Content -LiteralPath $batterSourcePath -Raw | ConvertFrom-Json
         $invalidScaleAsset.bones[0].bindPose.scale.x = 10.0
         $invalidScaleAsset | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidScalePath -Encoding utf8
         $null = & dotnet $toolsDll validate-player $invalidScalePath 2>&1

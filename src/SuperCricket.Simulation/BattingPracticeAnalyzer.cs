@@ -68,6 +68,7 @@ public static class BattingPracticeAnalyzer
                  inputDelay <= incomingDuration + inputDelayStepSeconds * 0.25f;
                  inputDelay += inputDelayStepSeconds)
             {
+                batterSampler.ClearPoseCache();
                 var candidates = BatterFootwork.PracticeOffsets.Select(footworkOffset => SimulateOne(
                     batterSampler,
                     stance,
@@ -420,7 +421,9 @@ public static class BattingPracticeAnalyzer
         private readonly PlayerAsset _asset;
         private readonly int _batBoneIndex;
         private readonly Matrix4x4[] _inverseBindMatrices;
+        private readonly int[] _batBoneChain;
         private readonly Matrix4x4[] _poseMatrices;
+        private readonly Dictionary<PoseTimeKey, Matrix4x4> _poseMatrixCache = [];
         private readonly bool _usesLocalPoses;
         public BatSampler(PlayerAsset asset)
         {
@@ -435,7 +438,16 @@ public static class BattingPracticeAnalyzer
                 ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing its Bat Blade mesh.");
             (BladeMinimum, BladeMaximum) = FindBounds(blade.Positions);
             _inverseBindMatrices = new Matrix4x4[asset.Bones.Count];
-            _poseMatrices = new Matrix4x4[asset.Bones.Count];
+            var batBoneChain = new List<int>();
+            for (var boneIndex = _batBoneIndex; boneIndex >= 0; boneIndex = asset.Bones[boneIndex].ParentIndex)
+            {
+                if (batBoneChain.Count >= asset.Bones.Count)
+                    throw new InvalidDataException($"Player asset '{asset.Name}' contains a cycle in the bat-bone hierarchy.");
+                batBoneChain.Add(boneIndex);
+            }
+            batBoneChain.Reverse();
+            _batBoneChain = batBoneChain.ToArray();
+            _poseMatrices = new Matrix4x4[_batBoneChain.Length];
             for (var index = 0; index < asset.Bones.Count; index++)
             {
                 if (!Matrix4x4.Invert(asset.Bones[index].BindPose.ToNumericsMatrix(), out _inverseBindMatrices[index]))
@@ -485,11 +497,18 @@ public static class BattingPracticeAnalyzer
             float stanceTimeSeconds,
             float shotAgeSeconds)
         {
+            var cacheKey = new PoseTimeKey(
+                BitConverter.SingleToInt32Bits(stanceTimeSeconds),
+                BitConverter.SingleToInt32Bits(shotAgeSeconds));
+            if (_poseMatrixCache.TryGetValue(cacheKey, out var cachedPoseMatrix))
+                return cachedPoseMatrix;
+
             var transition = shotAgeSeconds >= 0f && shotAgeSeconds < ShotTransitionSeconds
                 ? shotAgeSeconds / ShotTransitionSeconds
                 : 1f;
-            for (var boneIndex = 0; boneIndex < _poseMatrices.Length; boneIndex++)
+            for (var chainIndex = 0; chainIndex < _batBoneChain.Length; chainIndex++)
             {
+                var boneIndex = _batBoneChain[chainIndex];
                 var localPose = SamplePose(stance, stanceTimeSeconds, boneIndex);
                 if (shotAgeSeconds >= 0f)
                 {
@@ -501,13 +520,17 @@ public static class BattingPracticeAnalyzer
 
                 var localMatrix = localPose.ToNumericsMatrix();
                 var parentIndex = _asset.Bones[boneIndex].ParentIndex;
-                _poseMatrices[boneIndex] = parentIndex >= 0
-                    ? localMatrix * _poseMatrices[parentIndex]
+                _poseMatrices[chainIndex] = parentIndex >= 0
+                    ? localMatrix * _poseMatrices[chainIndex - 1]
                     : localMatrix;
             }
 
-            return _poseMatrices[_batBoneIndex];
+            var poseMatrix = _poseMatrices[^1];
+            _poseMatrixCache.Add(cacheKey, poseMatrix);
+            return poseMatrix;
         }
+
+        public void ClearPoseCache() => _poseMatrixCache.Clear();
 
         private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)
         {
@@ -545,5 +568,7 @@ public static class BattingPracticeAnalyzer
             }
             return (minimum, maximum);
         }
+
+        private readonly record struct PoseTimeKey(int StanceTimeBits, int ShotAgeBits);
     }
 }
