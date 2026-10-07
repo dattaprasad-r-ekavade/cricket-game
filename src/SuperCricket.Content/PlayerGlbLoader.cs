@@ -347,10 +347,8 @@ internal static class PlayerGlbLoader
             }
 
             var rootMotion = SampleRootMotion(metadata, time);
-            var rootTranslation = poseBones[rootIndex].Translation;
-            rootTranslation.X -= rootMotion.X;
-            rootTranslation.Y -= rootMotion.Y;
-            rootTranslation.Z -= rootMotion.Z;
+            var rootTranslation = poseBones[rootIndex].Translation.ToVector3() - rootMotion.ToVector3();
+            poseBones[rootIndex].Translation = Vector3Data.From(rootTranslation);
 
             samples.Add(new PlayerPoseSampleData
             {

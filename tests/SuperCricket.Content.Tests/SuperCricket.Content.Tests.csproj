@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <None Include="..\..\assets\characters\practice-batter-humanoid.glb" Link="Fixtures\practice-batter-humanoid.glb" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\characters\practice-bowler-humanoid.glb" Link="Fixtures\practice-bowler-humanoid.glb" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

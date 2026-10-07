@@ -417,10 +417,15 @@ public static class BattingPracticeAnalyzer
 
     private sealed class BatSampler
     {
+        private readonly PlayerAsset _asset;
         private readonly int _batBoneIndex;
         private readonly Matrix4x4[] _inverseBindMatrices;
+        private readonly Matrix4x4[] _poseMatrices;
+        private readonly bool _usesLocalPoses;
         public BatSampler(PlayerAsset asset)
         {
+            _asset = asset;
+            _usesLocalPoses = asset.PoseSpace == "local";
             _batBoneIndex = asset.Bones.FindIndex(bone =>
                 string.Equals(bone.Name, "forearm.R", StringComparison.OrdinalIgnoreCase));
             if (_batBoneIndex < 0)
@@ -430,6 +435,7 @@ public static class BattingPracticeAnalyzer
                 ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing its Bat Blade mesh.");
             (BladeMinimum, BladeMaximum) = FindBounds(blade.Positions);
             _inverseBindMatrices = new Matrix4x4[asset.Bones.Count];
+            _poseMatrices = new Matrix4x4[asset.Bones.Count];
             for (var index = 0; index < asset.Bones.Count; index++)
             {
                 if (!Matrix4x4.Invert(asset.Bones[index].BindPose.ToNumericsMatrix(), out _inverseBindMatrices[index]))
@@ -448,27 +454,59 @@ public static class BattingPracticeAnalyzer
             float shotAgeSeconds,
             float footworkOffsetMeters)
         {
-            TransformData pose;
-            if (shotAgeSeconds < 0f)
-            {
-                pose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
-            }
-            else
-            {
-                var shotPose = SamplePose(shot, shotAgeSeconds, _batBoneIndex);
-                if (shotAgeSeconds < ShotTransitionSeconds)
-                {
-                    var stancePose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
-                    pose = TransformData.Interpolate(stancePose, shotPose, shotAgeSeconds / ShotTransitionSeconds);
-                }
-                else
-                {
-                    pose = shotPose;
-                }
-            }
+            var batPose = _usesLocalPoses
+                ? SampleLocalPoseMatrix(stance, shot, stanceTimeSeconds, shotAgeSeconds)
+                : SampleGlobalPoseMatrix(stance, shot, stanceTimeSeconds, shotAgeSeconds);
 
             var batterWorld = Matrix4x4.CreateTranslation(BatterX + footworkOffsetMeters, BatterGroundOffset, BatterZ);
-            return _inverseBindMatrices[_batBoneIndex] * pose.ToNumericsMatrix() * batterWorld;
+            return _inverseBindMatrices[_batBoneIndex] * batPose * batterWorld;
+        }
+
+        private Matrix4x4 SampleGlobalPoseMatrix(
+            PlayerAnimationData stance,
+            PlayerAnimationData shot,
+            float stanceTimeSeconds,
+            float shotAgeSeconds)
+        {
+            var pose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
+            if (shotAgeSeconds >= 0f)
+            {
+                var shotPose = SamplePose(shot, shotAgeSeconds, _batBoneIndex);
+                pose = shotAgeSeconds < ShotTransitionSeconds
+                    ? TransformData.Interpolate(pose, shotPose, shotAgeSeconds / ShotTransitionSeconds)
+                    : shotPose;
+            }
+            return pose.ToNumericsMatrix();
+        }
+
+        private Matrix4x4 SampleLocalPoseMatrix(
+            PlayerAnimationData stance,
+            PlayerAnimationData shot,
+            float stanceTimeSeconds,
+            float shotAgeSeconds)
+        {
+            var transition = shotAgeSeconds >= 0f && shotAgeSeconds < ShotTransitionSeconds
+                ? shotAgeSeconds / ShotTransitionSeconds
+                : 1f;
+            for (var boneIndex = 0; boneIndex < _poseMatrices.Length; boneIndex++)
+            {
+                var localPose = SamplePose(stance, stanceTimeSeconds, boneIndex);
+                if (shotAgeSeconds >= 0f)
+                {
+                    var shotPose = SamplePose(shot, shotAgeSeconds, boneIndex);
+                    localPose = shotAgeSeconds < ShotTransitionSeconds
+                        ? TransformData.Interpolate(localPose, shotPose, transition)
+                        : shotPose;
+                }
+
+                var localMatrix = localPose.ToNumericsMatrix();
+                var parentIndex = _asset.Bones[boneIndex].ParentIndex;
+                _poseMatrices[boneIndex] = parentIndex >= 0
+                    ? localMatrix * _poseMatrices[parentIndex]
+                    : localMatrix;
+            }
+
+            return _poseMatrices[_batBoneIndex];
         }
 
         private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)
