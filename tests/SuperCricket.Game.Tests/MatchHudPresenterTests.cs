@@ -1,10 +1,86 @@
 using Microsoft.Xna.Framework;
 using SuperCricket.Game;
+using SuperCricket.Simulation;
 
 namespace SuperCricket.Game.Tests;
 
 public sealed class MatchHudPresenterTests
 {
+    [Fact]
+    public void BattingResultCardExplainsContactAndTiming()
+    {
+        var lines = MatchHudPresenter.BuildDeliveryFeedbackLines(new DeliveryFeedbackState(
+            new DeliveryResult(4, 0, 0),
+            IsHumanBowling: false,
+            DeliverySpeedKilometersPerHour: 123,
+            FirstBouncePosition: new Vector3(0f, 0f, -10f),
+            BatterWicketLineZ: -8.72f,
+            ShotName: "drive",
+            ContactQuality: 0.94f,
+            TimingText: "PERFECT",
+            ActiveBowlingTargetPosition: null));
+
+        Assert.Equal(new[]
+        {
+            "YOUR BATTING RESULT  |  FOUR",
+            "BALL  |  123 km/h  |  yorker on the stumps",
+            "PITCH  |  1.3 m from striker",
+            "YOUR SHOT  |  drive: middled (94%) | timing PERFECT"
+        }, lines);
+    }
+
+    [Fact]
+    public void BowlingResultCardShowsLandingAccuracyAndMissedContact()
+    {
+        var target = new Vector3(0f, 0f, -14f);
+        var landing = new Vector3(0.3f, 0f, -14.5f);
+        var lines = MatchHudPresenter.BuildDeliveryFeedbackLines(new DeliveryFeedbackState(
+            new DeliveryResult(0, 0, 0),
+            IsHumanBowling: true,
+            DeliverySpeedKilometersPerHour: 118,
+            FirstBouncePosition: landing,
+            BatterWicketLineZ: -8.72f,
+            ShotName: "drive",
+            ContactQuality: null,
+            TimingText: null,
+            ActiveBowlingTargetPosition: target));
+
+        Assert.Equal(new[]
+        {
+            "YOUR BOWLING RESULT  |  DOT BALL",
+            "BALL  |  118 km/h  |  good length on the stumps",
+            "PITCH  |  5.8 m from striker",
+            "YOUR BOWL  |  ON TARGET (0.6 m from aim)",
+            "BATTER  |  drive: no contact - ball beat the bat"
+        }, lines);
+        Assert.Equal(("ON TARGET", "good length | on the stumps"),
+            MatchHudPresenter.GetBowlingFeedbackSummary(target, landing, -8.72f));
+    }
+
+    [Fact]
+    public void FullTossBowlingCardReportsTheIntendedPitchPoint()
+    {
+        var lines = MatchHudPresenter.BuildDeliveryFeedbackLines(new DeliveryFeedbackState(
+            new DeliveryResult(0, 1, 0, IsLegal: false, Extra: DeliveryExtra.Wide),
+            IsHumanBowling: true,
+            DeliverySpeedKilometersPerHour: 112,
+            FirstBouncePosition: null,
+            BatterWicketLineZ: -8.72f,
+            ShotName: null,
+            ContactQuality: null,
+            TimingText: null,
+            ActiveBowlingTargetPosition: new Vector3(-3f, 0f, -19f)));
+
+        Assert.Equal(new[]
+        {
+            "YOUR BOWLING RESULT  |  WIDE - 1 extra run(s)",
+            "BALL  |  112 km/h  |  full toss",
+            "PITCH  |  full toss - no bounce",
+            "YOUR BOWL  |  aimed short / wide left  |  full toss",
+            "BATTER  |  No shot played"
+        }, lines);
+    }
+
     [Theory]
     [InlineData(false, "", 1, "Coastal XI", 10, 1, "1.2", 5, null, "Asha", "Innings 1/2    Coastal XI 10/1    1.2/5 overs    bowler Asha")]
     [InlineData(false, "", 2, "Highland XI", 8, 0, "0.4", 5, 11, "Dev", "Innings 2/2    Highland XI 8/0    0.4/5 overs    target 11    bowler Dev")]

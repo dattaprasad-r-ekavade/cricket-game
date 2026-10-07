@@ -144,6 +144,7 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 77: move HUD phase precedence into `MatchHudPresenter` and test all match/live phases without starting the host.
   - [x] Step 79: extract match lifecycle transitions, first-match tracking, and deterministic decision seeds into a graphics-free `MatchController`; presentation and input remain in `Game1`.
   - [x] Step 80: extract graphics-free scoreboard text formatting into `MatchHudPresenter` and test first-innings, chase, and completed-match output.
+  - [x] Step 81: extract delivery-result card text and pitch labels into `MatchHudPresenter`; test batting contact, bowling accuracy, and full-toss cases without starting the host.
 - [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
   - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.

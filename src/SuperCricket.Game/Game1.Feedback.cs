@@ -230,16 +230,6 @@ public partial class Game1
     private static Color WithAlpha(Color color, float alpha) =>
         new(color.R, color.G, color.B, (byte)MathF.Round(color.A * Math.Clamp(alpha, 0f, 1f)));
 
-    private static (string Title, string Detail) GetBowlingFeedbackSummary(Vector3 target, Vector3 landing)
-    {
-        var aimDistance = Vector2.Distance(
-            new Vector2(target.X, target.Z),
-            new Vector2(landing.X, landing.Z));
-        var title = aimDistance <= 0.65f ? "ON TARGET" : $"{aimDistance:0.0} M FROM AIM";
-        var detail = $"{GetPitchLengthLabel(landing)} | {GetPitchLineLabel(landing)}";
-        return (title, detail);
-    }
-
     private BattingTimingCue? GetLiveBattingTimingCue()
     {
         if (IsCpuBattingControlled || IsHumanBowling || !_bowlerReleased || _deliveryComplete ||

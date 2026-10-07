@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
 
@@ -40,9 +42,123 @@ internal readonly record struct MatchScoreStatusState(
     int? Target,
     string CurrentBowlerName);
 
+internal readonly record struct DeliveryFeedbackState(
+    DeliveryResult Result,
+    bool IsHumanBowling,
+    float DeliverySpeedKilometersPerHour,
+    Vector3? FirstBouncePosition,
+    float BatterWicketLineZ,
+    string? ShotName,
+    float? ContactQuality,
+    string? TimingText,
+    Vector3? ActiveBowlingTargetPosition);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static IReadOnlyList<string> BuildDeliveryFeedbackLines(DeliveryFeedbackState state)
+    {
+        var result = state.Result;
+        var outcome = result.Dismissal != DismissalKind.None
+            ? $"WICKET - {result.Dismissal.ToString().ToUpperInvariant()}"
+            : result.Extra switch
+            {
+                DeliveryExtra.Wide => $"WIDE - {result.ExtraRuns} extra run(s)",
+                DeliveryExtra.NoBall => $"NO BALL - {result.ExtraRuns} extra run(s)",
+                _ => result.BatterRuns switch
+                {
+                    0 => "DOT BALL",
+                    1 => "1 RUN",
+                    4 => "FOUR",
+                    6 => "SIX",
+                    _ => $"{result.BatterRuns} RUNS"
+                }
+            };
+
+        var bounce = state.FirstBouncePosition;
+        var pitchDetail = bounce is { } position
+            ? $"{GetPitchLengthLabel(position, state.BatterWicketLineZ)} {GetPitchLineLabel(position)}"
+            : "full toss";
+        var battingDescription = state.ShotName is { } shotName
+            ? state.ContactQuality is { } quality
+                ? $"{shotName}: {GetContactQualityLabel(quality)} ({quality:P0})"
+                : $"{shotName}: no contact - ball beat the bat"
+            : "No shot played";
+        if (state.TimingText is { } timingText)
+            battingDescription += $" | timing {timingText}";
+
+        var lines = new List<string>
+        {
+            $"{(state.IsHumanBowling ? "YOUR BOWLING RESULT" : "YOUR BATTING RESULT")}  |  {outcome}",
+            $"BALL  |  {state.DeliverySpeedKilometersPerHour:0} km/h  |  {pitchDetail}",
+            bounce is { } pitched
+                ? $"PITCH  |  {MathF.Abs(pitched.Z - state.BatterWicketLineZ):0.0} m from striker"
+                : "PITCH  |  full toss - no bounce"
+        };
+
+        if (state.IsHumanBowling && state.ActiveBowlingTargetPosition is { } target)
+        {
+            if (bounce is { } landed)
+            {
+                var aimDistance = Vector2.Distance(new Vector2(landed.X, landed.Z), new Vector2(target.X, target.Z));
+                var summary = GetBowlingFeedbackSummary(target, landed, state.BatterWicketLineZ);
+                lines.Add($"YOUR BOWL  |  {summary.Title} ({aimDistance:0.0} m from aim)");
+            }
+            else
+            {
+                lines.Add($"YOUR BOWL  |  aimed {GetPitchLengthLabel(target, state.BatterWicketLineZ)} / {GetPitchLineLabel(target)}  |  full toss");
+            }
+            lines.Add($"BATTER  |  {battingDescription}");
+        }
+        else
+        {
+            lines.Add($"YOUR SHOT  |  {battingDescription}");
+        }
+
+        return lines;
+    }
+
+    public static (string Title, string Detail) GetBowlingFeedbackSummary(
+        Vector3 target,
+        Vector3 landing,
+        float batterWicketLineZ)
+    {
+        var aimDistance = Vector2.Distance(
+            new Vector2(target.X, target.Z),
+            new Vector2(landing.X, landing.Z));
+        var title = aimDistance <= 0.65f ? "ON TARGET" : $"{aimDistance:0.0} M FROM AIM";
+        var detail = $"{GetPitchLengthLabel(landing, batterWicketLineZ)} | {GetPitchLineLabel(landing)}";
+        return (title, detail);
+    }
+
+    public static string GetPitchLengthLabel(Vector3 position, float batterWicketLineZ)
+    {
+        var distanceFromStriker = MathF.Abs(position.Z - batterWicketLineZ);
+        return distanceFromStriker switch
+        {
+            <= 1.6f => "yorker",
+            <= 3.0f => "full",
+            <= 6.3f => "good length",
+            <= 8.3f => "back of a length",
+            _ => "short"
+        };
+    }
+
+    public static string GetPitchLineLabel(Vector3 position) => MathF.Abs(position.X) switch
+    {
+        <= 0.35f => "on the stumps",
+        <= 1.525f => position.X < 0f ? "left of the stumps" : "right of the stumps",
+        _ => position.X < 0f ? "wide left" : "wide right"
+    };
+
+    private static string GetContactQualityLabel(float quality) => quality switch
+    {
+        >= 0.88f => "middled",
+        >= 0.75f => "clean contact",
+        >= 0.60f => "edged",
+        _ => "thin contact"
+    };
+
     public static string GetScoreStatus(MatchScoreStatusState state)
     {
         if (state.IsMatchComplete)

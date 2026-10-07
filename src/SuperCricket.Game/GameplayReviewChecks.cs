@@ -205,10 +205,10 @@ public partial class Game1
             bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
             MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
             "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
-        var accurateBowlingFeedback = GetBowlingFeedbackSummary(
-            new Vector3(0f, 0f, -4f), new Vector3(0.3f, 0f, -4.5f));
-        var missedBowlingFeedback = GetBowlingFeedbackSummary(
-            new Vector3(0f, 0f, -4f), new Vector3(1.3f, 0f, -4.5f));
+        var accurateBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(0.3f, 0f, -4.5f), NearBatterZ);
+        var missedBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(1.3f, 0f, -4.5f), NearBatterZ);
         Require(accurateBowlingFeedback.Title == "ON TARGET" &&
             accurateBowlingFeedback.Detail.Contains("good length", StringComparison.Ordinal) &&
             missedBowlingFeedback.Title.EndsWith("M FROM AIM", StringComparison.Ordinal),

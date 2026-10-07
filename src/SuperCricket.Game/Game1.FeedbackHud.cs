@@ -20,7 +20,7 @@ public partial class Game1
         if (IsHumanBowling && _activeBowlingTargetPosition is { } target &&
             _firstBouncePosition is { } landing && _liveFeedbackBannerRemainingSeconds > 0f)
         {
-            var summary = GetBowlingFeedbackSummary(target, landing);
+            var summary = MatchHudPresenter.GetBowlingFeedbackSummary(target, landing, NearBatterZ);
             title = summary.Title;
             var aimDistance = Vector2.Distance(new Vector2(target.X, target.Z), new Vector2(landing.X, landing.Z));
             detail = $"{summary.Detail} | {aimDistance:0.0} m from your aim";
@@ -83,8 +83,8 @@ public partial class Game1
         else if (!IsHumanBowling && _firstBouncePosition is { } bounce &&
             _liveFeedbackBannerRemainingSeconds > 0f)
         {
-            title = $"YOUR DELIVERY | {GetPitchLengthLabel(bounce).ToUpperInvariant()}";
-            detail = $"{GetPitchLineLabel(bounce)} | {MathF.Abs(bounce.Z - NearBatterZ):0.0} m from you";
+            title = $"YOUR DELIVERY | {MatchHudPresenter.GetPitchLengthLabel(bounce, NearBatterZ).ToUpperInvariant()}";
+            detail = $"{MatchHudPresenter.GetPitchLineLabel(bounce)} | {MathF.Abs(bounce.Z - NearBatterZ):0.0} m from you";
             accent = _gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74);
             remaining = _liveFeedbackBannerRemainingSeconds;
         }
