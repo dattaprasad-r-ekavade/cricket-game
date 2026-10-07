@@ -16,6 +16,9 @@ import sys
 
 import bpy
 from mathutils import Matrix, Vector
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from player_animation_contract import (
     contract_from_legacy_player_asset,
     default_animation_contract_path,
