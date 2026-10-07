@@ -129,7 +129,7 @@ public partial class Game1
             : null;
         if (!_captureCameraPresetSpecified)
         {
-            _camera.SelectPreset(GetRoleCameraPreset(IsCpuBattingControlled));
+            _camera.SelectRolePreset(IsCpuBattingControlled);
             if (IsHumanBowling)
                 _camera.SetTarget(GetBowlerWorld().Translation + new Vector3(0f, 0.9f, 0f));
         }
@@ -154,9 +154,6 @@ public partial class Game1
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
         }
     }
-
-    private static string GetRoleCameraPreset(bool isHumanBowling) =>
-        isHumanBowling ? "bowler-end" : "behind-striker";
 
     private void UpdateCpuBatting(float flightElapsed)
     {

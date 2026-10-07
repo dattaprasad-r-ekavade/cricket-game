@@ -38,6 +38,11 @@ public sealed class CameraDirector
 
     public CameraDirector() => ApplyPreset(0);
 
+    public static string GetRolePresetName(bool isHumanBowling) =>
+        isHumanBowling ? "bowler-end" : "behind-striker";
+
+    public bool SelectRolePreset(bool isHumanBowling) => SelectPreset(GetRolePresetName(isHumanBowling));
+
     public Vector3 Position
     {
         get

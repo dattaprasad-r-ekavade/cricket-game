@@ -5,6 +5,17 @@ namespace SuperCricket.Game.Tests;
 
 public sealed class CameraDirectorTests
 {
+    [Theory]
+    [InlineData(false, "Behind striker")]
+    [InlineData(true, "Bowler end")]
+    public void RolePresetSelectionMatchesControlledBowlingSide(bool isHumanBowling, string expectedPreset)
+    {
+        var director = new CameraDirector();
+
+        Assert.True(director.SelectRolePreset(isHumanBowling));
+        Assert.Equal(expectedPreset, director.PresetName);
+    }
+
     [Fact]
     public void RolePresetsFocusTheActiveCreaseAndCycleViews()
     {

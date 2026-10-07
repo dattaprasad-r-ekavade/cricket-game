@@ -191,8 +191,8 @@ public partial class Game1
         ballCamera.ZoomBy(-100f);
         Require(MathF.Abs(ballCamera.Distance - 4.5f) < 0.001f,
             "manual camera zoom did not respect its minimum distance");
-        Require(GetRoleCameraPreset(isHumanBowling: false) == "behind-striker" &&
-            GetRoleCameraPreset(isHumanBowling: true) == "bowler-end",
+        Require(CameraDirector.GetRolePresetName(isHumanBowling: false) == "behind-striker" &&
+            CameraDirector.GetRolePresetName(isHumanBowling: true) == "bowler-end",
             "delivery camera selection did not put each human role in its view of the pitch");
         var mapPlot = new Rectangle(100, 200, 120, 100);
         var mapCenter = MapPitchPosition(Vector3.Zero, mapPlot, PracticeGround.PitchLength);
