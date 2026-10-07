@@ -88,21 +88,14 @@ public sealed class DeliverySession
         return true;
     }
 
-    /// <summary>Resolves a run in progress when the ball becomes dead before it is returned.</summary>
-    public bool ResolveRunAtStoppage(bool runReachedEnd)
+    /// <summary>Credits a crossed run in progress at dead ball. Stoppage alone cannot dismiss a batter.</summary>
+    public void ResolveDeadBall(bool currentRunCrossed)
     {
         EnsureActive();
-        if (runReachedEnd)
-        {
+        if (_dismissal != DismissalKind.None)
+            throw new InvalidOperationException("Dead-ball run credit cannot follow a dismissal.");
+        if (currentRunCrossed)
             RecordCompletedRun();
-            return false;
-        }
-
-        if (IsNoBall)
-            return false;
-
-        _dismissal = DismissalKind.RunOut;
-        return true;
     }
 
     /// <summary>Applies a run-out at a broken wicket. Completed runs remain credited.</summary>

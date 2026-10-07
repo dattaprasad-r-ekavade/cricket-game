@@ -47,7 +47,9 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 
 - [x] Measure live/result timing from the actual paced and CPU-varied delivery; omit targets for unreachable balls and cover asynchronous replacement/failure. See [Step 105](docs/steps/step-105-prepared-delivery-timing.md), code commit `f93cc38`, and its passing hosted validation.
 - [ ] Make ordinary beginner deliveries reachable with the available controls; centered Rookie seed 491 currently needs +0.45 m of footwork.
-- [ ] Resolve run-outs from a broken wicket and batter ground ownership; remove the automatic dismissal and 72% scoring cutoff when a ball settles.
+- [ ] Correct dead-ball running credit in the live host, CPU decisions, and physics batches; remove the automatic dismissal and 72% scoring cutoff. See [Step 106](docs/steps/step-106-dead-ball-running-credit.md).
+- [ ] Resolve run-outs from a broken wicket and batter ground ownership; use elapsed time since bat contact for batch throw arrival.
+- [ ] Allow fielders to collect a resting batted ball; separate movement stoppage and simulation timeout from delivery completion.
 - [ ] Move turn-back continuously from the runners' current positions and preserve run-out risk until they reach their crease.
 - [ ] Animate the non-striker independently of the striker's shot.
 

@@ -106,7 +106,7 @@ public static class CpuLiveRunningDecisionModel
 
             if (current.Phase == BallMotionPhase.Settled)
             {
-                var safeRunsAtStoppage = CountStoppageRuns(current.TimeSeconds, runDurationSeconds, maximumRunCount);
+                var safeRunsAtStoppage = RunningScoringModel.CountRunsAtDeadBall(current.TimeSeconds, runDurationSeconds, maximumRunCount);
                 return new CpuLiveRunDecision(
                     safeRunsAtStoppage,
                     safeRunsAtStoppage > 0
@@ -123,7 +123,7 @@ public static class CpuLiveRunningDecisionModel
                     current.TimeSeconds);
         }
 
-        var safeRunsAtEnd = CountStoppageRuns(previous.TimeSeconds, runDurationSeconds, maximumRunCount);
+        var safeRunsAtEnd = RunningScoringModel.CountRunsAtDeadBall(previous.TimeSeconds, runDurationSeconds, maximumRunCount);
         return new CpuLiveRunDecision(
             safeRunsAtEnd,
             safeRunsAtEnd > 0 ? CpuLiveRunDecisionReason.SafeRunAtStoppage : CpuLiveRunDecisionReason.BallStopsBeforeSafeCrossing,
@@ -132,17 +132,6 @@ public static class CpuLiveRunningDecisionModel
 
     private static int CountCompletedRuns(float elapsedSeconds, float runDurationSeconds, int maximumRunCount) =>
         Math.Clamp((int)MathF.Floor(elapsedSeconds / runDurationSeconds + 0.00001f), 0, maximumRunCount);
-
-    private static int CountStoppageRuns(float elapsedSeconds, float runDurationSeconds, int maximumRunCount)
-    {
-        var completedRuns = CountCompletedRuns(elapsedSeconds, runDurationSeconds, maximumRunCount);
-        if (completedRuns >= maximumRunCount)
-            return maximumRunCount;
-        var elapsedInCurrentRun = elapsedSeconds - completedRuns * runDurationSeconds;
-        return elapsedInCurrentRun >= runDurationSeconds * 0.72f
-            ? completedRuns + 1
-            : completedRuns;
-    }
 
     private static bool IsFinite(Vector3 value) =>
         float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);

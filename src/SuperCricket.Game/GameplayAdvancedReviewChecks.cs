@@ -400,6 +400,23 @@ public partial class Game1
         }
         Console.WriteLine("PASS: Q steps into the wide line and the drive makes contact at 30/60/120 fps.");
 
+        foreach (var presetIndex in new[] { 0, 2 })
+        foreach (var progress in new[] { 0.49f, 0.6f })
+        {
+            Reset(presetIndex);
+            _battedBall = true;
+            StartRun();
+            _runElapsed = _runDurationSeconds * progress;
+            _ballFlight.StopAtContact(new NumericsVector3(0f, 0f, 0f));
+            ResolveSettledBall(_ballFlight.CurrentFrame);
+            var expectedBatterRuns = progress >= 0.5f ? 1 : 0;
+            Require(_deliveryComplete && _dismissal == DismissalKind.None && _match.Wickets == 0 &&
+                _match.Runs == expectedBatterRuns + (presetIndex == 2 ? 1 : 0) &&
+                _match.Striker == (expectedBatterRuns == 1 ? 2 : 1),
+                "settled-ball scoring dismissed a runner or failed to credit a crossed run");
+        }
+        Console.WriteLine("PASS: legal/no-ball dead-ball scoring preserves crossing and never invents a run-out.");
+
         foreach (var boundaryRuns in new[] { 4, 6 })
         {
             Reset();

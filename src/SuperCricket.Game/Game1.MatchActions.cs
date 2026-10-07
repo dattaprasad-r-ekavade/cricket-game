@@ -417,17 +417,16 @@ public partial class Game1
     {
         if (_isRunning)
         {
-            var runCompleted = _runElapsed / _runDurationSeconds >= 0.72f;
-            var runOut = CurrentDelivery.ResolveRunAtStoppage(runCompleted);
-            if (runCompleted)
+            var crossed = RunningScoringModel.HasCrossed(_runElapsed, _runDurationSeconds);
+            CurrentDelivery.ResolveDeadBall(crossed);
+            if (crossed)
                 CompleteRun(recordScoring: false, allowNextRun: false);
-            else if (runOut)
-            {
-                _shotOutcome = "OUT: run out while attempting a run";
-            }
             else
             {
                 _isRunning = false;
+                _shotOutcome = _batterRuns > 0
+                    ? $"RUN: {_batterRuns} batter run(s); ball dead before the next crossing"
+                    : "DOT: ball dead before the batters crossed";
             }
         }
 

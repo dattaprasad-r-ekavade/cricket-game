@@ -272,7 +272,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         }
     }
 
-    private static void SimulateBattedBall(
+    internal static void SimulateBattedBall(
         LimitedOversMatch match,
         DeliverySession session,
         DeliveryPreset delivery,
@@ -361,10 +361,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 {
                     var elapsedInCurrentRun = elapsedSinceContact -
                         completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
-                    var runReachedEnd = elapsedInCurrentRun /
-                        CpuLiveRunningDecisionModel.DefaultRunDurationSeconds >= 0.72f;
-                    session.ResolveRunAtStoppage(runReachedEnd);
-                    if (runReachedEnd)
+                    var crossed = RunningScoringModel.HasCrossed(
+                        elapsedInCurrentRun, CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
+                    session.ResolveDeadBall(crossed);
+                    if (crossed)
                     {
                         telemetry.CompletedRuns++;
                         completedRuns++;
@@ -373,8 +373,6 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 if (session.CompletedRuns >= 2)
                     telemetry.TwoRunScores++;
                 match.CompleteDelivery();
-                if (session.Dismissal == DismissalKind.RunOut)
-                    telemetry.RunOuts++;
                 return;
             }
             previous = current;
@@ -400,7 +398,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         asset.Animations.Find(clip => string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase))?.DurationSeconds
         ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing animation clip '{clipName}'.");
 
-    private sealed class PhysicsMatchTelemetry
+    internal sealed class PhysicsMatchTelemetry
     {
         public int ShotPlans { get; set; }
         public int Contacts { get; set; }
