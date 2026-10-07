@@ -63,36 +63,7 @@ public partial class Game1
 
         if (!_showDebugOverlay)
         {
-            var matchLines = MatchHudPresenter.BuildCompactOverlayLines(new CompactMatchOverlayState(
-                _cpuDifficulty,
-                ScoreStatusText,
-                _shotOutcome,
-                _match.IsMatchComplete,
-                _match.IsInningsComplete,
-                IsCpuBattingControlled,
-                _match.StrikerPlayer.Name,
-                _match.NonStrikerPlayer.Name,
-                GetPrimaryControlHint()));
-            var scale = _gameSettings.LargeText ? 1.25f : 1f;
-            var lineSpacing = (int)MathF.Round(22 * scale);
-            var contentWidth = 0f;
-            foreach (var line in matchLines)
-                contentWidth = Math.Max(contentWidth, _debugFont.MeasureString(line).X * scale);
-            var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
-                (int)MathF.Ceiling(contentWidth + 28 * scale));
-            var panelHeight = 14 + (int)MathF.Ceiling(matchLines.Length * lineSpacing + 14 * scale);
-            _matchHudBounds = new Rectangle(20, 20, panelWidth, panelHeight);
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_debugPanel, _matchHudBounds,
-                _gameSettings.HighContrast ? Color.Black : Color.White);
-            for (var index = 0; index < matchLines.Length; index++)
-            {
-                var color = index == 0
-                    ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
-                    : Color.White;
-                DrawOverlayText(matchLines[index], new Vector2(34, 24 + index * lineSpacing), color, scale);
-            }
-            _spriteBatch.End();
+            DrawMatchHud();
             return;
         }
 

@@ -27,7 +27,8 @@ public partial class Game1
             _gameSettings.HighContrast,
             _predictedBouncePosition is not null,
             _cpuDifficulty,
-            NearBatterZ));
+            NearBatterZ,
+            _shotControlLabel));
         if (feedback is not { } banner)
             return;
 
@@ -37,7 +38,7 @@ public partial class Game1
         var viewport = GraphicsDevice.Viewport;
         var titleScale = _gameSettings.LargeText ? 1.65f : 1.55f;
         var detailScale = _gameSettings.LargeText ? 1.25f : 1.15f;
-        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 820 : 760);
+        var panelWidth = Math.Min(viewport.Width - 40, Math.Max(1, _scoreHudBounds.Width));
         var textWidth = panelWidth - 52;
         var detailLines = MatchHudPresenter.WrapTextLines(
             new[] { detail },
@@ -47,12 +48,10 @@ public partial class Game1
         var lineSpacing = (int)MathF.Round(25 * detailScale);
         var timingGaugeHeight = timingCue is null ? 8 : 18;
         var panelHeight = Math.Max(90, 18 + 36 + detailLines.Count * lineSpacing + timingGaugeHeight);
-        var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
-        var hudBottom = (int)MathF.Ceiling(20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f));
         var panel = MatchHudPresenter.CalculateFeedbackBannerBounds(
             viewport.Width,
             viewport.Height,
-            hudBottom,
+            _scoreHudBounds.Bottom,
             panelWidth,
             panelHeight);
         var fade = Math.Clamp(banner.RemainingSeconds / 0.32f, 0f, 1f);

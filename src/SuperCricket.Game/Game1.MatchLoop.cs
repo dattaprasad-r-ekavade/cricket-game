@@ -134,7 +134,7 @@ public partial class Game1
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete &&
             !_battedBall && !_shotResolved && !_isRunning)
         {
-            var aimStep = _developerMode ? 0.12f : 0.24f;
+            var aimStep = _developerMode ? 0.12f : 0.5f;
             if (KeyPressed(_developerMode ? Keys.J : Keys.Left) ||
                 ControllerPressed(MatchControllerActions.AimOffSide))
                 AdjustHumanShotAim(-aimStep);

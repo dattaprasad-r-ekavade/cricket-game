@@ -54,6 +54,32 @@ public sealed class MatchHudPresenterTests
     }
 
     [Theory]
+    [InlineData(false, "LEFT / RIGHT", "SPACE", "SHIFT", "ENTER")]
+    [InlineData(true, "LEFT STICK", "A", "Y", "B")]
+    public void BattingActionPanelMapsLaneAndShotControls(bool isGamePad, string aim, string ground, string loft, string run)
+    {
+        var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(
+            isGamePad, MatchHudPhase.Batting, "Standard pace"));
+
+        Assert.Equal(new HudActionHint(aim, isGamePad ? "Aim left / straight / right" : "Choose shot direction"), hints[0]);
+        Assert.Equal(new HudActionHint(ground, isGamePad
+            ? "Centre = defend  |  aimed = drive"
+            : "Centre = defend  |  aimed = ground drive"), hints[1]);
+        Assert.Equal(new HudActionHint(loft, "Loft the shot"), hints[2]);
+        Assert.Equal(new HudActionHint(run, "Run after contact  |  hold to turn back"), hints[3]);
+    }
+
+    [Theory]
+    [InlineData("defence", false, "SPACE at centre aim")]
+    [InlineData("drive", false, "LEFT / RIGHT + SPACE")]
+    [InlineData("loft", false, "SHIFT")]
+    [InlineData("defence", true, "A at centre aim")]
+    [InlineData("drive", true, "left stick + A")]
+    [InlineData("loft", true, "Y")]
+    public void ShotResultCanNameTheInputThatSelectedTheAction(string shot, bool gamePad, string expected) =>
+        Assert.Equal(expected, MatchHudPresenter.GetShotControlLabel(shot, gamePad));
+
+    [Theory]
     [InlineData("Perfect", 0f, "PERFECT")]
     [InlineData("Early", -0.042f, "EARLY 42 ms")]
     [InlineData("Late", 0.038f, "LATE 38 ms")]
@@ -96,6 +122,19 @@ public sealed class MatchHudPresenterTests
         Assert.Equal("Drive | TIMING EARLY 80 ms | 91% contact", content.Value.Detail);
         Assert.Equal(new Color(135, 255, 159), content.Value.Accent);
         Assert.Equal(5f, content.Value.RemainingSeconds);
+    }
+
+    [Fact]
+    public void LiveFeedbackLinksShotTypeToTheControlThatSelectedIt()
+    {
+        var content = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            contactQuality: 0.91f,
+            shotName: "drive",
+            timingText: "PERFECT",
+            shotControlLabel: "LEFT / RIGHT + SPACE"));
+
+        Assert.NotNull(content);
+        Assert.Equal("drive (LEFT / RIGHT + SPACE) | PERFECT TIMING | 91% contact", content.Value.Detail);
     }
 
     [Fact]
@@ -265,8 +304,8 @@ public sealed class MatchHudPresenterTests
             AudioUnavailable: false));
 
         Assert.Equal("SUPER CRICKET  /  PAUSED", lines[0]);
-        Assert.Contains("Batting: Left/Right aim | Space ground/defend | Shift loft", lines);
-        Assert.Contains("GamePad batting: left stick aim | A ground/defend | Y loft", lines);
+        Assert.Contains("Batting: arrows choose lane | Space: centre defend / aimed drive | Shift loft", lines);
+        Assert.Contains("GamePad batting: left stick choose lane | A: centre defend / aimed drive | Y loft", lines);
         Assert.Contains("Running: Enter/B starts; tap again for another; hold to turn back", lines);
         Assert.Contains("Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls", lines);
         Assert.Contains("Paused: P/Start resumes | Esc/Back quits | H/Y contrast ON", lines);
@@ -329,6 +368,25 @@ public sealed class MatchHudPresenterTests
             "PITCH  |  1.3 m from striker",
             "YOUR SHOT  |  drive: middled (94%) | timing PERFECT"
         }, lines);
+    }
+
+    [Fact]
+    public void BattingResultCardLinksFourToTheShotButtonAndDirectionInput()
+    {
+        var lines = MatchHudPresenter.BuildDeliveryFeedbackLines(new DeliveryFeedbackState(
+            new DeliveryResult(4, 0, 0),
+            IsHumanBowling: false,
+            DeliverySpeedKilometersPerHour: 123,
+            FirstBouncePosition: new Vector3(0f, 0f, -10f),
+            BatterWicketLineZ: -8.72f,
+            ShotName: "drive",
+            ContactQuality: 0.94f,
+            TimingText: "PERFECT",
+            ActiveBowlingTargetPosition: null,
+            ShotControlLabel: "LEFT / RIGHT + SPACE"));
+
+        Assert.Contains("YOUR BATTING RESULT  |  FOUR", lines);
+        Assert.Contains("YOUR SHOT  |  drive (LEFT / RIGHT + SPACE): middled (94%) | timing PERFECT", lines);
     }
 
     [Fact]
@@ -436,8 +494,8 @@ public sealed class MatchHudPresenterTests
     }
 
     [Theory]
-    [InlineData(false, "Left / Right: aim    Space: ground / defend    Shift: loft    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
-    [InlineData(true, "Left stick: aim    A: ground / defend    Y: loft    Start: pause    L3: camera")]
+    [InlineData(false, "Left / Right: choose direction    Space: centre defend / aimed drive    Shift: loft    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
+    [InlineData(true, "Left stick: choose direction    A: centre defend / aimed drive    Y: loft    Start: pause    L3: camera")]
     public void BattingHintShowsOnlyTheActiveDeviceControls(bool isGamePad, string expected) =>
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.Batting));
 
@@ -476,15 +534,15 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.Running));
 
     [Fact]
-    public void FeedbackBannerIsCenteredBelowHudAndClampedToViewport()
+    public void FeedbackBannerSitsBelowTheScorePanelAndClampsToViewport()
     {
-        Assert.Equal(new Rectangle(340, 170, 760, 96),
-            MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 760, 96));
-        Assert.Equal(new Rectangle(496, 170, 448, 116),
-            MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 448, 116));
-        var narrow = MatchHudPresenter.CalculateFeedbackBannerBounds(1280, 720, 158, 720, 96);
+        Assert.Equal(new Rectangle(20, 150, 760, 96),
+            MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 138, 760, 96));
+        Assert.Equal(new Rectangle(20, 150, 448, 116),
+            MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 138, 448, 116));
+        var narrow = MatchHudPresenter.CalculateFeedbackBannerBounds(1280, 720, 138, 720, 96);
 
-        Assert.Equal(new Rectangle(280, 170, 720, 96), narrow);
+        Assert.Equal(new Rectangle(20, 150, 720, 96), narrow);
         Assert.True(narrow.Bottom <= 696);
     }
 
@@ -502,7 +560,8 @@ public sealed class MatchHudPresenterTests
         bool highContrast = false,
         bool hasPredictedBounce = false,
         CpuDifficulty difficulty = CpuDifficulty.Standard,
-        float batterWicketLineZ = -8.72f) => new(
+        float batterWicketLineZ = -8.72f,
+        string? shotControlLabel = null) => new(
             isHumanBowling,
             activeTarget,
             firstBounce,
@@ -516,7 +575,8 @@ public sealed class MatchHudPresenterTests
             highContrast,
             hasPredictedBounce,
             difficulty,
-            batterWicketLineZ);
+            batterWicketLineZ,
+            shotControlLabel);
 
     private static string Hint(bool isGamePad, MatchHudPhase phase) =>
         MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(isGamePad, phase, "Yorker"));

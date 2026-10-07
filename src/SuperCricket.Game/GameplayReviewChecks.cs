@@ -47,31 +47,44 @@ public partial class Game1
             Vector3.Distance(predictedBounce, ToXna(expectedBounce.Position)) < 0.001f,
             "the projected pitch-point marker did not use the current delivery's simulated bounce");
         Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 8f) < 0.001f &&
-            MathF.Abs(_camera.Target.Z - NearBatterZ) < 0.001f,
+            MathF.Abs(_camera.Target.Z - NearBatterZ) < 0.001f &&
+            MathF.Abs(_camera.Position.X - _camera.Target.X) < 0.001f &&
+            _camera.Position.Z < _camera.Target.Z,
             "the batting delivery did not start with the focused behind-striker view");
-        Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
+        Require(GetPrimaryControlHint().Contains("Left / Right: choose direction", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Space: centre defend / aimed drive", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("PgDn: zoom in / PgUp: out", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
             "the normal batting HUD did not show compact shot controls and the camera shortcut");
+        var keyboardActions = MatchHudPresenter.BuildActionHints(new MatchHudState(false, MatchHudPhase.Batting, "Standard pace"));
+        Require(keyboardActions.Count == 4 && keyboardActions[1].Input == "SPACE" &&
+            keyboardActions[1].Action.Contains("aimed = ground drive", StringComparison.Ordinal),
+            "the keyboard control panel did not explain how a directional ground shot becomes a drive");
         _lastInputWasGamePad = true;
         Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
             "the normal GamePad HUD did not show the camera shortcut");
         _lastInputWasGamePad = false;
         Tick(0f, Keys.Space);
-        Require(_chosenShot?.Name == "defence", "a neutral ground shot did not use the defensive clip");
+        Require(_chosenShot?.Name == "defence" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
+            _playerAnimator.CurrentClipName == "defensive-block" &&
+            _shotControlLabel == "SPACE at centre aim",
+            "a neutral Space input did not select and animate a straight defensive block");
 
         Reset();
         Tick(0f, Keys.Left);
         Tick(0f);
         Tick(0f, Keys.Space);
-        Require(_chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f,
-            "left direction plus the ground button did not select a left-directed drive");
+        Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim + 0.5f) < 0.001f &&
+            _playerAnimator.CurrentClipName == "front-foot-drive" &&
+            _shotControlLabel == "LEFT / RIGHT + SPACE",
+            "left direction plus Space did not select, aim, and animate a left-directed drive");
         Reset();
         Tick(0f, Keys.LeftShift);
-        Require(_chosenShot?.Name == "loft", "the loft button did not select the lofted shot");
+        Require(_chosenShot?.Name == "loft" && _playerAnimator.CurrentClipName == "lofted-drive" &&
+            _shotControlLabel == "SHIFT",
+            "Shift did not select and animate the lofted shot");
         Reset();
         Tick(0f, Keys.A);
         Require(_chosenShot is null, "legacy A/S/D keyboard controls remained active outside developer mode");
@@ -83,7 +96,7 @@ public partial class Game1
             MatchControllerActions.Defend,
             controllerAimAxis: -1f);
         Require(_lastInputWasGamePad && _chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f &&
-            GetPrimaryControlHint().Contains("Left stick: aim", StringComparison.Ordinal),
+            GetPrimaryControlHint().Contains("Left stick: choose direction", StringComparison.Ordinal),
             "GamePad direction and shot buttons did not drive the compact, device-specific batting controls");
 
         Reset();
@@ -176,7 +189,7 @@ public partial class Game1
         Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 8f) < 0.001f &&
             MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f && MathF.Abs(ballCamera.Target.Z - NearBatterZ) < 0.001f &&
             MathF.Abs(ballCamera.Target.Y - 0.9f) < 0.001f &&
-            MathF.Abs(ballCamera.Yaw - (MathHelper.Pi + 0.22f)) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - MathHelper.Pi) < 0.001f &&
             MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f && ballCamera.SelectPreset("bowler-end") &&
             MathF.Abs(ballCamera.Distance - 8f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f &&
             MathF.Abs(ballCamera.Yaw - 0.22f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f &&
@@ -190,14 +203,14 @@ public partial class Game1
             bowlerCamera.Target.Z < 23f && bowlerCamera.Target.Z > 18f,
             "the bowler-end view did not follow the bowler through the run-up while preserving close zoom");
         var readableFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 760, 96);
-        Require(readableFeedback.X == 340 && readableFeedback.Y == 170 && readableFeedback.Width == 760,
-            "live feedback banner was not centered immediately below the scoreboard");
+        Require(readableFeedback.X == 20 && readableFeedback.Y == 170 && readableFeedback.Width == 760,
+            "live feedback banner was not placed below the score panel, away from the pitch center");
         var longHudFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 448, 116);
-        Require(longHudFeedback.X == 496 && longHudFeedback.Y == 170 && longHudFeedback.Right == 944,
-            "live bowling feedback did not remain centered and readable below the keyboard scoreboard");
+        Require(longHudFeedback.X == 20 && longHudFeedback.Y == 170 && longHudFeedback.Right == 468,
+            "live bowling feedback did not remain left-aligned below the score panel");
         var narrowFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1280, 720, 158, 720, 96);
-        Require(narrowFeedback.X == 280 && narrowFeedback.Y == 170 && narrowFeedback.Bottom <= 696,
-            "live feedback banner was not centered below the scoreboard at a narrower resolution");
+        Require(narrowFeedback.X == 20 && narrowFeedback.Y == 170 && narrowFeedback.Bottom <= 696,
+            "live feedback banner was not left-aligned below the score panel at a narrower resolution");
         var keyboardZoomDistance = ballCamera.Distance;
         var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
         ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));

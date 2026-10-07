@@ -77,6 +77,7 @@ public partial class Game1
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;
+        _shotControlLabel = null;
         _humanShotAimOffset = 0f;
         _battingStepRecoveryActive = false;
         _shotResolved = false;

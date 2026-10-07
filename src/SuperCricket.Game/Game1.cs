@@ -71,6 +71,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private RenderTarget2D? _captureTarget;
     private readonly CameraDirector _camera = new();
     private Rectangle _matchHudBounds;
+    private Rectangle _scoreHudBounds;
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];
     private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
@@ -178,6 +179,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";
+    private string? _shotControlLabel;
     private string? _settingsStatusMessage;
     private int _batBoneIndex;
     private Vector3 _batBladeMinimum;

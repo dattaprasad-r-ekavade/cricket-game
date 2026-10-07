@@ -43,6 +43,27 @@ public sealed class BatterAnimationControllerTests
         Assert.All(strikerPose.Concat(nonStrikerPose), AssertFinite);
     }
 
+    [Theory]
+    [InlineData("defensive-block")]
+    [InlineData("front-foot-drive")]
+    [InlineData("lofted-drive")]
+    public void ShotActionPlaysOnceAndReturnsToReadyPose(string clip)
+    {
+        var pair = Create();
+        pair.Update(0.2f);
+        var readyPose = pair.Striker.GetSkinMatrices().ToArray();
+
+        pair.PlayShot(clip);
+        Assert.Equal(clip, pair.Striker.CurrentClipName);
+        pair.Update(0.4f);
+        Assert.Contains(Enumerable.Range(0, readyPose.Length), bone =>
+            readyPose[bone] != pair.Striker.GetSkinMatrices()[bone]);
+
+        pair.Update(2.1f);
+        Assert.Equal("practice-stance", pair.Striker.CurrentClipName);
+        Assert.Equal("practice-stance", pair.NonStriker.CurrentClipName);
+    }
+
     [Fact]
     public void DeveloperClipCyclingLeavesTheNonStrikerInStance()
     {

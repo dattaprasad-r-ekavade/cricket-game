@@ -18,7 +18,7 @@ public sealed class CameraDirector
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
         // Aim at the active crease/player. Keeping the focus at mid-pitch made
         // zooming move the end-on cameras away from the person being controlled.
-        ("Behind striker", MathHelper.Pi + 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, -8.72f), false),
+        ("Behind striker", MathHelper.Pi, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, -8.72f), false),
         ("Bowler end", 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, 8.72f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)

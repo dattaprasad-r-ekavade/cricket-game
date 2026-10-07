@@ -163,8 +163,8 @@ public partial class Game1
         Tick(0f, Keys.J);
         Tick(0f);
         StartShot("drive");
-        Require(_chosenShot is { } leftAim && MathF.Abs(leftAim.HorizontalAim - -0.09f) < 0.001f,
-            "keyboard aim adjustments did not shift the authored drive lane to the left");
+        Require(_chosenShot is { } leftAim && MathF.Abs(leftAim.HorizontalAim - -0.24f) < 0.001f,
+            "keyboard aim adjustments did not set a clearly left-directed shot lane");
         var leftAimImpact = BattingImpactModel.Calculate(
             new NumericsVector3(0f, 0f, -20f),
             NumericsVector3.Zero,
@@ -173,7 +173,7 @@ public partial class Game1
         Require(leftAimImpact.OutgoingVelocity.X < 0f,
             "left shot aim did not direct the outgoing ball toward negative X");
         Tick(0f, Keys.L);
-        Require(_chosenShot is { } adjustedShot && MathF.Abs(adjustedShot.HorizontalAim - 0.03f) < 0.001f,
+        Require(_chosenShot is { } adjustedShot && MathF.Abs(adjustedShot.HorizontalAim - -0.12f) < 0.001f,
             "keyboard aim could not adjust a selected shot before contact");
 
         Reset();
@@ -185,12 +185,12 @@ public partial class Game1
         Require(MathF.Abs(_humanShotAimOffset - 0.5f) < 0.001f,
             "GamePad right-stick aim did not scale continuously with elapsed time");
         StartShot("drive");
-        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 0.65f) < 0.001f,
-            "GamePad right-stick aim was not applied to the next authored shot");
+        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 0.5f) < 0.001f,
+            "GamePad right-stick aim was not applied as the next shot lane");
         Reset();
         Require(MathF.Abs(_humanShotAimOffset) < 0.001f,
             "shot aim adjustment was not cleared for the next delivery");
-        Console.WriteLine("PASS: keyboard and GamePad shot aiming shift human lanes and preserve the authored shot defaults.");
+        Console.WriteLine("PASS: keyboard and GamePad shot aiming select and adjust direct human shot lanes.");
 
         Reset();
         Tick(0.1f);

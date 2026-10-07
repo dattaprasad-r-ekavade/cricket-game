@@ -20,7 +20,7 @@ dotnet run --project src/SuperCricket.Game
 
 | Situation | Keyboard | GamePad |
 | --- | --- | --- |
-| Aim and bat | Left/Right aim; Space ground/defend; Shift loft | Left stick aim; A ground/defend; Y loft |
+| Aim and bat | Left/Right choose a shot lane; Space at centre defends, with a lane selected drives; Shift lofts | Left stick chooses a lane; A at centre defends, with a lane selected drives; Y lofts |
 | Run | Enter starts; tap again to request another; hold to turn back | B starts; tap again to request another; hold to turn back |
 | Bowl | Arrows move the pitch target; C cycles delivery; N bowls | D-pad/left stick move the target; LB cycles delivery; RB bowls |
 | Match | P pause; Esc quit; V camera; PgDn/PgUp zoom | Start pause; Back quit; L3 camera |

@@ -131,7 +131,8 @@ public partial class Game1
             shotName,
             _contactQuality,
             GetBattingTimingText(),
-            _activeBowlingTargetPosition));
+            _activeBowlingTargetPosition,
+            _shotControlLabel));
     }
 
     private string? GetBattingTimingText()

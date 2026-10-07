@@ -78,18 +78,25 @@ public partial class Game1
             return;
 
         var authoredShot = _shotSet.Get(name);
-        var horizontalAim = horizontalAimOverride ??
-            Math.Clamp(authoredShot.HorizontalAim + _humanShotAimOffset, -1f, 1f);
+        var horizontalAim = horizontalAimOverride ?? Math.Clamp(
+            IsCpuBattingControlled
+                ? authoredShot.HorizontalAim + _humanShotAimOffset
+                : _humanShotAimOffset,
+            -1f,
+            1f);
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
         RecordShotTiming(name);
         _shotInputDelaySeconds = _bowlerRunUpElapsed + _bowlerActionElapsed -
             (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
+        _shotControlLabel = IsCpuBattingControlled
+            ? null
+            : MatchHudPresenter.GetShotControlLabel(name, _lastInputWasGamePad);
         _battingStepRecoveryActive = false;
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
-        _playerAnimator.Play(_chosenShot.AnimationClip, 0.12f);
+        _batterAnimations.PlayShot(_chosenShot.AnimationClip);
     }
 
     private void AdjustHumanShotAim(float adjustment)
@@ -102,7 +109,7 @@ public partial class Game1
             return;
 
         var authoredShot = _shotSet.Get(chosenShot.Name);
-        var horizontalAim = Math.Clamp(authoredShot.HorizontalAim + _humanShotAimOffset, -1f, 1f);
+        var horizontalAim = Math.Clamp(_humanShotAimOffset, -1f, 1f);
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
     }
 

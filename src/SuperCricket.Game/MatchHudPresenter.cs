@@ -62,7 +62,8 @@ internal readonly record struct DeliveryFeedbackState(
     string? ShotName,
     float? ContactQuality,
     string? TimingText,
-    Vector3? ActiveBowlingTargetPosition);
+    Vector3? ActiveBowlingTargetPosition,
+    string? ShotControlLabel = null);
 
 internal readonly record struct MatchPauseMenuState(
     string ScoreLine,
@@ -99,7 +100,10 @@ internal readonly record struct LiveFeedbackBannerState(
     bool HighContrast,
     bool HasPredictedBounce,
     CpuDifficulty Difficulty,
-    float BatterWicketLineZ);
+    float BatterWicketLineZ,
+    string? ShotControlLabel = null);
+
+internal readonly record struct HudActionHint(string Input, string Action);
 
 internal readonly record struct LiveFeedbackBannerContent(
     string Title,
@@ -168,11 +172,14 @@ internal static class MatchHudPresenter
             var qualityLabel = state.ContactQuality is { } quality
                 ? $"{quality:P0} contact"
                 : "no contact";
+            var controlLabel = string.IsNullOrWhiteSpace(state.ShotControlLabel)
+                ? state.ShotName
+                : $"{state.ShotName} ({state.ShotControlLabel})";
             var detail = state.ContactIsMiss
                 ? "Your swing missed the ball"
                 : string.IsNullOrWhiteSpace(timingDetail)
-                    ? $"{state.ShotName} | {qualityLabel}"
-                    : $"{state.ShotName} | {timingDetail} | {qualityLabel}";
+                    ? $"{controlLabel} | {qualityLabel}"
+                    : $"{controlLabel} | {timingDetail} | {qualityLabel}";
             var accent = GetContactFeedbackColor(new ContactFeedbackPresentationState(
                 state.ContactIsMiss,
                 state.ContactQuality,
@@ -318,8 +325,8 @@ internal static class MatchHudPresenter
             "SUPER CRICKET  /  PAUSED",
             state.ScoreLine,
             $"CPU difficulty: {state.Difficulty}",
-            "Batting: Left/Right aim | Space ground/defend | Shift loft",
-            "GamePad batting: left stick aim | A ground/defend | Y loft",
+            "Batting: arrows choose lane | Space: centre defend / aimed drive | Shift loft",
+            "GamePad batting: left stick choose lane | A: centre defend / aimed drive | Y loft",
             "Running: Enter/B starts; tap again for another; hold to turn back",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
             "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
@@ -390,10 +397,13 @@ internal static class MatchHudPresenter
         var pitchDetail = bounce is { } position
             ? $"{GetPitchLengthLabel(position, state.BatterWicketLineZ)} {GetPitchLineLabel(position)}"
             : "full toss";
+        var shotControl = string.IsNullOrWhiteSpace(state.ShotControlLabel)
+            ? string.Empty
+            : $" ({state.ShotControlLabel})";
         var battingDescription = state.ShotName is { } shotName
             ? state.ContactQuality is { } quality
-                ? $"{shotName}: {GetContactQualityLabel(quality)} ({quality:P0})"
-                : $"{shotName}: no contact - ball beat the bat"
+                ? $"{shotName}{shotControl}: {GetContactQualityLabel(quality)} ({quality:P0})"
+                : $"{shotName}{shotControl}: no contact - ball beat the bat"
             : "No shot played";
         if (state.TimingText is { } timingText)
             battingDescription += $" | timing {timingText}";
@@ -525,11 +535,70 @@ internal static class MatchHudPresenter
                 ? $"B: run    {pause}"
                 : $"Enter: run    {pause}"),
             MatchHudPhase.Batting => WithCamera(state.IsGamePad
-                ? $"Left stick: aim    A: ground / defend    Y: loft    {pause}"
-                : $"Left / Right: aim    Space: ground / defend    Shift: loft    {pause}"),
+            ? $"Left stick: choose direction    A: centre defend / aimed drive    Y: loft    {pause}"
+                : $"Left / Right: choose direction    Space: centre defend / aimed drive    Shift: loft    {pause}"),
             _ => throw new ArgumentOutOfRangeException(nameof(state), state.Phase, "Unsupported match HUD phase.")
         };
     }
+
+    public static IReadOnlyList<HudActionHint> BuildActionHints(MatchHudState state) => state.Phase switch
+    {
+        MatchHudPhase.Batting => state.IsGamePad
+            ? [
+                new("LEFT STICK", "Aim left / straight / right"),
+                new("A", "Centre = defend  |  aimed = drive"),
+                new("Y", "Loft the shot"),
+                new("B", "Run after contact  |  hold to turn back")
+            ]
+            : [
+                new("LEFT / RIGHT", "Choose shot direction"),
+                new("SPACE", "Centre = defend  |  aimed = ground drive"),
+                new("SHIFT", "Loft the shot"),
+                new("ENTER", "Run after contact  |  hold to turn back")
+            ],
+        MatchHudPhase.BallBatted or MatchHudPhase.Running => state.IsGamePad
+            ? [new("B", "Run again  |  hold to turn back")]
+            : [new("ENTER", "Run again  |  hold to turn back")],
+        MatchHudPhase.Bowling => state.IsGamePad
+            ? [
+                new("D-PAD / STICK", "Aim the next bounce"),
+                new("LB", $"Choose next delivery: {state.NextDeliveryName}")
+            ]
+            : [
+                new("ARROWS", "Aim the next bounce"),
+                new("C", $"Choose next delivery: {state.NextDeliveryName}")
+            ],
+        MatchHudPhase.BowlingDeliveryComplete => state.IsGamePad
+            ? [
+                new("D-PAD / STICK", "Aim the next bounce"),
+                new("LB", $"Delivery: {state.NextDeliveryName}"),
+                new("RB", "Bowl next")
+            ]
+            : [
+                new("ARROWS", "Aim the next bounce"),
+                new("C", $"Delivery: {state.NextDeliveryName}"),
+                new("N", "Bowl next")
+            ],
+        MatchHudPhase.DeliveryComplete => state.IsGamePad
+            ? [new("RB", "Next delivery")]
+            : [new("N", "Next delivery")],
+        MatchHudPhase.InningsComplete => state.IsGamePad
+            ? [new("RB", "Start the chase")]
+            : [new("N", "Start the chase")],
+        MatchHudPhase.MatchComplete => state.IsGamePad
+            ? [new("A", "Restart match"), new("LB / RB", "Change difficulty / overs")]
+            : [new("R", "Restart match"), new("D / O", "Change difficulty / overs")],
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state.Phase, "Unsupported match HUD phase.")
+    };
+
+    public static string GetShotControlLabel(string shotName, bool isGamePad) =>
+        shotName.ToLowerInvariant() switch
+        {
+            "defence" => isGamePad ? "A at centre aim" : "SPACE at centre aim",
+            "drive" => isGamePad ? "left stick + A" : "LEFT / RIGHT + SPACE",
+            "loft" => isGamePad ? "Y" : "SHIFT",
+            _ => isGamePad ? "A / Y" : "SPACE / SHIFT"
+        };
 
     public static Rectangle CalculateFeedbackBannerBounds(
         int viewportWidth,
@@ -540,7 +609,8 @@ internal static class MatchHudPresenter
     {
         var width = Math.Min(viewportWidth - 40, panelWidth);
         var height = Math.Min(viewportHeight - 24, panelHeight);
-        var x = (viewportWidth - width) / 2;
+        const int margin = 20;
+        var x = Math.Clamp(margin, 0, viewportWidth - width);
         var y = Math.Clamp(hudBottom + 12, 20, viewportHeight - height - 12);
         return new Rectangle(x, y, width, height);
     }
