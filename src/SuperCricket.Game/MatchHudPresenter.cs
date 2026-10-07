@@ -30,6 +30,17 @@ internal readonly record struct MatchHudConditions(
     bool IsRunning,
     bool HasBattedBall);
 
+internal readonly record struct CompactMatchOverlayState(
+    CpuDifficulty Difficulty,
+    string ScoreStatusText,
+    string ShotOutcome,
+    bool IsMatchComplete,
+    bool IsInningsComplete,
+    bool IsCpuBattingControlled,
+    string StrikerName,
+    string NonStrikerName,
+    string PrimaryControlHint);
+
 internal readonly record struct MatchScoreStatusState(
     bool IsMatchComplete,
     string ResultText,
@@ -99,6 +110,27 @@ internal readonly record struct LiveFeedbackBannerContent(
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static string[] BuildCompactOverlayLines(CompactMatchOverlayState state)
+    {
+        var eventText = state.ShotOutcome.Length > 72 ? state.ShotOutcome[..69] + "..." : state.ShotOutcome;
+        var batterText = state.IsMatchComplete
+            ? "Match complete"
+            : state.IsInningsComplete
+                ? "Innings complete; press N to start the chase"
+                : state.IsCpuBattingControlled
+                    ? $"CPU batting: {state.StrikerName}    Non-striker: {state.NonStrikerName}"
+                    : $"On strike: {state.StrikerName}    Non-striker: {state.NonStrikerName}";
+
+        return
+        [
+            $"SUPER CRICKET / SHORT MATCH  |  CPU {state.Difficulty}  |  TRAIL cool = slower / warm = faster",
+            state.ScoreStatusText,
+            batterText,
+            state.IsMatchComplete ? "Match finished" : eventText,
+            state.PrimaryControlHint
+        ];
+    }
+
     public static string FormatBattingTimingText(BattingTimingAssessment assessment)
     {
         var offsetMilliseconds = (int)MathF.Round(MathF.Abs(assessment.OffsetFromIdealSeconds) * 1000f);

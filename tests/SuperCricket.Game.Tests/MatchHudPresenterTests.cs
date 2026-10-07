@@ -6,6 +6,53 @@ namespace SuperCricket.Game.Tests;
 
 public sealed class MatchHudPresenterTests
 {
+    [Fact]
+    public void CompactOverlayBuildsHumanBattingLinesAndTruncatesLongEvents()
+    {
+        var lines = MatchHudPresenter.BuildCompactOverlayLines(new CompactMatchOverlayState(
+            CpuDifficulty.Standard,
+            "12/1 after 2 overs",
+            new string('x', 73),
+            false,
+            false,
+            false,
+            "Mira Sen",
+            "Rian Das",
+            "Space: defend"));
+
+        Assert.Equal("SUPER CRICKET / SHORT MATCH  |  CPU Standard  |  TRAIL cool = slower / warm = faster", lines[0]);
+        Assert.Equal("12/1 after 2 overs", lines[1]);
+        Assert.Equal("On strike: Mira Sen    Non-striker: Rian Das", lines[2]);
+        Assert.Equal(new string('x', 69) + "...", lines[3]);
+        Assert.Equal("Space: defend", lines[4]);
+    }
+
+    [Theory]
+    [InlineData(true, false, true, "Match complete", "Match finished")]
+    [InlineData(false, true, true, "Innings complete; press N to start the chase", "Recent shot")]
+    [InlineData(false, false, true, "CPU batting: Asha    Non-striker: Veer", "Recent shot")]
+    public void CompactOverlayPrioritizesCurrentMatchPhase(
+        bool isMatchComplete,
+        bool isInningsComplete,
+        bool isCpuBattingControlled,
+        string expectedBatterLine,
+        string expectedEventLine)
+    {
+        var lines = MatchHudPresenter.BuildCompactOverlayLines(new CompactMatchOverlayState(
+            CpuDifficulty.Rookie,
+            "score",
+            "Recent shot",
+            isMatchComplete,
+            isInningsComplete,
+            isCpuBattingControlled,
+            "Asha",
+            "Veer",
+            "hint"));
+
+        Assert.Equal(expectedBatterLine, lines[2]);
+        Assert.Equal(expectedEventLine, lines[3]);
+    }
+
     [Theory]
     [InlineData("Perfect", 0f, "PERFECT")]
     [InlineData("Early", -0.042f, "EARLY 42 ms")]

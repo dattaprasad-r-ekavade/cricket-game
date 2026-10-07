@@ -62,22 +62,16 @@ public partial class Game1
 
         if (!_showDebugOverlay)
         {
-            var eventText = _shotOutcome.Length > 72 ? _shotOutcome[..69] + "..." : _shotOutcome;
-            var batterText = _match.IsMatchComplete
-                ? "Match complete"
-                : _match.IsInningsComplete
-                    ? "Innings complete; press N to start the chase"
-                    : IsCpuBattingControlled
-                        ? $"CPU batting: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}"
-                        : $"On strike: {_match.StrikerPlayer.Name}    Non-striker: {_match.NonStrikerPlayer.Name}";
-            var matchLines = new List<string>
-            {
-                $"SUPER CRICKET / SHORT MATCH  |  CPU {_cpuDifficulty}  |  TRAIL cool = slower / warm = faster",
+            var matchLines = MatchHudPresenter.BuildCompactOverlayLines(new CompactMatchOverlayState(
+                _cpuDifficulty,
                 ScoreStatusText,
-                batterText,
-                _match.IsMatchComplete ? "Match finished" : eventText,
-                GetPrimaryControlHint()
-            };
+                _shotOutcome,
+                _match.IsMatchComplete,
+                _match.IsInningsComplete,
+                IsCpuBattingControlled,
+                _match.StrikerPlayer.Name,
+                _match.NonStrikerPlayer.Name,
+                GetPrimaryControlHint()));
             var scale = _gameSettings.LargeText ? 1.25f : 1f;
             var lineSpacing = (int)MathF.Round(22 * scale);
             var contentWidth = 0f;
@@ -85,12 +79,12 @@ public partial class Game1
                 contentWidth = Math.Max(contentWidth, _debugFont.MeasureString(line).X * scale);
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
                 (int)MathF.Ceiling(contentWidth + 28 * scale));
-            var panelHeight = 14 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 14 * scale);
+            var panelHeight = 14 + (int)MathF.Ceiling(matchLines.Length * lineSpacing + 14 * scale);
             _matchHudBounds = new Rectangle(20, 20, panelWidth, panelHeight);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
             _spriteBatch.Draw(_debugPanel, _matchHudBounds,
                 _gameSettings.HighContrast ? Color.Black : Color.White);
-            for (var index = 0; index < matchLines.Count; index++)
+            for (var index = 0; index < matchLines.Length; index++)
             {
                 var color = index == 0
                     ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
