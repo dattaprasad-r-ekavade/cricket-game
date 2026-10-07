@@ -8,7 +8,7 @@ Added an extractor for refreshing contracts from legacy exports, validation for 
 
 ## Verification
 
-- `python -m py_compile ...`: all updated Blender and test scripts compiled.
+- `python -m py_compile` on all updated Blender and test scripts passed.
 - `python -m unittest discover -s tests/tools -p 'test_*.py' -v`: all 3 tests passed, including parity against both legacy assets and exact event/root-motion metadata round trips for both GLBs.
 - `dotnet test SuperCricket.sln -c Release`: all 127 tests passed.
 - `pwsh -NoProfile -File tools/review.ps1`: passed in the default headless mode, including the new Python tests, contract-based GLB validation, both Release builds, timing calibration, and deterministic physics batches.
