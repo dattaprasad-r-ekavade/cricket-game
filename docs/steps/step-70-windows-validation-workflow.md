@@ -1,6 +1,6 @@
 # Step 70 — Windows validation workflow
 
-**Status:** workflow added; hosted run pending.
+**Status:** complete; hosted run passed on 7 October 2026.
 
 ## Change
 
@@ -12,4 +12,5 @@ The job compiles the shipping solution, validates humanoid GLBs and game content
 
 - The same headless review passed locally on the Step 69 commit with zero build warnings or errors.
 - The first hosted attempt completed the full review but returned the stale exit code from an intentional invalid-input check. The workflow now invokes the review in a child PowerShell process so the script's final success or thrown failure controls the job result.
-- Verify the first hosted run after pushing this workflow before marking the plan item complete.
+- The first hosted attempt completed the full review but returned a stale exit code from an intentional invalid-input check. The child PowerShell invocation fixed the workflow result handling.
+- Hosted retry passed all steps: [run 37568952887](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37568952887).
