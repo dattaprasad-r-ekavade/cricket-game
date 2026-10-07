@@ -20,9 +20,36 @@ internal readonly record struct MatchHudState(
     MatchHudPhase Phase,
     string NextDeliveryName);
 
+internal readonly record struct MatchHudConditions(
+    bool IsMatchComplete,
+    bool IsInningsComplete,
+    bool IsBowling,
+    bool IsDeliveryComplete,
+    bool IsRunning,
+    bool HasBattedBall);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static MatchHudPhase ResolvePhase(MatchHudConditions conditions)
+    {
+        if (conditions.IsMatchComplete)
+            return MatchHudPhase.MatchComplete;
+        if (conditions.IsInningsComplete)
+            return MatchHudPhase.InningsComplete;
+        if (conditions.IsBowling)
+            return conditions.IsDeliveryComplete
+                ? MatchHudPhase.BowlingDeliveryComplete
+                : MatchHudPhase.Bowling;
+        if (conditions.IsDeliveryComplete)
+            return MatchHudPhase.DeliveryComplete;
+        if (conditions.IsRunning)
+            return MatchHudPhase.Running;
+        return conditions.HasBattedBall
+            ? MatchHudPhase.BallBatted
+            : MatchHudPhase.Batting;
+    }
+
     public static string GetPrimaryControlHint(MatchHudState state)
     {
         var pause = state.IsGamePad ? "Start: pause" : "P: pause";

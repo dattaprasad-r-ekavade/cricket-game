@@ -39,19 +39,13 @@ public partial class Game1
 
     private string GetPrimaryControlHint()
     {
-        var phase = _match.IsMatchComplete
-            ? MatchHudPhase.MatchComplete
-            : _match.IsInningsComplete
-                ? MatchHudPhase.InningsComplete
-                : IsCpuBattingControlled
-                    ? _deliveryComplete ? MatchHudPhase.BowlingDeliveryComplete : MatchHudPhase.Bowling
-                    : _deliveryComplete
-                        ? MatchHudPhase.DeliveryComplete
-                        : _isRunning
-                            ? MatchHudPhase.Running
-                            : _battedBall
-                                ? MatchHudPhase.BallBatted
-                                : MatchHudPhase.Batting;
+        var phase = MatchHudPresenter.ResolvePhase(new MatchHudConditions(
+            _match.IsMatchComplete,
+            _match.IsInningsComplete,
+            IsCpuBattingControlled,
+            _deliveryComplete,
+            _isRunning,
+            _battedBall));
         return MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(
             _lastInputWasGamePad,
             phase,

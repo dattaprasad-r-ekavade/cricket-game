@@ -6,6 +6,30 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Theory]
+    [InlineData(false, false, false, false, false, false, "Batting")]
+    [InlineData(false, false, false, false, false, true, "BallBatted")]
+    [InlineData(false, false, false, false, true, true, "Running")]
+    [InlineData(false, false, false, true, true, true, "DeliveryComplete")]
+    [InlineData(false, false, true, false, false, false, "Bowling")]
+    [InlineData(false, false, true, true, false, false, "BowlingDeliveryComplete")]
+    [InlineData(false, true, true, true, true, true, "InningsComplete")]
+    [InlineData(true, true, true, true, true, true, "MatchComplete")]
+    public void PhaseResolutionUsesMatchPriorityThenLiveDeliveryState(
+        bool matchComplete,
+        bool inningsComplete,
+        bool bowling,
+        bool deliveryComplete,
+        bool running,
+        bool battedBall,
+        string expectedPhase)
+    {
+        var conditions = new MatchHudConditions(
+            matchComplete, inningsComplete, bowling, deliveryComplete, running, battedBall);
+
+        Assert.Equal(Enum.Parse<MatchHudPhase>(expectedPhase), MatchHudPresenter.ResolvePhase(conditions));
+    }
+
+    [Theory]
     [InlineData(false, "Left / Right: aim    Space: ground / defend    Shift: loft    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
     [InlineData(true, "Left stick: aim    A: ground / defend    Y: loft    Start: pause    L3: camera")]
     public void BattingHintShowsOnlyTheActiveDeviceControls(bool isGamePad, string expected) =>
