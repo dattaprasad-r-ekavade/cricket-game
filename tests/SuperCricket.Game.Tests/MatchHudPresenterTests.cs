@@ -6,6 +6,34 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Theory]
+    [InlineData(false, "", 1, "Coastal XI", 10, 1, "1.2", 5, null, "Asha", "Innings 1/2    Coastal XI 10/1    1.2/5 overs    bowler Asha")]
+    [InlineData(false, "", 2, "Highland XI", 8, 0, "0.4", 5, 11, "Dev", "Innings 2/2    Highland XI 8/0    0.4/5 overs    target 11    bowler Dev")]
+    [InlineData(true, "Coastal XI wins by 2 runs", 2, "Highland XI", 9, 4, "1.0", 1, 11, "Dev", "Coastal XI wins by 2 runs")]
+    public void ScoreStatusReflectsCurrentInningsAndResult(
+        bool isMatchComplete,
+        string resultText,
+        int inningsNumber,
+        string battingTeamName,
+        int runs,
+        int wickets,
+        string oversText,
+        int oversPerInnings,
+        int? target,
+        string currentBowlerName,
+        string expected) =>
+        Assert.Equal(expected, MatchHudPresenter.GetScoreStatus(new MatchScoreStatusState(
+            isMatchComplete,
+            resultText,
+            inningsNumber,
+            battingTeamName,
+            runs,
+            wickets,
+            oversText,
+            oversPerInnings,
+            target,
+            currentBowlerName)));
+
+    [Theory]
     [InlineData(false, false, false, false, false, false, "Batting")]
     [InlineData(false, false, false, false, false, true, "BallBatted")]
     [InlineData(false, false, false, false, true, true, "Running")]

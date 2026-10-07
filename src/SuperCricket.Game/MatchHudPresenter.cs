@@ -28,9 +28,31 @@ internal readonly record struct MatchHudConditions(
     bool IsRunning,
     bool HasBattedBall);
 
+internal readonly record struct MatchScoreStatusState(
+    bool IsMatchComplete,
+    string ResultText,
+    int InningsNumber,
+    string BattingTeamName,
+    int Runs,
+    int Wickets,
+    string OversText,
+    int OversPerInnings,
+    int? Target,
+    string CurrentBowlerName);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static string GetScoreStatus(MatchScoreStatusState state)
+    {
+        if (state.IsMatchComplete)
+            return state.ResultText;
+
+        var targetText = state.Target is { } target ? $"    target {target}" : string.Empty;
+        return $"Innings {state.InningsNumber}/2    {state.BattingTeamName} {state.Runs}/{state.Wickets}    " +
+            $"{state.OversText}/{state.OversPerInnings} overs{targetText}    bowler {state.CurrentBowlerName}";
+    }
+
     public static MatchHudPhase ResolvePhase(MatchHudConditions conditions)
     {
         if (conditions.IsMatchComplete)

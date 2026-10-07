@@ -140,9 +140,10 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 72: extract keyboard/controller state and edge tracking to `MatchInputRouter`; the match, presentation, and camera split remains open.
   - [x] Step 73: make the existing camera component's director role explicit and test its isolated behavior.
   - [x] Step 74: split `Game1` into focused partial files under 500 lines; class-level component extraction remains open.
-  - [x] Step 76: extract phase-specific HUD hints and feedback-banner layout into a graphics-device-free `MatchHudPresenter`; match-controller extraction remains open.
+  - [x] Step 76: extract phase-specific HUD hints and feedback-banner layout into a graphics-device-free `MatchHudPresenter`.
   - [x] Step 77: move HUD phase precedence into `MatchHudPresenter` and test all match/live phases without starting the host.
   - [x] Step 79: extract match lifecycle transitions, first-match tracking, and deterministic decision seeds into a graphics-free `MatchController`; presentation and input remain in `Game1`.
+  - [x] Step 80: extract graphics-free scoreboard text formatting into `MatchHudPresenter` and test first-innings, chase, and completed-match output.
 - [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
   - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.

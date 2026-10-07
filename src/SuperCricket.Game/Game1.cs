@@ -139,9 +139,17 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _completedRuns => _match.CurrentDelivery?.CompletedRuns ?? 0;
     private DeliveryExtra _extraType => _match.CurrentDelivery?.Extra ?? DeliveryExtra.None;
     private DismissalKind _dismissal => _match.CurrentDelivery?.Dismissal ?? DismissalKind.None;
-    private string ScoreStatusText => _match.IsMatchComplete
-        ? _match.ResultText
-        : $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText}/{_match.OversPerInnings} overs{(_match.Target is { } target ? $"    target {target}" : string.Empty)}    bowler {_match.CurrentBowler.Name}";
+    private string ScoreStatusText => MatchHudPresenter.GetScoreStatus(new MatchScoreStatusState(
+        _match.IsMatchComplete,
+        _match.ResultText,
+        _match.InningsNumber,
+        _match.BattingTeamName,
+        _match.Runs,
+        _match.Wickets,
+        _match.OversText,
+        _match.OversPerInnings,
+        _match.Target,
+        _match.CurrentBowler.Name));
     private bool _isRunning;
     private bool _runRequestedPending;
     private int _cpuRunsRemaining;
