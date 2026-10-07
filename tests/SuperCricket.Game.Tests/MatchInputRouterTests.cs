@@ -6,6 +6,29 @@ namespace SuperCricket.Game.Tests;
 
 public sealed class MatchInputRouterTests
 {
+    [Theory]
+    [InlineData(0f, 0f)]
+    [InlineData(0.2f, 0f)]
+    [InlineData(-0.2f, 0f)]
+    [InlineData(0.6f, 0.5f)]
+    [InlineData(-0.6f, -0.5f)]
+    [InlineData(1f, 1f)]
+    [InlineData(-1f, -1f)]
+    [InlineData(2f, 1f)]
+    [InlineData(-2f, -1f)]
+    public void AimAxisUsesClampedDeadZoneAndRescaledIntent(float axis, float expected)
+    {
+        Assert.Equal(expected, MatchInputRouter.NormalizeAimAxis(axis), precision: 6);
+    }
+
+    [Fact]
+    public void NonFiniteAimAxisProducesNoIntent()
+    {
+        Assert.Equal(0f, MatchInputRouter.NormalizeAimAxis(float.NaN));
+        Assert.Equal(0f, MatchInputRouter.NormalizeAimAxis(float.PositiveInfinity));
+        Assert.Equal(0f, MatchInputRouter.NormalizeAimAxis(float.NegativeInfinity));
+    }
+
     [Fact]
     public void KeyboardKeysAreReportedOnlyOnThePressEdge()
     {

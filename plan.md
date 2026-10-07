@@ -148,6 +148,7 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 82: extract pause-menu control and settings copy into `MatchHudPresenter`; test normal, developer, and audio-unavailable states without starting the host.
   - [x] Step 83: extract pause-menu layout sizing into `MatchHudPresenter`; preserve normal sizing and fit the long developer menu inside a smaller viewport. Hosted Windows validation passed in [run 37580451887](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37580451887).
   - [x] Step 84: extract feedback-card line wrapping into `MatchHudPresenter`; preserve the current font-measured wrapping and verify continuation behavior without a graphics device. Hosted Windows validation passed in [run 37580959271](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37580959271).
+  - [ ] Step 85: move analog aim dead-zone and rescaling into `MatchInputRouter`; preserve current batting/bowling input and test clamping and non-finite values headlessly.
 - [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
   - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.

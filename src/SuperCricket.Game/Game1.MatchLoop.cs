@@ -142,18 +142,9 @@ public partial class Game1
                 ControllerPressed(MatchControllerActions.AimLegSide))
                 AdjustHumanShotAim(aimStep);
 
-            var stickX = float.IsFinite(controllerAimAxis)
-                ? Math.Clamp(controllerAimAxis, -1f, 1f)
-                : 0f;
-            const float aimDeadZone = 0.2f;
-            var stickMagnitude = MathF.Abs(stickX);
-            if (stickMagnitude > aimDeadZone)
-            {
-                var stickIntent = MathF.CopySign(
-                    (stickMagnitude - aimDeadZone) / (1f - aimDeadZone),
-                    stickX);
+            var stickIntent = MatchInputRouter.NormalizeAimAxis(controllerAimAxis);
+            if (stickIntent != 0f)
                 AdjustHumanShotAim(stickIntent * 1.25f * elapsedSeconds);
-            }
         }
         else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused && !_match.IsInningsComplete)
         {
@@ -166,17 +157,10 @@ public partial class Game1
             if (KeyPressed(Keys.Down) || ControllerPressed(MatchControllerActions.AimShort))
                 AdjustHumanBowlingAim(0f, 0.4f);
 
-            var lineAxis = float.IsFinite(controllerAimAxis) ? Math.Clamp(controllerAimAxis, -1f, 1f) : 0f;
-            var lengthAxis = float.IsFinite(controllerAimLengthAxis)
-                ? Math.Clamp(controllerAimLengthAxis, -1f, 1f)
-                : 0f;
-            const float aimDeadZone = 0.2f;
-            if (MathF.Abs(lineAxis) > aimDeadZone || MathF.Abs(lengthAxis) > aimDeadZone)
+            var lineIntent = MatchInputRouter.NormalizeAimAxis(controllerAimAxis);
+            var lengthIntent = MatchInputRouter.NormalizeAimAxis(controllerAimLengthAxis);
+            if (lineIntent != 0f || lengthIntent != 0f)
             {
-                var lineIntent = MathF.Abs(lineAxis) <= aimDeadZone ? 0f :
-                    MathF.CopySign((MathF.Abs(lineAxis) - aimDeadZone) / (1f - aimDeadZone), lineAxis);
-                var lengthIntent = MathF.Abs(lengthAxis) <= aimDeadZone ? 0f :
-                    MathF.CopySign((MathF.Abs(lengthAxis) - aimDeadZone) / (1f - aimDeadZone), lengthAxis);
                 AdjustHumanBowlingAim(lineIntent * 5f * elapsedSeconds, -lengthIntent * 5f * elapsedSeconds);
             }
         }

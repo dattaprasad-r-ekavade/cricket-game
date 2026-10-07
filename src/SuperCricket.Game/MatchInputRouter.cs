@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Simulation;
 
@@ -9,9 +10,11 @@ internal readonly record struct ControllerInputFrame(
     float AimLengthAxis,
     bool RunHeld);
 
-/// <summary>Turns keyboard and controller device state into edge-triggered match input.</summary>
+/// <summary>Turns keyboard and controller device state into edge-triggered match input and normalized aim.</summary>
 internal sealed class MatchInputRouter
 {
+    private const float AimDeadZone = 0.2f;
+
     private KeyboardState _currentKeyboard;
     private KeyboardState _previousKeyboard;
     private MatchControllerButtons _previousControllerButtons;
@@ -63,6 +66,19 @@ internal sealed class MatchInputRouter
         _currentKeyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
 
     public void EndKeyboardFrame() => _previousKeyboard = _currentKeyboard;
+
+    public static float NormalizeAimAxis(float axis)
+    {
+        if (!float.IsFinite(axis))
+            return 0f;
+
+        var clampedAxis = Math.Clamp(axis, -1f, 1f);
+        var magnitude = MathF.Abs(clampedAxis);
+        if (magnitude <= AimDeadZone)
+            return 0f;
+
+        return MathF.CopySign((magnitude - AimDeadZone) / (1f - AimDeadZone), clampedAxis);
+    }
 
     public void ResetKeyboardHistory()
     {
