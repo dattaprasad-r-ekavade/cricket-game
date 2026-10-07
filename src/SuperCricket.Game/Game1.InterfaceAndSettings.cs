@@ -145,24 +145,15 @@ public partial class Game1
         var scale = _gameSettings.LargeText ? 1.3f : 1.1f;
         var lineSpacing = (int)MathF.Round(30 * scale);
         var scoreLine = $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText} overs";
-        var lines = new List<string>
-        {
-            "SUPER CRICKET  /  PAUSED",
+        var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
             scoreLine,
-            $"CPU difficulty: {_cpuDifficulty}",
-            "Batting: Left/Right aim | Space ground/defend | Shift loft",
-            "GamePad batting: left stick aim | A ground/defend | Y loft",
-            "Running: Enter/B starts; tap again for another; hold to turn back",
-            "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
-            $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
-            $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
-            _settingsStatusMessage ?? (_audioUnavailable
-                ? "Audio output is unavailable; the match remains playable."
-                : "Match, audio, and accessibility settings save on this device.")
-        };
-        if (_developerMode)
-            lines.Insert(3, "Debug: A/S/D shots | J/L aim | Q/E steps | 1-4 presets | arrows orbit | PgUp/PgDn height");
+            _cpuDifficulty,
+            _developerMode,
+            _gameSettings.HighContrast,
+            _gameSettings.LargeText,
+            _gameSettings.EffectsVolume,
+            _settingsStatusMessage,
+            _audioUnavailable));
         var panelWidth = Math.Min(900, viewport.Width - 40);
         var panelHeight = 44 + lines.Count * lineSpacing;
         var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);

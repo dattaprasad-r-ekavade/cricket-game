@@ -7,6 +7,63 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Fact]
+    public void PauseMenuListsControlsAndAccessibilitySettingsWithoutDebugActions()
+    {
+        var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
+            "Innings 1/2    Coastal XI 4/0    0.1 overs",
+            CpuDifficulty.Rookie,
+            DeveloperMode: false,
+            HighContrast: true,
+            LargeText: false,
+            EffectsVolume: 0.75f,
+            SettingsStatusMessage: null,
+            AudioUnavailable: false));
+
+        Assert.Equal("SUPER CRICKET  /  PAUSED", lines[0]);
+        Assert.Contains("Batting: Left/Right aim | Space ground/defend | Shift loft", lines);
+        Assert.Contains("GamePad batting: left stick aim | A ground/defend | Y loft", lines);
+        Assert.Contains("Running: Enter/B starts; tap again for another; hold to turn back", lines);
+        Assert.Contains("Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls", lines);
+        Assert.Contains("Paused: P/Start resumes | Esc/Back quits | H/Y contrast ON", lines);
+        Assert.Contains("T/Pad X: larger text OFF | -/LB volume down | +/RB volume up 75%", lines);
+        Assert.Contains("Match, audio, and accessibility settings save on this device.", lines);
+        Assert.DoesNotContain(lines, line => line.StartsWith("Debug:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PauseMenuShowsDebugActionsAndPrioritizesSettingsStatus()
+    {
+        var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
+            "Current score",
+            CpuDifficulty.Pro,
+            DeveloperMode: true,
+            HighContrast: false,
+            LargeText: true,
+            EffectsVolume: 1f,
+            SettingsStatusMessage: "Settings saved.",
+            AudioUnavailable: true));
+
+        Assert.Equal("Debug: A/S/D shots | J/L aim | Q/E steps | 1-4 presets | arrows orbit | PgUp/PgDn height", lines[3]);
+        Assert.Equal("Settings saved.", lines[^1]);
+    }
+
+    [Fact]
+    public void PauseMenuExplainsUnavailableAudioWhenNoStatusMessageExists()
+    {
+        var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
+            "Current score",
+            CpuDifficulty.Standard,
+            DeveloperMode: false,
+            HighContrast: false,
+            LargeText: false,
+            EffectsVolume: 0.5f,
+            SettingsStatusMessage: null,
+            AudioUnavailable: true));
+
+        Assert.Equal("Audio output is unavailable; the match remains playable.", lines[^1]);
+    }
+
+    [Fact]
     public void BattingResultCardExplainsContactAndTiming()
     {
         var lines = MatchHudPresenter.BuildDeliveryFeedbackLines(new DeliveryFeedbackState(

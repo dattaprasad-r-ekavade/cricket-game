@@ -53,9 +53,42 @@ internal readonly record struct DeliveryFeedbackState(
     string? TimingText,
     Vector3? ActiveBowlingTargetPosition);
 
+internal readonly record struct MatchPauseMenuState(
+    string ScoreLine,
+    CpuDifficulty Difficulty,
+    bool DeveloperMode,
+    bool HighContrast,
+    bool LargeText,
+    float EffectsVolume,
+    string? SettingsStatusMessage,
+    bool AudioUnavailable);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static IReadOnlyList<string> BuildPauseMenuLines(MatchPauseMenuState state)
+    {
+        var lines = new List<string>
+        {
+            "SUPER CRICKET  /  PAUSED",
+            state.ScoreLine,
+            $"CPU difficulty: {state.Difficulty}",
+            "Batting: Left/Right aim | Space ground/defend | Shift loft",
+            "GamePad batting: left stick aim | A ground/defend | Y loft",
+            "Running: Enter/B starts; tap again for another; hold to turn back",
+            "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
+            "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
+            $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(state.HighContrast ? "ON" : "OFF")}",
+            $"T/Pad X: larger text {(state.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up {state.EffectsVolume:P0}",
+            state.SettingsStatusMessage ?? (state.AudioUnavailable
+                ? "Audio output is unavailable; the match remains playable."
+                : "Match, audio, and accessibility settings save on this device.")
+        };
+        if (state.DeveloperMode)
+            lines.Insert(3, "Debug: A/S/D shots | J/L aim | Q/E steps | 1-4 presets | arrows orbit | PgUp/PgDn height");
+        return lines;
+    }
+
     public static IReadOnlyList<string> BuildDeliveryFeedbackLines(DeliveryFeedbackState state)
     {
         var result = state.Result;
