@@ -274,7 +274,7 @@ public partial class Game1
         var panelHeight = Math.Max(_gameSettings.LargeText ? 92 : 84,
             22 + 32 + detailLines.Count * lineSpacing);
         var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
-        var hudBottom = 20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f);
+        var hudBottom = (int)MathF.Ceiling(20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f));
         var panelX = Math.Max(20, viewport.Width - panelWidth - 20);
         var panelY = panelX > viewport.Width * 0.67f
             ? 20
@@ -319,32 +319,33 @@ public partial class Game1
 
         var lines = BuildDeliveryFeedbackLines(result);
         var viewport = GraphicsDevice.Viewport;
-        var scale = _gameSettings.LargeText ? 1.25f : 1.18f;
-        var lineSpacing = (int)MathF.Round(32f * scale);
+        var scale = _gameSettings.LargeText ? 0.98f : 0.9f;
+        var lineSpacing = (int)MathF.Round(26f * scale);
         var hasPitchMap = _firstBouncePosition is not null || _activeBowlingTargetPosition is not null;
-        var panelWidth = Math.Min(viewport.Width - 40, hasPitchMap ? 1180 : 980);
-        const int pitchMapWidth = 210;
-        const int pitchMapHeight = 190;
-        var pitchMapX = 20 + panelWidth - pitchMapWidth - 12;
-        var textWidth = hasPitchMap ? pitchMapX - 34 - 16 : panelWidth - 28;
+        var panelWidth = Math.Min(viewport.Width - 40, hasPitchMap ? 690 : 620);
+        const int pitchMapWidth = 140;
+        const int pitchMapHeight = 126;
+        var panelX = viewport.Width - panelWidth - 20;
+        var pitchMapX = panelX + panelWidth - pitchMapWidth - 12;
+        var textWidth = hasPitchMap ? pitchMapX - panelX - 42 : panelWidth - 28;
         var displayLines = WrapFeedbackLines(lines, textWidth, scale);
-        var panelHeight = 20 + displayLines.Count * lineSpacing;
+        var panelHeight = 16 + displayLines.Count * lineSpacing;
         if (hasPitchMap)
-            panelHeight = Math.Max(panelHeight, pitchMapHeight + 20);
+            panelHeight = Math.Max(panelHeight, pitchMapHeight + 16);
         var panelY = Math.Max(20, viewport.Height - panelHeight - 20);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_debugPanel, new Rectangle(20, panelY, panelWidth, panelHeight),
+        _spriteBatch.Draw(_debugPanel, new Rectangle(panelX, panelY, panelWidth, panelHeight),
             _gameSettings.HighContrast ? Color.Black : new Color(5, 12, 16, 248));
         var accent = _gameSettings.HighContrast
             ? Color.Yellow
             : IsHumanBowling ? new Color(74, 224, 255) : new Color(135, 255, 159);
-        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(20, panelY, 9, panelHeight), accent);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panelX, panelY, 9, panelHeight), accent);
         for (var index = 0; index < displayLines.Count; index++)
         {
             var color = index == 0 ? accent : Color.White;
             var lineScale = index == 0 ? scale * 1.12f : scale;
-            DrawOverlayText(displayLines[index], new Vector2(40, panelY + 12 + index * lineSpacing), color, lineScale);
+            DrawOverlayText(displayLines[index], new Vector2(panelX + 20, panelY + 9 + index * lineSpacing), color, lineScale);
         }
         if (hasPitchMap)
             DrawPitchMap(new Rectangle(pitchMapX, panelY + (panelHeight - pitchMapHeight) / 2, pitchMapWidth, pitchMapHeight));
@@ -506,9 +507,9 @@ public partial class Game1
             };
 
         var bounce = _firstBouncePosition;
-        var pitchDescription = bounce is { } position
-            ? $"{GetPitchLengthLabel(position)} - {GetPitchLineLabel(position)} ({MathF.Abs(position.Z - NearBatterZ):0.0} m from striker)"
-            : "full toss - no pitch bounce";
+        var pitchDetail = bounce is { } position
+            ? $"{GetPitchLengthLabel(position)} {GetPitchLineLabel(position)}"
+            : "full toss";
         var battingDescription = _chosenShot is { } shot
             ? _contactQuality is { } quality
                 ? $"{shot.Name}: {GetContactQualityLabel(quality)} ({quality:P0})"
@@ -520,7 +521,10 @@ public partial class Game1
         var lines = new List<string>
         {
             $"{(IsHumanBowling ? "YOUR BOWLING RESULT" : "YOUR BATTING RESULT")}  |  {outcome}",
-            $"BALL  |  {_deliverySpeedKilometersPerHour:0} km/h  |  {pitchDescription}"
+            $"BALL  |  {_deliverySpeedKilometersPerHour:0} km/h  |  {pitchDetail}",
+            bounce is { } pitched
+                ? $"PITCH  |  {MathF.Abs(pitched.Z - NearBatterZ):0.0} m from striker"
+                : "PITCH  |  full toss - no bounce"
         };
 
         if (IsHumanBowling && _activeBowlingTargetPosition is { } target)
@@ -529,7 +533,7 @@ public partial class Game1
             {
                 var summary = GetBowlingFeedbackSummary(target, landed);
                 var aimDistance = Vector2.Distance(new Vector2(landed.X, landed.Z), new Vector2(target.X, target.Z));
-                lines.Add($"YOUR BOWL  |  {summary.Detail}  |  {summary.Title} ({aimDistance:0.0} m)");
+                lines.Add($"YOUR BOWL  |  {summary.Title} ({aimDistance:0.0} m from aim)");
             }
             else
             {

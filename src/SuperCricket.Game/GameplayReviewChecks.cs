@@ -41,8 +41,8 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 21f) < 0.001f,
-            "the batting delivery did not start with the wide behind-striker view that keeps the run-up in frame");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 16f) < 0.001f,
+            "the batting delivery did not start with the closer behind-striker view");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
@@ -145,13 +145,14 @@ public partial class Game1
             MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 21f) < 0.001f &&
-            MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f && MathF.Abs(ballCamera.Target.Z) < 0.001f &&
-            ballCamera.Yaw > MathHelper.Pi && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 20f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
-            ballCamera.Yaw > 0f &&
-            MathF.Abs(ballCamera.Target.Z - 0.8f) < 0.001f,
-            "batting and bowling cameras did not use wide, elevated, pitch-centred role framing");
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 16f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 2f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - (MathHelper.Pi + 0.12f)) < 0.001f &&
+            MathF.Abs(ballCamera.Elevation - 0.24f) < 0.001f && ballCamera.SelectPreset("bowler-end") &&
+            MathF.Abs(ballCamera.Distance - 16f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - 0.12f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.24f) < 0.001f &&
+            MathF.Abs(ballCamera.Target.Z - 2f) < 0.001f,
+            "batting and bowling cameras did not use the closer, player-focused role framing");
         var keyboardZoomDistance = ballCamera.Distance;
         var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
         ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));
@@ -203,7 +204,7 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: human role cameras use wide, pitch-centred run-up framing with keyboard zoom; live feedback is role-labelled.");
+        Console.WriteLine("PASS: human role cameras use closer, player-focused framing with keyboard zoom; live feedback is role-labelled.");
 
         Reset();
         for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
@@ -251,14 +252,16 @@ public partial class Game1
         CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
         _match.CompleteDelivery();
         var feedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
-        Require(feedbackLines.Count == 3 && feedbackLines[0].Contains("YOUR BATTING RESULT", StringComparison.Ordinal) &&
+        Require(feedbackLines.Count == 4 && feedbackLines[0].Contains("YOUR BATTING RESULT", StringComparison.Ordinal) &&
             feedbackLines[0].Contains("FOUR", StringComparison.Ordinal) &&
             feedbackLines[1].Contains("km/h", StringComparison.Ordinal) &&
             feedbackLines[1].Contains("good length", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("YOUR SHOT", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("drive", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("middled", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("timing PERFECT", StringComparison.Ordinal),
+            feedbackLines[2].Contains("PITCH", StringComparison.Ordinal) &&
+            feedbackLines[2].Contains("m from striker", StringComparison.Ordinal) &&
+            feedbackLines[3].Contains("YOUR SHOT", StringComparison.Ordinal) &&
+            feedbackLines[3].Contains("drive", StringComparison.Ordinal) &&
+            feedbackLines[3].Contains("middled", StringComparison.Ordinal) &&
+            feedbackLines[3].Contains("timing PERFECT", StringComparison.Ordinal),
             "the batting result card did not put pace, pitch, contact, timing, and runs in the player's focus");
         var early = BattingTimingFeedbackModel.Assess(0.12f, 0.25f, 0.075f);
         var perfect = BattingTimingFeedbackModel.Assess(0.30f, 0.25f, 0.075f);
@@ -318,11 +321,12 @@ public partial class Game1
         CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
         _match.CompleteDelivery();
         var bowlingFeedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
-        Require(bowlingFeedbackLines.Count == 4 &&
+        Require(bowlingFeedbackLines.Count == 5 &&
             bowlingFeedbackLines[0].Contains("YOUR BOWLING RESULT", StringComparison.Ordinal) &&
-            bowlingFeedbackLines[2].Contains("YOUR BOWL", StringComparison.Ordinal) &&
-            bowlingFeedbackLines[2].Contains("0.5 m", StringComparison.Ordinal) &&
-            bowlingFeedbackLines[3].Contains("BATTER", StringComparison.Ordinal),
+            bowlingFeedbackLines[2].Contains("PITCH", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[3].Contains("YOUR BOWL", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[3].Contains("0.5 m", StringComparison.Ordinal) &&
+            bowlingFeedbackLines[4].Contains("BATTER", StringComparison.Ordinal),
             "the bowling result card did not foreground the human player's aim and landing feedback");
         Console.WriteLine("PASS: completed-ball feedback foregrounds the human player's role, result, pitch, and aim accuracy.");
 
