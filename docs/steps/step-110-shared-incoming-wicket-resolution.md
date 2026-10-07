@@ -25,7 +25,7 @@ With the shipped standard delivery, bowling rating 91, striker power 65, Standar
 - Added 20 Simulation tests and one Game geometry test. Coverage includes the five reported seeds, an independent physical-stump calculation across 250 CPU variations, stock/wide/no-ball scores, crossings at frame endpoints, non-crossings, interpolated height, 30/60/120 Hz sampling, invalid inputs, and matching rendered dimensions.
 - Full Release suite: all 345 tests passed (Content 9, Simulation 206, Game 130).
 - Default headless review: passed, including both builds, content validators, seeded physics-batch repeatability, wide-ball footwork, batting calibration, and invalid-input rejection.
-- Hosted validation: pending.
+- Hosted Windows validation passed for code commit `c6b7cb0207e2f870a2f9eb8fc12cede5de2aafca` in [run 37618943790](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37618943790).
 - No game window, capture, host check, or runtime profile was started.
 
 ## Remaining
