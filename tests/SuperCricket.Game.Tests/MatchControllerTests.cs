@@ -164,6 +164,28 @@ public sealed class MatchControllerTests
         Assert.Equal(expectedPlacement.StartingPositions, placement.StartingPositions);
     }
 
+    [Fact]
+    public void ConfiguringFieldingSideAppliesPlacementAndCurrentFieldingRatings()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        var fieldPreset = CreateFieldPreset();
+        var fieldingSide = new FieldingSide();
+
+        var placement = controller.ConfigureFieldingSide(fieldingSide, fieldPreset);
+        var target = new System.Numerics.Vector3(0f, -0.08f, 0f);
+        fieldingSide.Step(0f, target);
+
+        var expectedChaserIndex = Enumerable.Range(0, controller.Match.FieldingPlayers.Count)
+            .OrderBy(index => FieldingSide.EstimateReachTime(
+                placement.StartingPositions[index],
+                target,
+                controller.Match.FieldingPlayers[index].Fielding))
+            .First();
+        Assert.Equal(placement.StartingPositions, fieldingSide.Positions);
+        Assert.Equal(expectedChaserIndex, fieldingSide.ActiveChaserIndex);
+    }
+
     private static DeliveryPreset CreateDelivery() => new()
     {
         Name = "Controller pace test",

@@ -67,6 +67,20 @@ internal sealed class MatchController
         return FieldPlacementModel.Choose(fieldPreset, CurrentBowlingSituation, Match.StrikerPlayer.Power);
     }
 
+    public FieldPlacementDecision ConfigureFieldingSide(FieldingSide fieldingSide, FieldPreset fieldPreset)
+    {
+        ArgumentNullException.ThrowIfNull(fieldingSide);
+        var placement = ChooseFieldPlacement(fieldPreset);
+        fieldingSide.ConfigureStartingPositions(placement.StartingPositions);
+
+        var players = Match.FieldingPlayers;
+        var ratings = new int[players.Count];
+        for (var index = 0; index < players.Count; index++)
+            ratings[index] = players[index].Fielding;
+        fieldingSide.ConfigureFieldingRatings(ratings);
+        return placement;
+    }
+
     public DeliveryResult CompleteDelivery()
     {
         var result = Match.CompleteDelivery();
