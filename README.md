@@ -102,16 +102,24 @@ blender --background --factory-startup --python tools/blender/build_practice_bat
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
 
-Create the separate 61-joint humanoid/GLB migration pilot without overwriting the original player assets, then validate its glTF structure:
+Create editable 61-joint humanoid batter and bowler GLB pilots without overwriting the original `.scplayer.json` inputs. The exporter carries each gameplay clip's events and sampled root motion in `animations[].extras.superCricket`; validation checks those values against the authoritative player assets:
 
 ```powershell
 blender --background --python tools/blender/build_humanoid_batter.py -- `
+  --role batter `
   --blend-output assets/characters/practice-batter-humanoid.blend `
   --glb-output assets/characters/practice-batter-humanoid.glb
-python tools/blender/validate_humanoid_glb.py assets/characters/practice-batter-humanoid.glb
+blender --background --python tools/blender/build_humanoid_batter.py -- `
+  --role bowler `
+  --blend-output assets/characters/practice-bowler-humanoid.blend `
+  --glb-output assets/characters/practice-bowler-humanoid.glb
+python tools/blender/validate_humanoid_glb.py assets/characters/practice-batter-humanoid.glb `
+  --role batter --player-asset assets/characters/practice-batter.scplayer.json
+python tools/blender/validate_humanoid_glb.py assets/characters/practice-bowler-humanoid.glb `
+  --role bowler --player-asset assets/characters/practice-bowler.scplayer.json
 ```
 
-The Godot trial imports this GLB to verify its skeleton, named actions, and grip-preview pose. It does not replace the current MonoGame `.scplayer.json` runtime assets.
+The Godot trial imports the batter GLB to verify its skeleton, named actions, and grip-preview pose. These pilots do not replace the current MonoGame `.scplayer.json` runtime assets.
 
 After editing the saved `.blend` in Blender or through Blender MCP, export that scene without rebuilding it:
 

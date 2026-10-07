@@ -11,10 +11,12 @@ try {
 
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
-    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-batter-humanoid.glb'
-    if ($LASTEXITCODE -ne 0) { throw 'The humanoid GLB validation failed.' }
     $batterPath = 'assets/characters/practice-batter.scplayer.json'
     $bowlerPath = 'assets/characters/practice-bowler.scplayer.json'
+    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-batter-humanoid.glb' --role batter --player-asset $batterPath
+    if ($LASTEXITCODE -ne 0) { throw 'The humanoid batter GLB validation failed.' }
+    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-bowler-humanoid.glb' --role bowler --player-asset $bowlerPath
+    if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)

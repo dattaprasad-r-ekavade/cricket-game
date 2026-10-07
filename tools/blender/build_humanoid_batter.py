@@ -1,36 +1,55 @@
-"""Create a 61-bone, GLB-ready continuation of the practice batter asset.
+"""Create a 61-bone humanoid GLB continuation of a practice player asset.
 
 Run from the repository root with the installed Blender:
     blender --background --python tools/blender/build_humanoid_batter.py -- \
-        --blend-output assets/characters/practice-batter-humanoid.blend \
-        --glb-output assets/characters/practice-batter-humanoid.glb
+        --role batter
+    blender --background --python tools/blender/build_humanoid_batter.py -- \
+        --role bowler
 
-The original Blender file and MonoGame .scplayer assets are read-only inputs.
+Original Blender and MonoGame .scplayer assets are read-only inputs. The JSON
+asset supplies the events and root-motion contract embedded in the exported GLB.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
 import bpy
 from mathutils import Vector
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from embed_player_metadata import embed_player_metadata  # noqa: E402
+
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_BLEND = ROOT / "assets" / "characters" / "practice-batter.blend"
-DEFAULT_BLEND_OUTPUT = ROOT / "assets" / "characters" / "practice-batter-humanoid.blend"
-DEFAULT_GLB_OUTPUT = ROOT / "assets" / "characters" / "practice-batter-humanoid.glb"
+ASSET_PATHS = {
+    "batter": {
+        "source": ROOT / "assets" / "characters" / "practice-batter.blend",
+        "player": ROOT / "assets" / "characters" / "practice-batter.scplayer.json",
+        "blend": ROOT / "assets" / "characters" / "practice-batter-humanoid.blend",
+        "glb": ROOT / "assets" / "characters" / "practice-batter-humanoid.glb",
+    },
+    "bowler": {
+        "source": ROOT / "assets" / "characters" / "practice-bowler.blend",
+        "player": ROOT / "assets" / "characters" / "practice-bowler.scplayer.json",
+        "blend": ROOT / "assets" / "characters" / "practice-bowler-humanoid.blend",
+        "glb": ROOT / "assets" / "characters" / "practice-bowler-humanoid.glb",
+    },
+}
 EXPECTED_BONE_COUNT = 61
 
 
 def parse_args() -> argparse.Namespace:
     forwarded = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-blend", type=Path, default=SOURCE_BLEND)
-    parser.add_argument("--blend-output", type=Path, default=DEFAULT_BLEND_OUTPUT)
-    parser.add_argument("--glb-output", type=Path, default=DEFAULT_GLB_OUTPUT)
+    parser.add_argument("--role", choices=tuple(ASSET_PATHS), default="batter")
+    parser.add_argument("--source-blend", type=Path)
+    parser.add_argument("--player-asset", type=Path)
+    parser.add_argument("--blend-output", type=Path)
+    parser.add_argument("--glb-output", type=Path)
     parser.add_argument("--preview-dir", type=Path, default=ROOT / "artifacts")
     return parser.parse_args(forwarded)
 
@@ -243,7 +262,13 @@ def add_grip_preview(armature: bpy.types.Object) -> bpy.types.Action:
     return action
 
 
-def render_pose_previews(armature: bpy.types.Object, action: bpy.types.Action, output_dir: Path) -> None:
+def render_pose_previews(
+    armature: bpy.types.Object,
+    role: str,
+    output_dir: Path,
+    player_asset_path: Path,
+    grip_action: bpy.types.Action | None = None,
+) -> None:
     scene = bpy.context.scene
     output_dir.mkdir(parents=True, exist_ok=True)
     previous_camera = scene.camera
@@ -284,11 +309,34 @@ def render_pose_previews(armature: bpy.types.Object, action: bpy.types.Action, o
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     animation = armature.animation_data_create()
-    animation.action = action
-    if hasattr(action, "slots") and len(action.slots) > 0:
-        animation.action_slot = action.slots[0]
+    if role == "batter":
+        if grip_action is None:
+            raise RuntimeError("The batter preview requires its finger-grip-preview action.")
+        preview_action = grip_action
+        poses = ((1, "step68-humanoid-batter-open-grip.png"), (14, "step68-humanoid-batter-closed-grip.png"))
+    else:
+        preview_action = bpy.data.actions.get("overarm-delivery")
+        if preview_action is None:
+            raise RuntimeError("The bowler preview requires the overarm-delivery action.")
+        player_asset = json.loads(player_asset_path.read_text(encoding="utf-8"))
+        release_clip = next(
+            (clip for clip in player_asset.get("animations", []) if clip.get("name") == "overarm-delivery"),
+            None,
+        )
+        release_event = next(
+            (event for event in (release_clip or {}).get("events", []) if event.get("name") == "ball-release"),
+            None,
+        )
+        if release_event is None:
+            raise RuntimeError("The bowler asset has no ball-release event for its preview frame.")
+        release_frame = int(round(preview_action.frame_range[0] + release_event["timeSeconds"] * scene.render.fps))
+        poses = ((release_frame, "step68-humanoid-bowler-release.png"),)
 
-    for frame, filename in ((1, "step63-humanoid-open-grip.png"), (14, "step63-humanoid-closed-grip.png")):
+    animation.action = preview_action
+    if hasattr(preview_action, "slots") and len(preview_action.slots) > 0:
+        animation.action_slot = preview_action.slots[0]
+
+    for frame, filename in poses:
         scene.frame_set(frame)
         bpy.context.view_layer.update()
         scene.render.filepath = str((output_dir / filename).resolve())
@@ -314,16 +362,20 @@ def render_pose_previews(armature: bpy.types.Object, action: bpy.types.Action, o
 
 def main() -> None:
     args = parse_args()
-    source = args.source_blend.resolve()
-    blend_output = args.blend_output.resolve()
-    glb_output = args.glb_output.resolve()
+    defaults = ASSET_PATHS[args.role]
+    source = (args.source_blend or defaults["source"]).resolve()
+    player_asset_path = (args.player_asset or defaults["player"]).resolve()
+    blend_output = (args.blend_output or defaults["blend"]).resolve()
+    glb_output = (args.glb_output or defaults["glb"]).resolve()
     if not source.is_file():
-        raise FileNotFoundError(f"Practice batter source not found: {source}")
+        raise FileNotFoundError(f"Practice {args.role} source not found: {source}")
+    if not player_asset_path.is_file():
+        raise FileNotFoundError(f"Practice {args.role} player asset not found: {player_asset_path}")
 
     bpy.ops.wm.open_mainfile(filepath=str(source))
     armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
     if len(armatures) != 1:
-        raise RuntimeError(f"Expected one source batter armature, found {len(armatures)}.")
+        raise RuntimeError(f"Expected one source {args.role} armature, found {len(armatures)}.")
     armature = armatures[0]
     old_bones = {bone.name: bone for bone in armature.data.bones}
     required_old_bones = {
@@ -332,12 +384,14 @@ def main() -> None:
     }
     if set(old_bones) != required_old_bones:
         raise RuntimeError(f"Expected the untouched 13-bone practice rig; found {len(old_bones)} bones.")
-    required_actions = {"practice-stance", "front-foot-drive"}
+    required_actions = {"practice-stance", "front-foot-drive"} if args.role == "batter" else {
+        "practice-stance", "bowling-run-up", "overarm-delivery"
+    }
     if not required_actions.issubset({action.name for action in bpy.data.actions}):
-        raise RuntimeError("The source batter must include its stance and front-foot-drive actions.")
+        raise RuntimeError(f"The source {args.role} is missing required actions: {', '.join(sorted(required_actions))}.")
 
     specs = build_bone_specs(old_bones)
-    armature_data = bpy.data.armatures.new("Practice Batter Humanoid Rig 61")
+    armature_data = bpy.data.armatures.new(f"Practice {args.role.title()} Humanoid Rig 61")
     armature.data = armature_data
     bpy.context.view_layer.objects.active = armature
     armature.select_set(True)
@@ -361,13 +415,15 @@ def main() -> None:
     mesh_collection = bpy.data.collections.get("Player Mesh")
     if mesh_collection is None:
         raise RuntimeError("The source scene is missing its 'Player Mesh' collection.")
-    reweight_existing_parts(armature)
-    add_missing_glove_fingers(armature, mesh_collection)
+    if args.role == "batter":
+        reweight_existing_parts(armature)
+        add_missing_glove_fingers(armature, mesh_collection)
     actions = [bpy.data.actions[name] for name in sorted(bpy.data.actions.keys())]
     for action in actions:
         action.use_fake_user = True
-    grip_action = add_grip_preview(armature)
-    actions.append(grip_action)
+    grip_action = add_grip_preview(armature) if args.role == "batter" else None
+    if grip_action is not None:
+        actions.append(grip_action)
     for pose_bone in armature.pose.bones:
         pose_bone.rotation_mode = "XYZ"
 
@@ -375,7 +431,7 @@ def main() -> None:
     scene.render.fps = 30
     scene.frame_set(1)
     bpy.context.view_layer.update()
-    render_pose_previews(armature, grip_action, args.preview_dir.resolve())
+    render_pose_previews(armature, args.role, args.preview_dir.resolve(), player_asset_path, grip_action)
     blend_output.parent.mkdir(parents=True, exist_ok=True)
     glb_output.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_output))
@@ -395,11 +451,14 @@ def main() -> None:
     if "FINISHED" not in result:
         raise RuntimeError(f"Blender did not finish the GLB export: {result}")
 
-    print(f"Standard humanoid source: {blend_output}")
+    animation_count = embed_player_metadata(glb_output, player_asset_path, glb_output)
+
+    print(f"Standard humanoid {args.role} source: {blend_output}")
     print(f"Exported GLB: {glb_output} ({glb_output.stat().st_size} bytes)")
     print(f"Rig: {armature.name}, {len(armature.data.bones)} bones")
     print(f"Meshes: {sum(obj.type == 'MESH' and obj.get('sc_player_part') for obj in mesh_collection.objects)}")
     print(f"Actions: {', '.join(action.name for action in sorted(actions, key=lambda item: item.name))}")
+    print(f"Embedded gameplay metadata in {animation_count} GLB animations from {player_asset_path}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Validate the structural contract of the practice-batter humanoid GLB."""
+"""Validate the structural contract of a practice batter or bowler humanoid GLB."""
 
 from __future__ import annotations
 
@@ -50,7 +50,75 @@ def load_glb_json(path: Path) -> dict:
     raise ValueError("GLB has no JSON chunk.")
 
 
-def validate(path: Path) -> None:
+def _close(left: float, right: float, tolerance: float = 1e-6) -> bool:
+    return abs(float(left) - float(right)) <= tolerance
+
+
+def _animation_duration(document: dict, animation: dict) -> float:
+    accessors = document.get("accessors", [])
+    input_times = []
+    for sampler in animation.get("samplers", []):
+        accessor_index = sampler.get("input", -1)
+        if 0 <= accessor_index < len(accessors):
+            accessor_max = accessors[accessor_index].get("max", [])
+            if accessor_max:
+                input_times.append(float(accessor_max[0]))
+    if not input_times:
+        raise ValueError(f"Animation '{animation.get('name', '')}' has no readable input-time range.")
+    return max(input_times)
+
+
+def _validate_player_metadata(document: dict, player_asset_path: Path) -> None:
+    player = json.loads(player_asset_path.read_text(encoding="utf-8"))
+    if player.get("coordinateSystem") != "right-handed-y-up-metres":
+        raise ValueError("The metadata source must use right-handed-y-up-metres coordinates.")
+    source_clips = {clip["name"]: clip for clip in player.get("animations", [])}
+    exported = {animation.get("name", ""): animation for animation in document.get("animations", [])}
+    missing = sorted(set(source_clips) - set(exported))
+    if missing:
+        raise ValueError("The GLB is missing source gameplay clips: " + ", ".join(missing))
+
+    for name, animation in exported.items():
+        metadata = animation.get("extras", {}).get("superCricket")
+        if not isinstance(metadata, dict):
+            raise ValueError(f"GLB animation '{name}' has no Super Cricket metadata in extras.")
+        if metadata.get("version") != 1 or metadata.get("assetName") != player.get("name") or \
+                metadata.get("coordinateSystem") != player["coordinateSystem"] or metadata.get("animationName") != name:
+            raise ValueError(f"GLB animation '{name}' has mismatched Super Cricket metadata identity.")
+
+        source = source_clips.get(name)
+        expected_events = source.get("events", []) if source else []
+        events = metadata.get("events")
+        if not isinstance(events, list) or len(events) != len(expected_events):
+            raise ValueError(f"GLB animation '{name}' lost or added gameplay events.")
+        duration = _animation_duration(document, animation)
+        for expected, actual in zip(expected_events, events, strict=True):
+            if actual.get("name") != expected.get("name") or \
+                    not _close(actual.get("timeSeconds", -1), expected.get("timeSeconds", -2)):
+                raise ValueError(f"GLB animation '{name}' changed event '{expected.get('name', '')}'.")
+            if float(actual["timeSeconds"]) < 0 or float(actual["timeSeconds"]) > duration + 1e-4:
+                raise ValueError(f"GLB animation '{name}' has an event outside its exported clip duration.")
+
+        root_motion = metadata.get("rootMotion", {})
+        if source is None:
+            if root_motion.get("mode") != "zero" or root_motion.get("samples") != []:
+                raise ValueError(f"Non-gameplay animation '{name}' must declare zero root motion.")
+            continue
+
+        expected_samples = source.get("samples", [])
+        samples = root_motion.get("samples")
+        if root_motion.get("mode") != "samples" or not isinstance(samples, list) or len(samples) != len(expected_samples):
+            raise ValueError(f"GLB animation '{name}' lost or changed its root-motion sample count.")
+        for expected, actual in zip(expected_samples, samples, strict=True):
+            position = actual.get("positionMeters", [])
+            source_position = expected.get("rootMotion", {})
+            wanted = [source_position.get(axis) for axis in ("x", "y", "z")]
+            if len(position) != 3 or not _close(actual.get("timeSeconds", -1), expected.get("timeSeconds", -2)) or \
+                    any(not _close(value, target) for value, target in zip(position, wanted, strict=True)):
+                raise ValueError(f"GLB animation '{name}' changed a root-motion sample.")
+
+
+def validate(path: Path, player_asset_path: Path | None = None, role: str = "batter") -> None:
     document = load_glb_json(path)
     nodes = document.get("nodes", [])
     node_names = [node.get("name", "") for node in nodes]
@@ -76,20 +144,29 @@ def validate(path: Path) -> None:
 
     animations = document.get("animations", [])
     animation_names = {animation.get("name", "") for animation in animations}
-    missing_animations = sorted(REQUIRED_ANIMATIONS - animation_names)
+    required_animations = REQUIRED_ANIMATIONS if role == "batter" else set()
+    if player_asset_path is not None:
+        player = json.loads(player_asset_path.read_text(encoding="utf-8"))
+        required_animations = {clip.get("name", "") for clip in player.get("animations", [])}
+        if role == "batter":
+            required_animations.add("finger-grip-preview")
+    missing_animations = sorted(required_animations - animation_names)
     if missing_animations:
         raise ValueError("The humanoid GLB is missing animations: " + ", ".join(missing_animations))
 
     nodes_by_index = nodes
-    grip = next(animation for animation in animations if animation.get("name") == "finger-grip-preview")
-    grip_targets = {
-        nodes_by_index[channel.get("target", {}).get("node", -1)].get("name", "")
-        for channel in grip.get("channels", [])
-        if 0 <= channel.get("target", {}).get("node", -1) < len(nodes_by_index)
-    }
-    missing_grip_targets = sorted((REQUIRED_FINGER_BONES | {"hand.L", "hand.R"}) - grip_targets)
-    if missing_grip_targets:
-        raise ValueError("The grip preview does not animate all hand joints: " + ", ".join(missing_grip_targets))
+    grip = next((animation for animation in animations if animation.get("name") == "finger-grip-preview"), None)
+    if role == "batter":
+        if grip is None:
+            raise ValueError("The batter GLB has no finger-grip-preview animation.")
+        grip_targets = {
+            nodes_by_index[channel.get("target", {}).get("node", -1)].get("name", "")
+            for channel in grip.get("channels", [])
+            if 0 <= channel.get("target", {}).get("node", -1) < len(nodes_by_index)
+        }
+        missing_grip_targets = sorted((REQUIRED_FINGER_BONES | {"hand.L", "hand.R"}) - grip_targets)
+        if missing_grip_targets:
+            raise ValueError("The grip preview does not animate all hand joints: " + ", ".join(missing_grip_targets))
 
     skinned_primitives = sum(
         "JOINTS_0" in primitive.get("attributes", {}) and "WEIGHTS_0" in primitive.get("attributes", {})
@@ -98,18 +175,25 @@ def validate(path: Path) -> None:
     )
     if skinned_primitives == 0:
         raise ValueError("The GLB contains no skinned mesh primitives.")
-    print(
-        f"PASS: {path} is glTF 2.0 with {len(joint_names)} humanoid joints, "
-        f"{len(animation_names)} clips, all 30 finger segments in the grip animation, "
-        f"and {skinned_primitives} skinned primitives."
-    )
+    if player_asset_path is not None:
+        _validate_player_metadata(document, player_asset_path.resolve())
+    details = [f"{len(joint_names)} humanoid joints", f"{len(animation_names)} clips", f"{skinned_primitives} skinned primitives"]
+    if role == "batter":
+        details.append("all 30 finger segments in the grip animation")
+    if player_asset_path is not None:
+        gameplay_count = len(json.loads(player_asset_path.read_text(encoding="utf-8")).get("animations", []))
+        details.append(f"preserved events/root-motion for {gameplay_count} gameplay clips")
+    print(f"PASS: {path} is glTF 2.0 with " + ", ".join(details) + ".")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path)
+    parser.add_argument("--role", choices=("batter", "bowler"), default="batter")
+    parser.add_argument("--player-asset", type=Path,
+                        help="Validate per-animation event/root-motion extras against this .scplayer.json source.")
     args = parser.parse_args()
-    validate(args.path.resolve())
+    validate(args.path.resolve(), args.player_asset.resolve() if args.player_asset else None, args.role)
 
 
 if __name__ == "__main__":
