@@ -11,4 +11,5 @@ The job compiles the shipping solution, validates humanoid GLBs and game content
 ## Verification
 
 - The same headless review passed locally on the Step 69 commit with zero build warnings or errors.
+- The first hosted attempt completed the full review but returned the stale exit code from an intentional invalid-input check. The workflow now invokes the review in a child PowerShell process so the script's final success or thrown failure controls the job result.
 - Verify the first hosted run after pushing this workflow before marking the plan item complete.

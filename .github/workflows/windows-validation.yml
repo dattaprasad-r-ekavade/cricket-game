@@ -29,4 +29,4 @@ jobs:
 
       - name: Build, validate content, and run headless checks
         shell: pwsh
-        run: ./tools/review.ps1 -SkipGame -SkipCaptures
+        run: pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures
