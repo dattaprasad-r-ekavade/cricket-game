@@ -1,4 +1,5 @@
 using System;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
@@ -27,6 +28,20 @@ internal sealed class MatchController
     public void StartNextInnings() => Match.StartNextInnings();
 
     public DeliverySession BeginDelivery(bool isNoBall) => Match.BeginDelivery(isNoBall);
+
+    public DeliveryPreset PrepareHumanBattingDelivery(
+        DeliveryPreset delivery,
+        CpuDifficulty difficulty,
+        bool humanBattingControlled,
+        bool developerMode,
+        bool verificationRun)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (!humanBattingControlled || developerMode || verificationRun)
+            return delivery;
+
+        return DeliveryPaceModel.ApplyHumanBattingPace(delivery, difficulty, IsFirstMatch);
+    }
 
     public DeliveryResult CompleteDelivery()
     {

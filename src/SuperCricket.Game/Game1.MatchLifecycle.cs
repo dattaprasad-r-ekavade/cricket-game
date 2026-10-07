@@ -86,8 +86,12 @@ public partial class Game1
         {
             _deliveryPreset = selectedPreset;
         }
-        if (!_verifyGameplay && !_developerMode && !IsCpuBattingControlled)
-            _deliveryPreset = DeliveryPaceModel.ApplyHumanBattingPace(_deliveryPreset, _cpuDifficulty, _matchController.IsFirstMatch);
+        _deliveryPreset = _matchController.PrepareHumanBattingDelivery(
+            _deliveryPreset,
+            _cpuDifficulty,
+            humanBattingControlled: !IsCpuBattingControlled,
+            developerMode: _developerMode,
+            verificationRun: _verifyGameplay);
         ConfigureFieldingRatingsForCurrentSide();
         _matchController.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);

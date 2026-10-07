@@ -1,3 +1,4 @@
+using SuperCricket.Content;
 using SuperCricket.Game;
 using SuperCricket.Simulation;
 
@@ -55,6 +56,78 @@ public sealed class MatchControllerTests
 
         Assert.Throws<InvalidOperationException>(() => controller.StartNextInnings());
     }
+
+    [Fact]
+    public void PreparingHumanBattingDeliveryAppliesFirstMatchPaceWithoutMutatingSource()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        var source = CreateDelivery();
+
+        var prepared = controller.PrepareHumanBattingDelivery(
+            source,
+            CpuDifficulty.Standard,
+            humanBattingControlled: true,
+            developerMode: false,
+            verificationRun: false);
+
+        Assert.NotSame(source, prepared);
+        Assert.Equal(34f, source.ReleaseVelocity.ToVector3().Length());
+        Assert.Equal(34f * DeliveryPaceModel.RookieOrFirstMatchSpeedMultiplier,
+            prepared.ReleaseVelocity.ToVector3().Length(), precision: 4);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, true)]
+    public void PreparingIneligibleDeliveryPreservesOriginalReferenceAndSpeed(
+        bool humanBattingControlled,
+        bool developerMode,
+        bool verificationRun)
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        var source = CreateDelivery();
+
+        var prepared = controller.PrepareHumanBattingDelivery(
+            source,
+            CpuDifficulty.Rookie,
+            humanBattingControlled,
+            developerMode,
+            verificationRun);
+
+        Assert.Same(source, prepared);
+        Assert.Equal(34f, prepared.ReleaseVelocity.ToVector3().Length());
+    }
+
+    [Fact]
+    public void PreparingLaterStandardHumanDeliveryKeepsAuthoredPace()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 491);
+        for (var ball = 0; ball < OverScoreboard.BallsPerOver; ball++)
+            CompleteBoundary(controller, clearedInTheAir: false);
+        controller.StartNextInnings();
+        for (var ball = 0; ball < 5; ball++)
+            CompleteBoundary(controller, clearedInTheAir: true);
+
+        var source = CreateDelivery();
+        var prepared = controller.PrepareHumanBattingDelivery(
+            source,
+            CpuDifficulty.Standard,
+            humanBattingControlled: true,
+            developerMode: false,
+            verificationRun: false);
+
+        Assert.NotSame(source, prepared);
+        Assert.Equal(34f, prepared.ReleaseVelocity.ToVector3().Length());
+    }
+
+    private static DeliveryPreset CreateDelivery() => new()
+    {
+        Name = "Controller pace test",
+        ReleasePosition = new Vector3Data { X = 0f, Y = 1f, Z = 20f },
+        ReleaseVelocity = new Vector3Data { X = 0f, Y = 0f, Z = -34f }
+    };
 
     private static void CompleteBoundary(MatchController controller, bool clearedInTheAir)
     {
