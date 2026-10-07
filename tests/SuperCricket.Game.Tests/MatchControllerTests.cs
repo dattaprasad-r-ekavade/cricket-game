@@ -122,6 +122,27 @@ public sealed class MatchControllerTests
         Assert.Equal(34f, prepared.ReleaseVelocity.ToVector3().Length());
     }
 
+    [Fact]
+    public void ChoosingCpuBowlingDeliveryIsRepeatableAndPreservesStockPreset()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        var stock = CreateDelivery();
+
+        var first = controller.ChooseCpuBowlingDelivery(stock, CpuDifficulty.Standard);
+        var second = controller.ChooseCpuBowlingDelivery(stock, CpuDifficulty.Standard);
+
+        Assert.NotSame(stock, first);
+        Assert.Equal(first.Name, second.Name);
+        Assert.Equal(first.ReleaseVelocity.X, second.ReleaseVelocity.X);
+        Assert.Equal(first.ReleaseVelocity.Y, second.ReleaseVelocity.Y);
+        Assert.Equal(first.ReleaseVelocity.Z, second.ReleaseVelocity.Z);
+        Assert.Equal("Controller pace test", stock.Name);
+        Assert.Equal(0f, stock.ReleaseVelocity.X);
+        Assert.Equal(-34f, stock.ReleaseVelocity.Z);
+        Assert.Equal(0f, stock.LateralAccelerationMetersPerSecondSquared);
+    }
+
     private static DeliveryPreset CreateDelivery() => new()
     {
         Name = "Controller pace test",

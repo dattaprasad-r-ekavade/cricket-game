@@ -74,13 +74,7 @@ public partial class Game1
         }
         else if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
         {
-            _deliveryPreset = BowlingDecisionModel.ChooseDelivery(
-                selectedPreset,
-                _match.CurrentBowler.Bowling,
-                _match.StrikerPlayer.Power,
-                situation,
-                _matchController.CreateBowlingDecisionSeed(),
-                _cpuDifficulty).Delivery;
+            _deliveryPreset = _matchController.ChooseCpuBowlingDelivery(selectedPreset, _cpuDifficulty);
         }
         else
         {

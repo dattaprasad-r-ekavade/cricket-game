@@ -43,6 +43,24 @@ internal sealed class MatchController
         return DeliveryPaceModel.ApplyHumanBattingPace(delivery, difficulty, IsFirstMatch);
     }
 
+    public DeliveryPreset ChooseCpuBowlingDelivery(DeliveryPreset stockDelivery, CpuDifficulty difficulty)
+    {
+        ArgumentNullException.ThrowIfNull(stockDelivery);
+        var situation = new BowlingSituation(
+            Match.LegalBalls,
+            Match.OversPerInnings,
+            Match.Runs,
+            Match.Wickets,
+            Match.Target);
+        return BowlingDecisionModel.ChooseDelivery(
+            stockDelivery,
+            Match.CurrentBowler.Bowling,
+            Match.StrikerPlayer.Power,
+            situation,
+            CreateBowlingDecisionSeed(),
+            difficulty).Delivery;
+    }
+
     public DeliveryResult CompleteDelivery()
     {
         var result = Match.CompleteDelivery();
