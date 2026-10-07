@@ -60,7 +60,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 
 **A4b — Teach batting**
 - [ ] Interactive tutorial or practice nets: bowl five slow balls with an on-screen timing prompt, then remove the prompts.
-- [ ] Show the live calibrated timing window and a moving, shot-timing marker while the human batter faces the released delivery. Step 62 implements the first version; check it after its commit and Release review.
+- [x] Show the live calibrated timing window and a moving, shot-timing marker while the human batter faces the released delivery (Step 62; Release review passed).
 - [ ] Add a projected pitch-point marker and a difficulty-scaled contact zone (Rookie shows the zone; Pro hides it).
 - [ ] Make shot types distinct in outcome and animation so the player learns cause and effect.
 - [ ] Use a slower default pace on Rookie and in the first match.
