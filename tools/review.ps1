@@ -27,11 +27,15 @@ try {
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
     $batterSourcePath = 'assets/characters/practice-batter.scplayer.json'
     $bowlerSourcePath = 'assets/characters/practice-bowler.scplayer.json'
+    $batterContractPath = 'assets/characters/practice-batter.animation-contract.json'
+    $bowlerContractPath = 'assets/characters/practice-bowler.animation-contract.json'
     $batterPath = 'assets/characters/practice-batter-humanoid.glb'
     $bowlerPath = 'assets/characters/practice-bowler-humanoid.glb'
-    & python 'tools/blender/validate_humanoid_glb.py' $batterPath --role batter --player-asset $batterSourcePath
+    & python -m unittest discover -s 'tests/tools' -p 'test_*.py'
+    if ($LASTEXITCODE -ne 0) { throw 'Player animation-contract tests failed.' }
+    & python 'tools/blender/validate_humanoid_glb.py' $batterPath --role batter --animation-contract $batterContractPath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid batter GLB validation failed.' }
-    & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --player-asset $bowlerSourcePath
+    & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --animation-contract $bowlerContractPath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
     foreach ($playerPath in @($batterSourcePath, $bowlerSourcePath, $batterPath, $bowlerPath)) {

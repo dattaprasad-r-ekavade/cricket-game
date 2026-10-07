@@ -8,6 +8,8 @@ from pathlib import Path
 import struct
 import tempfile
 
+from player_animation_contract import load_animation_contract
+
 
 GLB_MAGIC = b"glTF"
 GLB_VERSION = 2
@@ -45,32 +47,14 @@ def read_glb(path: Path) -> tuple[dict, list[tuple[int, bytes]]]:
     return document, chunks
 
 
-def _metadata_for_animation(player_asset: dict, clip: dict | None, animation_name: str) -> dict:
-    events = []
-    root_motion_samples = []
-    if clip is not None:
-        for event in clip.get("events", []):
-            events.append({
-                "name": event["name"],
-                "timeSeconds": float(event["timeSeconds"]),
-            })
-        for sample in clip.get("samples", []):
-            root = sample["rootMotion"]
-            root_motion_samples.append({
-                "timeSeconds": float(sample["timeSeconds"]),
-                "positionMeters": [float(root[axis]) for axis in ("x", "y", "z")],
-            })
-        root_motion = {"mode": "samples", "samples": root_motion_samples}
-    else:
-        root_motion = {"mode": "zero", "samples": []}
-
+def _metadata_for_animation(animation_contract: dict, clip: dict | None, animation_name: str) -> dict:
     return {
         "version": METADATA_VERSION,
-        "assetName": player_asset["name"],
-        "coordinateSystem": player_asset["coordinateSystem"],
+        "assetName": animation_contract["assetName"],
+        "coordinateSystem": animation_contract["coordinateSystem"],
         "animationName": animation_name,
-        "events": events,
-        "rootMotion": root_motion,
+        "events": clip["events"] if clip is not None else [],
+        "rootMotion": clip["rootMotion"] if clip is not None else {"mode": "zero", "samples": []},
     }
 
 
@@ -98,16 +82,13 @@ def _write_glb(document: dict, chunks: list[tuple[int, bytes]], output_path: Pat
     temporary_path.replace(output_path)
 
 
-def embed_player_metadata(glb_path: Path, player_asset_path: Path, output_path: Path | None = None) -> int:
+def embed_player_metadata(glb_path: Path, animation_contract_path: Path, output_path: Path | None = None) -> int:
     glb_path = glb_path.resolve()
-    player_asset_path = player_asset_path.resolve()
+    animation_contract_path = animation_contract_path.resolve()
     output_path = (output_path or glb_path.with_name(glb_path.stem + ".metadata.glb")).resolve()
     document, chunks = read_glb(glb_path)
-    player_asset = json.loads(player_asset_path.read_text(encoding="utf-8"))
-    if player_asset.get("coordinateSystem") != "right-handed-y-up-metres":
-        raise ValueError("Player asset must use right-handed-y-up-metres coordinates.")
-
-    source_clips = {clip["name"]: clip for clip in player_asset.get("animations", [])}
+    animation_contract = load_animation_contract(animation_contract_path)
+    source_clips = {clip["name"]: clip for clip in animation_contract["animations"]}
     animations = document.get("animations", [])
     animation_names = [animation.get("name", "") for animation in animations]
     if len(animation_names) != len(set(animation_names)):
@@ -119,7 +100,7 @@ def embed_player_metadata(glb_path: Path, player_asset_path: Path, output_path: 
     for animation in animations:
         name = animation["name"]
         extras = animation.setdefault("extras", {})
-        extras[PLAYER_METADATA_KEY] = _metadata_for_animation(player_asset, source_clips.get(name), name)
+        extras[PLAYER_METADATA_KEY] = _metadata_for_animation(animation_contract, source_clips.get(name), name)
 
     _write_glb(document, chunks, output_path)
     return len(animations)
@@ -128,10 +109,11 @@ def embed_player_metadata(glb_path: Path, player_asset_path: Path, output_path: 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("glb", type=Path, help="Input glTF 2.0 binary.")
-    parser.add_argument("player_asset", type=Path, help="Authoritative .scplayer.json event/root-motion source.")
+    parser.add_argument("animation_contract", type=Path,
+                        help="Animation contract JSON (or legacy .scplayer.json during migration).")
     parser.add_argument("--output", type=Path, help="Output GLB; defaults to a separate <name>.metadata.glb.")
     args = parser.parse_args()
-    count = embed_player_metadata(args.glb, args.player_asset, args.output)
+    count = embed_player_metadata(args.glb, args.animation_contract, args.output)
     print(f"PASS: embedded Super Cricket events/root-motion metadata in {count} GLB animations: {args.output or args.glb.with_name(args.glb.stem + '.metadata.glb')}")
 
 

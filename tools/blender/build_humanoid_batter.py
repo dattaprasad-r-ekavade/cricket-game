@@ -6,14 +6,13 @@ Run from the repository root with the installed Blender:
     blender --background --python tools/blender/build_humanoid_batter.py -- \
         --role bowler
 
-Original Blender and MonoGame .scplayer assets are read-only inputs. The JSON
-asset supplies the events and root-motion contract embedded in the exported GLB.
+The original Blender scene supplies editable geometry and actions. A compact
+animation-contract JSON supplies the events and root motion embedded in the GLB.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 import sys
 
@@ -22,19 +21,20 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from embed_player_metadata import embed_player_metadata  # noqa: E402
+from player_animation_contract import load_animation_contract  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSET_PATHS = {
     "batter": {
         "source": ROOT / "assets" / "characters" / "practice-batter.blend",
-        "player": ROOT / "assets" / "characters" / "practice-batter.scplayer.json",
+        "contract": ROOT / "assets" / "characters" / "practice-batter.animation-contract.json",
         "blend": ROOT / "assets" / "characters" / "practice-batter-humanoid.blend",
         "glb": ROOT / "assets" / "characters" / "practice-batter-humanoid.glb",
     },
     "bowler": {
         "source": ROOT / "assets" / "characters" / "practice-bowler.blend",
-        "player": ROOT / "assets" / "characters" / "practice-bowler.scplayer.json",
+        "contract": ROOT / "assets" / "characters" / "practice-bowler.animation-contract.json",
         "blend": ROOT / "assets" / "characters" / "practice-bowler-humanoid.blend",
         "glb": ROOT / "assets" / "characters" / "practice-bowler-humanoid.glb",
     },
@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--role", choices=tuple(ASSET_PATHS), default="batter")
     parser.add_argument("--source-blend", type=Path)
-    parser.add_argument("--player-asset", type=Path)
+    parser.add_argument("--animation-contract", "--player-asset", dest="animation_contract", type=Path)
     parser.add_argument("--blend-output", type=Path)
     parser.add_argument("--glb-output", type=Path)
     parser.add_argument("--preview-dir", type=Path, default=ROOT / "artifacts")
@@ -266,7 +266,7 @@ def render_pose_previews(
     armature: bpy.types.Object,
     role: str,
     output_dir: Path,
-    player_asset_path: Path,
+    animation_contract_path: Path,
     grip_action: bpy.types.Action | None = None,
 ) -> None:
     scene = bpy.context.scene
@@ -318,9 +318,9 @@ def render_pose_previews(
         preview_action = bpy.data.actions.get("overarm-delivery")
         if preview_action is None:
             raise RuntimeError("The bowler preview requires the overarm-delivery action.")
-        player_asset = json.loads(player_asset_path.read_text(encoding="utf-8"))
+        animation_contract = load_animation_contract(animation_contract_path)
         release_clip = next(
-            (clip for clip in player_asset.get("animations", []) if clip.get("name") == "overarm-delivery"),
+            (clip for clip in animation_contract.get("animations", []) if clip.get("name") == "overarm-delivery"),
             None,
         )
         release_event = next(
@@ -382,13 +382,13 @@ def main() -> None:
     args = parse_args()
     defaults = ASSET_PATHS[args.role]
     source = (args.source_blend or defaults["source"]).resolve()
-    player_asset_path = (args.player_asset or defaults["player"]).resolve()
+    animation_contract_path = (args.animation_contract or defaults["contract"]).resolve()
     blend_output = (args.blend_output or defaults["blend"]).resolve()
     glb_output = (args.glb_output or defaults["glb"]).resolve()
     if not source.is_file():
         raise FileNotFoundError(f"Practice {args.role} source not found: {source}")
-    if not player_asset_path.is_file():
-        raise FileNotFoundError(f"Practice {args.role} player asset not found: {player_asset_path}")
+    if not animation_contract_path.is_file():
+        raise FileNotFoundError(f"Practice {args.role} animation contract not found: {animation_contract_path}")
 
     bpy.ops.wm.open_mainfile(filepath=str(source))
     armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
@@ -450,7 +450,7 @@ def main() -> None:
     scene.render.fps = 30
     scene.frame_set(1)
     bpy.context.view_layer.update()
-    render_pose_previews(armature, args.role, args.preview_dir.resolve(), player_asset_path, grip_action)
+    render_pose_previews(armature, args.role, args.preview_dir.resolve(), animation_contract_path, grip_action)
     blend_output.parent.mkdir(parents=True, exist_ok=True)
     glb_output.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_output))
@@ -470,14 +470,14 @@ def main() -> None:
     if "FINISHED" not in result:
         raise RuntimeError(f"Blender did not finish the GLB export: {result}")
 
-    animation_count = embed_player_metadata(glb_output, player_asset_path, glb_output)
+    animation_count = embed_player_metadata(glb_output, animation_contract_path, glb_output)
 
     print(f"Standard humanoid {args.role} source: {blend_output}")
     print(f"Exported GLB: {glb_output} ({glb_output.stat().st_size} bytes)")
     print(f"Rig: {armature.name}, {len(armature.data.bones)} bones")
     print(f"Meshes: {sum(obj.type == 'MESH' and obj.get('sc_player_part') for obj in mesh_collection.objects)}")
     print(f"Actions: {', '.join(action.name for action in sorted(actions, key=lambda item: item.name))}")
-    print(f"Embedded gameplay metadata in {animation_count} GLB animations from {player_asset_path}")
+    print(f"Embedded gameplay metadata in {animation_count} GLB animations from {animation_contract_path}")
 
 
 if __name__ == "__main__":

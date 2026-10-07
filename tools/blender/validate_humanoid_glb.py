@@ -8,6 +8,8 @@ from pathlib import Path
 import struct
 import sys
 
+from player_animation_contract import load_animation_contract
+
 
 EXPECTED_BONE_COUNT = 61
 REQUIRED_CORE_BONES = {
@@ -68,11 +70,9 @@ def _animation_duration(document: dict, animation: dict) -> float:
     return max(input_times)
 
 
-def _validate_player_metadata(document: dict, player_asset_path: Path) -> None:
-    player = json.loads(player_asset_path.read_text(encoding="utf-8"))
-    if player.get("coordinateSystem") != "right-handed-y-up-metres":
-        raise ValueError("The metadata source must use right-handed-y-up-metres coordinates.")
-    source_clips = {clip["name"]: clip for clip in player.get("animations", [])}
+def _validate_player_metadata(document: dict, animation_contract_path: Path) -> None:
+    animation_contract = load_animation_contract(animation_contract_path)
+    source_clips = {clip["name"]: clip for clip in animation_contract["animations"]}
     exported = {animation.get("name", ""): animation for animation in document.get("animations", [])}
     missing = sorted(set(source_clips) - set(exported))
     if missing:
@@ -82,8 +82,8 @@ def _validate_player_metadata(document: dict, player_asset_path: Path) -> None:
         metadata = animation.get("extras", {}).get("superCricket")
         if not isinstance(metadata, dict):
             raise ValueError(f"GLB animation '{name}' has no Super Cricket metadata in extras.")
-        if metadata.get("version") != 1 or metadata.get("assetName") != player.get("name") or \
-                metadata.get("coordinateSystem") != player["coordinateSystem"] or metadata.get("animationName") != name:
+        if metadata.get("version") != 1 or metadata.get("assetName") != animation_contract["assetName"] or \
+                metadata.get("coordinateSystem") != animation_contract["coordinateSystem"] or metadata.get("animationName") != name:
             raise ValueError(f"GLB animation '{name}' has mismatched Super Cricket metadata identity.")
 
         source = source_clips.get(name)
@@ -105,20 +105,20 @@ def _validate_player_metadata(document: dict, player_asset_path: Path) -> None:
                 raise ValueError(f"Non-gameplay animation '{name}' must declare zero root motion.")
             continue
 
-        expected_samples = source.get("samples", [])
+        expected_root_motion = source["rootMotion"]
+        expected_samples = expected_root_motion["samples"]
         samples = root_motion.get("samples")
-        if root_motion.get("mode") != "samples" or not isinstance(samples, list) or len(samples) != len(expected_samples):
+        if root_motion.get("mode") != expected_root_motion["mode"] or not isinstance(samples, list) or len(samples) != len(expected_samples):
             raise ValueError(f"GLB animation '{name}' lost or changed its root-motion sample count.")
         for expected, actual in zip(expected_samples, samples, strict=True):
             position = actual.get("positionMeters", [])
-            source_position = expected.get("rootMotion", {})
-            wanted = [source_position.get(axis) for axis in ("x", "y", "z")]
+            wanted = expected.get("positionMeters", [])
             if len(position) != 3 or not _close(actual.get("timeSeconds", -1), expected.get("timeSeconds", -2)) or \
                     any(not _close(value, target) for value, target in zip(position, wanted, strict=True)):
                 raise ValueError(f"GLB animation '{name}' changed a root-motion sample.")
 
 
-def validate(path: Path, player_asset_path: Path | None = None, role: str = "batter") -> None:
+def validate(path: Path, animation_contract_path: Path | None = None, role: str = "batter") -> None:
     document = load_glb_json(path)
     nodes = document.get("nodes", [])
     node_names = [node.get("name", "") for node in nodes]
@@ -145,9 +145,9 @@ def validate(path: Path, player_asset_path: Path | None = None, role: str = "bat
     animations = document.get("animations", [])
     animation_names = {animation.get("name", "") for animation in animations}
     required_animations = REQUIRED_ANIMATIONS if role == "batter" else set()
-    if player_asset_path is not None:
-        player = json.loads(player_asset_path.read_text(encoding="utf-8"))
-        required_animations = {clip.get("name", "") for clip in player.get("animations", [])}
+    if animation_contract_path is not None:
+        animation_contract = load_animation_contract(animation_contract_path)
+        required_animations = {clip.get("name", "") for clip in animation_contract.get("animations", [])}
         if role == "batter":
             required_animations.add("finger-grip-preview")
     missing_animations = sorted(required_animations - animation_names)
@@ -175,13 +175,13 @@ def validate(path: Path, player_asset_path: Path | None = None, role: str = "bat
     )
     if skinned_primitives == 0:
         raise ValueError("The GLB contains no skinned mesh primitives.")
-    if player_asset_path is not None:
-        _validate_player_metadata(document, player_asset_path.resolve())
+    if animation_contract_path is not None:
+        _validate_player_metadata(document, animation_contract_path.resolve())
     details = [f"{len(joint_names)} humanoid joints", f"{len(animation_names)} clips", f"{skinned_primitives} skinned primitives"]
     if role == "batter":
         details.append("all 30 finger segments in the grip animation")
-    if player_asset_path is not None:
-        gameplay_count = len(json.loads(player_asset_path.read_text(encoding="utf-8")).get("animations", []))
+    if animation_contract_path is not None:
+        gameplay_count = len(load_animation_contract(animation_contract_path).get("animations", []))
         details.append(f"preserved events/root-motion for {gameplay_count} gameplay clips")
     print(f"PASS: {path} is glTF 2.0 with " + ", ".join(details) + ".")
 
@@ -190,10 +190,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path)
     parser.add_argument("--role", choices=("batter", "bowler"), default="batter")
-    parser.add_argument("--player-asset", type=Path,
-                        help="Validate per-animation event/root-motion extras against this .scplayer.json source.")
+    parser.add_argument("--animation-contract", "--player-asset", dest="animation_contract", type=Path,
+                        help="Validate event/root-motion extras against this animation contract (or legacy player asset).")
     args = parser.parse_args()
-    validate(args.path.resolve(), args.player_asset.resolve() if args.player_asset else None, args.role)
+    validate(args.path.resolve(), args.animation_contract.resolve() if args.animation_contract else None, args.role)
 
 
 if __name__ == "__main__":
