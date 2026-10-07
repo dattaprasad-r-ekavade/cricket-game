@@ -63,7 +63,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] Show the live calibrated timing window and a moving, shot-timing marker while the human batter faces the released delivery (Step 62; Release review passed).
 - [x] Add a projected pitch-point marker and a difficulty-scaled contact zone (Rookie shows the zone; Pro hides it) (Step 65; Release review passed).
 - [ ] Make shot types distinct in outcome and animation so the player learns cause and effect.
-- [ ] Use a slower default pace on Rookie and in the first match (Step 78 in progress: apply 0.82 to CPU deliveries faced by a human; retain authored preset values).
+- [x] Use a slower default pace on Rookie and in the first match (Step 78; apply 0.82 to CPU deliveries faced by a human; retain authored preset values; hosted Windows validation passed).
 
 **A4c — Delivery and shot feedback**
 - [x] After each completed ball, show a compact persistent lower-right result card with release speed, pitch length/line and distance, shot/contact quality/timing, score or wicket, and a pitch map; keep the live role banner clear of the phase HUD (Step 66).

@@ -8,5 +8,5 @@ Added `DeliveryPaceModel` for CPU deliveries faced by a human batter. Rookie mat
 
 - `dotnet test SuperCricket.sln -c Release`: 21 Simulation tests and 31 Game helper tests passed; 0 failed.
 - `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with a zero-warning Release build and headless asset/simulation review.
+- Hosted Windows validation passed: [run 37576455586](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37576455586).
 - No game host, window, or renderer capture was started; in-game feel remains for the planned human retest.
-- Hosted Windows validation will be recorded after the push.
