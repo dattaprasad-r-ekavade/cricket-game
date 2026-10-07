@@ -167,7 +167,7 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
 - [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
   - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.
-- [ ] Make the review headless by default; require `-RunGameChecks` and `-CaptureVisuals` to start the game host or generate captures. See Step 101.
+- [x] Make the review headless by default; require `-RunGameChecks` and `-CaptureVisuals` to start the game host or generate captures. Local Release tests and the default headless review passed. See [Step 101](docs/steps/step-101-headless-review-by-default.md).
 - [x] Add GitHub Actions on Windows: build, tests, validators. Step 70's hosted run passes.
 - [x] Shorten the README: build/run, controls table, links to tool docs. See Step 71.
 
