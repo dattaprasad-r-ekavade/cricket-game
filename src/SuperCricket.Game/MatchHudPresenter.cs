@@ -130,6 +130,39 @@ internal static class MatchHudPresenter
         return lines;
     }
 
+    public static IReadOnlyList<string> WrapTextLines(
+        IReadOnlyList<string> lines,
+        float availableWidth,
+        float scale,
+        Func<string, float> measureText)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(measureText);
+
+        var wrapped = new List<string>(lines.Count);
+        foreach (var line in lines)
+        {
+            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var current = string.Empty;
+            foreach (var word in words)
+            {
+                var candidate = current.Length == 0 ? word : $"{current} {word}";
+                if (current.Length > 0 && measureText(candidate) * scale > availableWidth)
+                {
+                    wrapped.Add(current);
+                    current = $"  {word}";
+                }
+                else
+                {
+                    current = candidate;
+                }
+            }
+            if (current.Length > 0)
+                wrapped.Add(current);
+        }
+        return wrapped;
+    }
+
     public static IReadOnlyList<string> BuildDeliveryFeedbackLines(DeliveryFeedbackState state)
     {
         var result = state.Result;

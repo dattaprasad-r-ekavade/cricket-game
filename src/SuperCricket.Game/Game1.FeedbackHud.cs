@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SuperCricket.Content;
@@ -98,7 +97,11 @@ public partial class Game1
         var detailScale = _gameSettings.LargeText ? 1.25f : 1.15f;
         var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 820 : 760);
         var textWidth = panelWidth - 52;
-        var detailLines = WrapFeedbackLines(new[] { detail }, textWidth, detailScale);
+        var detailLines = MatchHudPresenter.WrapTextLines(
+            new[] { detail },
+            textWidth,
+            detailScale,
+            text => _debugFont.MeasureString(text).X);
         var lineSpacing = (int)MathF.Round(25 * detailScale);
         var timingGaugeHeight = timingCue is null ? 8 : 18;
         var panelHeight = Math.Max(90, 18 + 36 + detailLines.Count * lineSpacing + timingGaugeHeight);
@@ -158,7 +161,11 @@ public partial class Game1
         var panelX = viewport.Width - panelWidth - 20;
         var pitchMapX = panelX + panelWidth - pitchMapWidth - 12;
         var textWidth = hasPitchMap ? pitchMapX - panelX - 42 : panelWidth - 28;
-        var displayLines = WrapFeedbackLines(lines, textWidth, scale);
+        var displayLines = MatchHudPresenter.WrapTextLines(
+            lines,
+            textWidth,
+            scale,
+            text => _debugFont.MeasureString(text).X);
         var panelHeight = 16 + displayLines.Count * lineSpacing;
         if (hasPitchMap)
             panelHeight = Math.Max(panelHeight, pitchMapHeight + 16);
@@ -181,32 +188,5 @@ public partial class Game1
             DrawPitchMap(new Rectangle(pitchMapX, panelY + (panelHeight - pitchMapHeight) / 2, pitchMapWidth, pitchMapHeight));
         _spriteBatch.End();
     }
-
-    private List<string> WrapFeedbackLines(IReadOnlyList<string> lines, float availableWidth, float scale)
-    {
-        var wrapped = new List<string>(lines.Count);
-        foreach (var line in lines)
-        {
-            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var current = string.Empty;
-            foreach (var word in words)
-            {
-                var candidate = current.Length == 0 ? word : $"{current} {word}";
-                if (current.Length > 0 && _debugFont.MeasureString(candidate).X * scale > availableWidth)
-                {
-                    wrapped.Add(current);
-                    current = $"  {word}";
-                }
-                else
-                {
-                    current = candidate;
-                }
-            }
-            if (current.Length > 0)
-                wrapped.Add(current);
-        }
-        return wrapped;
-    }
-
 
 }

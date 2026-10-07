@@ -41,6 +41,27 @@ public sealed class MatchHudPresenterTests
     }
 
     [Fact]
+    public void FeedbackTextWrappingUsesMeasuredWidthAndKeepsContinuationIndent()
+    {
+        var lines = MatchHudPresenter.WrapTextLines(
+            ["one two three", "", "unbroken"],
+            availableWidth: 6,
+            scale: 1f,
+            measureText: text => text.Length);
+
+        Assert.Equal(["one", "  two", "  three", "unbroken"], lines);
+    }
+
+    [Fact]
+    public void FeedbackTextWrappingRejectsMissingInputs()
+    {
+        Assert.Throws<ArgumentNullException>(() => MatchHudPresenter.WrapTextLines(
+            null!, 100, 1f, _ => 1));
+        Assert.Throws<ArgumentNullException>(() => MatchHudPresenter.WrapTextLines(
+            ["line"], 100, 1f, null!));
+    }
+
+    [Fact]
     public void PauseMenuListsControlsAndAccessibilitySettingsWithoutDebugActions()
     {
         var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
