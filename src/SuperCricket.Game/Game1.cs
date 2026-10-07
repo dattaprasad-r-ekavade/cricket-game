@@ -69,7 +69,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private Texture2D _pitchTexture = null!;
     private VertexBuffer? _crowdVertexBuffer;
     private RenderTarget2D? _captureTarget;
-    private readonly OrbitCamera _camera = new();
+    private readonly CameraDirector _camera = new();
     private Rectangle _matchHudBounds;
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];

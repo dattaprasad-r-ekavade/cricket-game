@@ -4,8 +4,8 @@ using Microsoft.Xna.Framework.Input;
 
 namespace SuperCricket.Game.Rendering;
 
-/// <summary>A metre-scaled orbit camera for inspecting the practice ground.</summary>
-public sealed class OrbitCamera
+/// <summary>Chooses and directs gameplay camera views, focus, and zoom.</summary>
+public sealed class CameraDirector
 {
     private const float MinDistance = 4f;
     private const float MaxDistance = 100f;
@@ -36,7 +36,7 @@ public sealed class OrbitCamera
     public string PresetName => _focusName ?? _presets[_presetIndex].Name;
     public bool FollowsBall => _focusName is null && _presets[_presetIndex].FollowsBall;
 
-    public OrbitCamera() => ApplyPreset(0);
+    public CameraDirector() => ApplyPreset(0);
 
     public Vector3 Position
     {

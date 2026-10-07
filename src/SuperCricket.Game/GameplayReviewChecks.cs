@@ -136,7 +136,7 @@ public partial class Game1
         _developerMode = developerModeWasEnabled;
         Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
 
-        var ballCamera = new OrbitCamera();
+        var ballCamera = new CameraDirector();
         Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
             MathF.Abs(ballCamera.Distance - 8f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 43f) < 0.001f,
             "ball-follow camera preset was not selectable at its readable tracking distance");
@@ -160,7 +160,7 @@ public partial class Game1
             MathF.Abs(ballCamera.Yaw - 0.22f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f &&
             MathF.Abs(ballCamera.Target.Z - FarBatterZ) < 0.001f && MathF.Abs(ballCamera.Target.Y - 0.9f) < 0.001f,
             "batting and bowling cameras did not focus the active player at each crease");
-        var bowlerCamera = new OrbitCamera();
+        var bowlerCamera = new CameraDirector();
         bowlerCamera.SelectPreset("bowler-end");
         bowlerCamera.SetTarget(new Vector3(0f, 0.9f, 23f));
         bowlerCamera.TrackTarget(new Vector3(0.5f, 0.9f, 18f), 0.1f);

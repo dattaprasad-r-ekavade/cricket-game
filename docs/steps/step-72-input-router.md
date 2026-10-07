@@ -9,6 +9,7 @@ Moved keyboard edge tracking and GamePad button/axis sampling into `MatchInputRo
 - `dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release`: 3 passed, 0 failed.
 - `dotnet build SuperCricket.sln -c Release`: passed with 0 warnings and 0 errors.
 - `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed, including content validation and deterministic simulation checks.
+- Hosted Windows validation passed: [run 37570636661](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37570636661).
 - No game host, window, or renderer capture was started.
 
 ## Remaining architecture work
