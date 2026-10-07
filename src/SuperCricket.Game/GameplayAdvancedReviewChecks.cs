@@ -410,13 +410,11 @@ public partial class Game1
             _runners.Advance(_runDurationSeconds * progress, _runDurationSeconds);
             _ballFlight.StopAtContact(new NumericsVector3(0f, 0f, 0f));
             ResolveSettledBall(_ballFlight.CurrentFrame);
-            var expectedBatterRuns = progress >= 0.5f ? 1 : 0;
-            Require(_deliveryComplete && _dismissal == DismissalKind.None && _match.Wickets == 0 &&
-                _match.Runs == expectedBatterRuns + (presetIndex == 2 ? 1 : 0) &&
-                _match.Striker == (expectedBatterRuns == 1 ? 2 : 1),
-                "settled-ball scoring dismissed a runner or failed to credit a crossed run");
+            Require(!_deliveryComplete && _isRunning && _dismissal == DismissalKind.None && _match.Wickets == 0 &&
+                _batterRuns == 0 && MathF.Abs(_runners.Progress - progress) < 0.001f,
+                "physical ball rest completed a live delivery or manufactured a crossed run");
         }
-        Console.WriteLine("PASS: legal/no-ball dead-ball scoring preserves crossing and never invents a run-out.");
+        Console.WriteLine("PASS: legal/no-ball physical rest preserves the active delivery and runner positions.");
 
         foreach (var boundaryRuns in new[] { 4, 6 })
         {
@@ -461,6 +459,21 @@ public partial class Game1
         Require(_match.Runs == 2 && _match.Wickets == 0 && _match.LegalBalls == 0 && _match.Striker == 2,
             "no-ball catch incorrectly voided runs or dismissed the striker");
         Console.WriteLine("PASS: no-ball catch retains completed runs plus the penalty.");
+
+        Reset(2);
+        _battedBall = true;
+        StartRun();
+        _runners.Advance(_runDurationSeconds * 0.6f, _runDurationSeconds);
+        ResolveFieldingContact(new FieldingContact(0, new NumericsVector3(0f, 1f, 0f), FieldingContactKind.Catch));
+        Require(!_deliveryComplete && _isRunning && _fielderThrowActive &&
+            _fielderActionClips[0] == "fielder-catch" && _dismissal == DismissalKind.None &&
+            _batterRuns == 0 && _extraRuns == 1,
+            "a catch off a no-ball ended active running instead of starting the return sequence");
+        for (var noBallReturnTick = 0; noBallReturnTick < 600 && !_deliveryComplete; noBallReturnTick++) Tick(1f / 120f);
+        Require(_deliveryComplete && _extraRuns == 1 && _match.LegalBalls == 0 &&
+            _dismissal != DismissalKind.Caught,
+            "a no-ball catch return failed to finish without a caught dismissal");
+        Console.WriteLine("PASS: a catch off a no-ball preserves active running through the catch/return sequence.");
         Console.WriteLine("Gameplay review checks passed.");
     }
 }

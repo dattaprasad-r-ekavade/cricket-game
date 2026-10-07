@@ -124,6 +124,7 @@ public partial class Game1
         _bowlerReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "overarm-delivery", "ball-release");
         _fielderThrowDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-throw");
         _fielderPickupDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-pickup");
+        _fielderCatchDurationSeconds = GetAnimationDuration(_bowlerAsset, "fielder-catch");
         _fielderThrowReleaseTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-throw", "ball-release");
         _fielderPickupBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-pickup", "ball-secured");
         _fielderCatchBallSecuredTimeSeconds = GetAnimationEventTime(_bowlerAsset, "fielder-catch", "catch-secured");

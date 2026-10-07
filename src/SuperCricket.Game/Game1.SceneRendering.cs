@@ -178,8 +178,10 @@ public partial class Game1
         if (_fielderSequencePhase == FielderSequencePhase.Pickup)
         {
             var pickupTime = _fielderAnimators[_fielderThrowerIndex].CurrentTimeSeconds;
+            var securedTime = _fielderActionClips[_fielderThrowerIndex] == "fielder-catch"
+                ? _fielderCatchBallSecuredTimeSeconds : _fielderPickupBallSecuredTimeSeconds;
             var securedAmount = Math.Clamp(
-                pickupTime / MathF.Max(0.001f, _fielderPickupBallSecuredTimeSeconds),
+                pickupTime / MathF.Max(0.001f, securedTime),
                 0f,
                 1f);
             return NumericsVector3.Lerp(_fielderThrowStart, _fielderHeldBallPosition, securedAmount);

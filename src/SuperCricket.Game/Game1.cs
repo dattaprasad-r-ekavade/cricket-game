@@ -165,6 +165,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private NumericsVector3 _fielderHeldBallPosition;
     private float _fielderPickupBallSecuredTimeSeconds;
     private float _fielderCatchBallSecuredTimeSeconds;
+    private float _fielderCatchDurationSeconds;
     private float _fielderPickupDurationSeconds;
     private float _fielderThrowReleaseTimeSeconds;
     private float _fielderThrowDurationSeconds;

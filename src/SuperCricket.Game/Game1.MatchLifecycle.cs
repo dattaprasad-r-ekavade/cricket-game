@@ -70,6 +70,7 @@ public partial class Game1
             difficulty: _cpuDifficulty);
         _matchController.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
+        _fieldingSide.ConfigureBoundaryRadius(_deliveryPreset.FieldBoundaryRadiusMeters);
         _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } predictedBounce
             ? ToXna(predictedBounce.Position)
             : null;

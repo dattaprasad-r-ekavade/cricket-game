@@ -222,7 +222,7 @@ public partial class Game1
             _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);
         }
-        if (!_simulationPaused && _isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
+        if (!_simulationPaused && _isRunning && _fielderThrowActive)
             UpdateRun(runningElapsedDuringFielding);
         if (!_simulationPaused && _fielderThrowActive)
             UpdateFielderThrow();
@@ -233,15 +233,16 @@ public partial class Game1
             var physicsElapsedThisFrame = 0f;
             _simulationAccumulator += MathF.Min(flightElapsed, 0.25f);
             while (_simulationAccumulator >= _ballFlight.FixedTimeStepSeconds &&
-                   _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled)
+                   BattedBallFieldingModel.CanAdvance(_battedBall, _deliveryComplete,
+                       _fielderThrowActive, _ballFlight.CurrentFrame.Phase))
             {
                 var previousFrame = _ballFlight.CurrentFrame;
+                var fieldingPreviousFrame = previousFrame;
+                var fieldingElapsed = _ballFlight.FixedTimeStepSeconds;
                 if (_isRunning)
                     UpdateRun(_ballFlight.FixedTimeStepSeconds);
-                if (_battedBall)
-                    _fieldingSide.Step(_ballFlight.FixedTimeStepSeconds, previousFrame.Position);
 
-                var frame = _ballFlight.Step();
+                var frame = _ballFlight.Step(enforceSimulationLimit: !_battedBall);
                 if (_firstBouncePosition is null && previousFrame.BounceCount == 0 && frame.BounceCount > 0)
                 {
                     _firstBouncePosition = ToXna(frame.Position);
@@ -275,6 +276,8 @@ public partial class Game1
                     _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                     _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
                     frame = _ballFlight.CurrentFrame;
+                    fieldingPreviousFrame = frame;
+                    fieldingElapsed *= 1f - battingContact.HitFraction;
                     _shotResolved = true;
                     _battedBall = true;
                     _camera.SelectPreset("ball-follow");
@@ -294,7 +297,8 @@ public partial class Game1
                             fieldingRatings,
                             _runDurationSeconds,
                             _fielderPickupDurationSeconds,
-                            _fielderThrowDurationSeconds).PlannedRuns;
+                            _fielderThrowDurationSeconds,
+                            catchAnimationDurationSeconds: _fielderCatchDurationSeconds).PlannedRuns;
                         _runRequestedPending = _cpuRunsRemaining > 0;
                     }
                     if (_runRequestedPending)
@@ -321,7 +325,8 @@ public partial class Game1
                 }
 
                 if (!_deliveryComplete && _battedBall &&
-                    _fieldingSide.TryFindContact(previousFrame, frame, out var fieldingContact))
+                    BattedBallFieldingModel.TryAdvance(_fieldingSide, fieldingPreviousFrame, frame,
+                        fieldingElapsed, out var fieldingContact))
                 {
                     ResolveFieldingContact(fieldingContact);
                     frame = _ballFlight.CurrentFrame;
@@ -340,19 +345,21 @@ public partial class Game1
                     frame = _ballFlight.CurrentFrame;
                 }
 
-                if (!_deliveryComplete && !_fielderThrowActive && frame.Phase == BallMotionPhase.Settled)
+                if (!_deliveryComplete && !_battedBall && !_fielderThrowActive && frame.Phase == BallMotionPhase.Settled)
                 {
                     ResolveSettledBall(frame);
                 }
 
-                _trajectoryVertices.Add(new VertexPositionColor(
-                    ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
-                    GetBallTrailColor(frame.Velocity.Length())));
+                if (frame.Position != previousFrame.Position)
+                    _trajectoryVertices.Add(new VertexPositionColor(
+                        ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
+                        GetBallTrailColor(frame.Velocity.Length())));
                 _simulationAccumulator -= _ballFlight.FixedTimeStepSeconds;
                 physicsElapsedThisFrame += _ballFlight.FixedTimeStepSeconds;
             }
         }
-        if (_ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled || _deliveryComplete)
+        if (_deliveryComplete || _fielderThrowActive ||
+            (_ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled && !_battedBall))
         {
             _simulationAccumulator = 0f;
         }

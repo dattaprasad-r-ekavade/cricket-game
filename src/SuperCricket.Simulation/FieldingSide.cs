@@ -39,9 +39,17 @@ public sealed class FieldingSide
     private readonly float[] _pickupRadii = Enumerable.Repeat(FieldingRadiusMeters, FielderCount).ToArray();
     private int _activeChaser = -1;
     private float _reactionRemaining;
+    private float _boundaryRadiusMeters = 42f;
 
     public IReadOnlyList<Vector3> Positions => _positions;
     public int ActiveChaserIndex => _activeChaser;
+
+    public void ConfigureBoundaryRadius(float boundaryRadiusMeters)
+    {
+        if (!float.IsFinite(boundaryRadiusMeters) || boundaryRadiusMeters <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(boundaryRadiusMeters));
+        _boundaryRadiusMeters = boundaryRadiusMeters;
+    }
 
     public void ConfigureStartingPositions(IReadOnlyList<Vector3> positions)
     {
@@ -142,8 +150,8 @@ public sealed class FieldingSide
         var moved = new Vector3(delta.X / distance * travel, 0f, delta.Z / distance * travel);
         var next = current + moved;
         var boundaryRadius = MathF.Sqrt(next.X * next.X + next.Z * next.Z);
-        if (boundaryRadius > 40f)
-            next = new Vector3(next.X * 40f / boundaryRadius, next.Y, next.Z * 40f / boundaryRadius);
+        if (boundaryRadius > _boundaryRadiusMeters)
+            next = new Vector3(next.X * _boundaryRadiusMeters / boundaryRadius, next.Y, next.Z * _boundaryRadiusMeters / boundaryRadius);
         _positions[_activeChaser] = next;
     }
 

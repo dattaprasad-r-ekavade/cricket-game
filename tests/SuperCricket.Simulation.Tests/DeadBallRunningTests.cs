@@ -121,15 +121,15 @@ public sealed class DeadBallRunningTests
     }
 
     [Theory]
-    [InlineData(0.49f, false, 0)]
-    [InlineData(0.6f, false, 1)]
-    [InlineData(1.49f, false, 1)]
+    [InlineData(0.49f, false, 2)]
+    [InlineData(0.6f, false, 2)]
+    [InlineData(1.49f, false, 2)]
     [InlineData(1.6f, false, 2)]
-    [InlineData(0.49f, true, 0)]
-    [InlineData(0.6f, true, 1)]
-    [InlineData(1.49f, true, 1)]
+    [InlineData(0.49f, true, 2)]
+    [InlineData(0.6f, true, 2)]
+    [InlineData(1.49f, true, 2)]
     [InlineData(1.6f, true, 2)]
-    public void BatchTrajectoryStoppagePreservesScoreAndBatterIdentity(
+    public void BatchRestingBallIsCollectedAfterTheBattersCompleteTheirPlannedRuns(
         float runProgress, bool noBall, int expectedRuns)
     {
         var match = new LimitedOversMatch();
@@ -159,15 +159,15 @@ public sealed class DeadBallRunningTests
         Assert.Equal(expectedRuns % 2 == 0 ? 1 : 2, match.Striker);
         Assert.Equal(expectedRuns, telemetry.CompletedRuns);
         Assert.Equal(0, telemetry.RunOuts);
-        Assert.Equal(0, telemetry.GroundPickups);
+        Assert.Equal(1, telemetry.GroundPickups);
     }
 
     [Theory]
-    [InlineData(0.49f, 0)]
-    [InlineData(0.6f, 1)]
-    [InlineData(1.49f, 1)]
+    [InlineData(0.49f, 2)]
+    [InlineData(0.6f, 2)]
+    [InlineData(1.49f, 2)]
     [InlineData(1.6f, 2)]
-    public void CpuDecisionUsesActualBallStoppageAndCrossedRun(float runProgress, int expectedRuns)
+    public void CpuDecisionKeepsRunningAfterPhysicalRest(float runProgress, int expectedRuns)
     {
         var delivery = DeliveryPreset.Load(TestAssets.Asset("deliveries", "standard-pace.json"));
         var position = new Vector3(0f, delivery.FieldSurfaceHeightMeters + delivery.BallRadiusMeters + 0.001f, 0f);
@@ -182,9 +182,8 @@ public sealed class DeadBallRunningTests
             Enumerable.Repeat(70, FieldingSide.FielderCount).ToArray(), runDurationSeconds: runDuration);
 
         Assert.Equal(expectedRuns, decision.PlannedRuns);
-        Assert.Equal(expectedRuns == 0 ? CpuLiveRunDecisionReason.BallStopsBeforeSafeCrossing
-            : CpuLiveRunDecisionReason.SafeRunAtStoppage, decision.Reason);
-        Assert.Equal(ball.CurrentFrame.TimeSeconds, decision.EventTimeSeconds);
+        Assert.Equal(CpuLiveRunDecisionReason.SafeRunWindow, decision.Reason);
+        Assert.True(decision.EventTimeSeconds > ball.CurrentFrame.TimeSeconds);
     }
 
     private static FieldingSide DistantFielders(DeliveryPreset delivery)

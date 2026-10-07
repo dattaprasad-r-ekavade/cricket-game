@@ -366,11 +366,11 @@ public static partial class BattingPracticeAnalyzer
         DeliveryPreset delivery,
         List<BallFlightFrame>? trajectory = null)
     {
-        var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
+        var maximumSteps = (int)MathF.Ceiling(BattedBallFieldingModel.MaximumCollectionWaitSeconds / delivery.FixedTimeStepSeconds) + 1;
         var previousFrame = ball.CurrentFrame;
         for (var step = 0; step < maximumSteps && ball.CurrentFrame.Phase != BallMotionPhase.Settled; step++)
         {
-            var frame = ball.Step();
+            var frame = ball.Step(enforceSimulationLimit: false);
             trajectory?.Add(frame);
             if (BoundaryResolver.TryFindCrossing(
                 previousFrame,
@@ -383,6 +383,8 @@ public static partial class BattingPracticeAnalyzer
             previousFrame = frame;
         }
 
+        if (ball.CurrentFrame.Phase != BallMotionPhase.Settled)
+            throw new InvalidOperationException("The outgoing ball exhausted its analysis budget before physical rest or a boundary.");
         return "InPlay";
     }
 

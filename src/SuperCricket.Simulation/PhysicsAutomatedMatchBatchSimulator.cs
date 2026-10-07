@@ -199,6 +199,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
         var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
+        var catchDuration = GetAnimationDuration(bowlerAsset, "fielder-catch");
         var runDecision = CpuLiveRunningDecisionModel.Choose(
             decision.AttemptRun,
             delivery,
@@ -208,7 +209,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             fieldingRatings,
             CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
             pickupDuration,
-            throwDuration);
+            throwDuration,
+            catchAnimationDurationSeconds: catchDuration);
         telemetry.Contacts++;
         if (runDecision.PlannedRuns > 1)
             telemetry.TwoRunPlans++;
@@ -222,7 +224,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             runDecision.PlannedRuns,
             pickupDuration,
             throwDuration,
-            telemetry);
+            telemetry,
+            catchDuration);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
         if (session.Extra == DeliveryExtra.NoBall)
@@ -281,21 +284,21 @@ public static class PhysicsAutomatedMatchBatchSimulator
         int plannedRuns,
         float pickupDuration,
         float throwDuration,
-        PhysicsMatchTelemetry telemetry)
+        PhysicsMatchTelemetry telemetry,
+        float? catchDuration = null)
     {
         var frames = trajectory.OutgoingFrames;
         var contactTime = trajectory.Sample.ContactTimeSeconds
             ?? throw new InvalidOperationException("A hit must include a contact time.");
         var completedRuns = 0;
         var previous = frames[0];
-        for (var index = 1; index < frames.Count; index++)
+        fielding.ConfigureBoundaryRadius(delivery.FieldBoundaryRadiusMeters);
+        foreach (var current in BattedBallFieldingModel.FramesThroughCollection(frames, delivery.FixedTimeStepSeconds).Skip(1))
         {
-            var current = frames[index];
             var deltaTime = current.TimeSeconds - previous.TimeSeconds;
             if (!float.IsFinite(deltaTime) || deltaTime <= 0f)
                 throw new InvalidOperationException("Physics match trajectory frames are not in strictly increasing time order.");
 
-            fielding.Step(deltaTime, previous.Position);
             var elapsedSinceContact = current.TimeSeconds - contactTime;
             while (completedRuns < plannedRuns &&
                 elapsedSinceContact >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
@@ -304,17 +307,19 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 telemetry.CompletedRuns++;
                 completedRuns++;
             }
-            if (fielding.TryFindContact(previous, current, out var fieldingContact))
+            if (BattedBallFieldingModel.TryAdvance(fielding, previous, current, deltaTime, out var fieldingContact))
             {
+                var collectionAction = BattedBallFieldingModel.ResolveCollection(
+                    session, fieldingContact.Kind, completedRuns < plannedRuns);
                 if (fieldingContact.Kind == FieldingContactKind.Catch)
-                {
                     telemetry.Catches++;
-                    session.ResolveCatch();
-                }
                 else
-                {
                     telemetry.GroundPickups++;
-                    var throwArrivalTime = elapsedSinceContact + pickupDuration + throwDuration;
+                if (collectionAction != FieldingCollectionAction.CaughtDismissal)
+                {
+                    var collectionDuration = fieldingContact.Kind == FieldingContactKind.Catch
+                        ? catchDuration ?? pickupDuration : pickupDuration;
+                    var throwArrivalTime = elapsedSinceContact + collectionDuration + throwDuration;
                     while (completedRuns < plannedRuns &&
                         throwArrivalTime >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
                     {
@@ -364,30 +369,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 return;
             }
 
-            if (current.Phase == BallMotionPhase.Settled)
-            {
-                if (completedRuns < plannedRuns)
-                {
-                    var elapsedInCurrentRun = elapsedSinceContact -
-                        completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
-                    var crossed = RunningScoringModel.HasCrossed(
-                        elapsedInCurrentRun, CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
-                    session.ResolveDeadBall(crossed);
-                    if (crossed)
-                    {
-                        telemetry.CompletedRuns++;
-                        completedRuns++;
-                    }
-                }
-                if (session.CompletedRuns >= 2)
-                    telemetry.TwoRunScores++;
-                match.CompleteDelivery();
-                return;
-            }
             previous = current;
         }
 
-        throw new InvalidOperationException("Physics match batted-ball simulation ended without a boundary, fielder contact, or settled ball.");
+        throw new InvalidOperationException("Physics match batted-ball simulation ended without a boundary or fielder contact.");
     }
 
     private static bool TryCrossPlane(Vector3 previous, Vector3 current, float planeZ, out Vector3 crossing)

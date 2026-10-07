@@ -379,22 +379,17 @@ public partial class Game1
         if (!IsCpuBattingControlled && _cpuDifficulty == CpuDifficulty.Rookie && _runRequestedPending)
             _runRequestedPending = false;
 
-        if (contact.Kind == FieldingContactKind.Catch)
+        var collectionAction = BattedBallFieldingModel.ResolveCollection(CurrentDelivery, contact.Kind, _isRunning);
+        if (contact.Kind == FieldingContactKind.Catch && CurrentDelivery.IsNoBall)
+            PlayAudio(CricketAudioCue.Extra);
+        if (collectionAction == FieldingCollectionAction.CaughtDismissal)
         {
             _cpuRunsRemaining = 0;
             _runRequestedPending = false;
             StartFielderAction(contact.FielderIndex, "fielder-catch", holdAtEnd: true);
-            if (!CurrentDelivery.ResolveCatch())
-            {
-                _shotOutcome = $"NO-BALL: fielder {contact.FielderIndex + 1} caught it; one penalty run";
-                PlayAudio(CricketAudioCue.Extra);
-            }
-            else
-            {
-                _shotOutcome = $"OUT: caught by fielder {contact.FielderIndex + 1}";
-            }
+            _shotOutcome = $"OUT: caught by fielder {contact.FielderIndex + 1}";
         }
-        else if (_isRunning)
+        else if (collectionAction == FieldingCollectionAction.ReturnThrow)
         {
             _fielderThrowActive = true;
             _fielderThrowBallReleased = false;
@@ -402,13 +397,19 @@ public partial class Game1
             _fielderThrowerIndex = contact.FielderIndex;
             _fielderThrowStart = ToNumerics(contact.Position);
             _fielderThrowTarget = new NumericsVector3(0f, 0.55f, -PracticeGround.WicketOffset);
-            StartFielderAction(contact.FielderIndex, "fielder-pickup", holdAtEnd: false);
-            _shotOutcome = $"Fielder {contact.FielderIndex + 1} picked up; throw to wicketkeeper";
+            var collectionClip = contact.Kind == FieldingContactKind.Catch ? "fielder-catch" : "fielder-pickup";
+            StartFielderAction(contact.FielderIndex, collectionClip, holdAtEnd: false);
+            _shotOutcome = contact.Kind == FieldingContactKind.Catch
+                ? $"NO-BALL: fielder {contact.FielderIndex + 1} held it; return to wicketkeeper"
+                : $"Fielder {contact.FielderIndex + 1} picked up; throw to wicketkeeper";
         }
         else
         {
-            StartFielderAction(contact.FielderIndex, "fielder-pickup", holdAtEnd: false);
-            _shotOutcome = $"Fielder {contact.FielderIndex + 1} collected the ball";
+            StartFielderAction(contact.FielderIndex,
+                contact.Kind == FieldingContactKind.Catch ? "fielder-catch" : "fielder-pickup", holdAtEnd: false);
+            _shotOutcome = contact.Kind == FieldingContactKind.Catch
+                ? $"NO-BALL: fielder {contact.FielderIndex + 1} held it; one penalty run"
+                : $"Fielder {contact.FielderIndex + 1} collected the ball";
         }
 
         _ballFlight.StopAtContact(ToNumerics(contact.Position));
@@ -418,6 +419,8 @@ public partial class Game1
 
     private void ResolveSettledBall(BallFlightFrame frame)
     {
+        if (_battedBall)
+            return;
         if (_isRunning)
         {
             var crossed = _runners.CurrentRunCrossed;

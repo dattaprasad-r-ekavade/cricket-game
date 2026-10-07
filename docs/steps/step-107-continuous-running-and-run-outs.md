@@ -28,7 +28,7 @@ Ground identity and end placement follow Laws 30.2.3, 38.4, and 18.12.1 of the [
 - Movement tests cover repeated turn-back requests, return-home safety, 30/60/120 Hz updates, queued-run frame remainder, and delivery-reset behavior.
 - Batch pickup/throw fixtures reproduce the old absolute-clock error and cover the dismissed batter on either side of the crossing point.
 - `pwsh -NoProfile -File tools/review.ps1`: passed in default headless mode, including both builds, content validation, seeded physics batch repeatability, and batting calibration.
-- Hosted validation: pending.
+- Hosted validation: code commit `9df19502089c1522cfebc5b6b3d8065a55273926` passed in [run 37612758525](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37612758525).
 - No game window or visual capture was started.
 
 ## Remaining
