@@ -10,6 +10,7 @@ try {
     }
 
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
+    Invoke-CheckedDotNet @('build', 'trials/godot/SuperCricket.GodotTrial.csproj', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
     $batterSourcePath = 'assets/characters/practice-batter.scplayer.json'
     $bowlerSourcePath = 'assets/characters/practice-bowler.scplayer.json'
