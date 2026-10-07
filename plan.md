@@ -105,6 +105,7 @@ The largest fidelity lever.
   - [x] Step 63 pilot: author a 61-bone Blender batter and verify its imported joints and grip animation in the Godot trial.
   - [x] Step 68: add the matching bowler GLB and validate embedded gameplay events/root-motion for both roles.
   - [x] Step 69: load batter and bowler GLBs through SharpGLTF in the MonoGame runtime; full Release review passes. Fielders still reuse the bowler rig; textured-material support and `.scplayer.json` retirement remain open.
+  - [ ] Step 98: import embedded GLB base-color PNG/JPEG textures, UV transforms, and sampler settings into the shared player asset and renderer; keep the asset profile's unsupported cases explicit and covered by headless tests.
 - [ ] C2. Build proper characters: MPFB2/MakeHuman (CC0 output) or Character Creator base bodies, textured kits with team colour masks, helmet, pads, gloves, bat. AI 3D generation is for props and stadium dressing only.
 - [ ] C3. Video-to-mocap pipeline: record cricket movements (own footage or footage with usage rights), solve with Move.ai / Rokoko Vision / DeepMotion / QuickMagic, retarget and clean in Blender (batch via Blender MCP), and author `sc_events` markers.
 - [ ] C4. Two-bone IK for hands on the bat and foot planting; animation blending driven by the existing contact and footwork systems.

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
@@ -15,6 +16,8 @@ public sealed class SkinnedPlayerRenderer : IDisposable
     private readonly GraphicsDevice _graphicsDevice;
     private readonly SkinnedEffect _effect;
     private readonly Texture2D _whiteTexture;
+    private readonly Texture2D[] _baseColorTextures;
+    private readonly SamplerState[] _baseColorSamplers;
     private readonly List<MeshBuffers> _meshes;
     private readonly Vector3 _primaryKitBaseColor;
     private readonly Vector3 _accentKitBaseColor;
@@ -35,6 +38,12 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         _whiteTexture = new Texture2D(graphicsDevice, 1, 1);
         _whiteTexture.SetData([Color.White]);
         _effect.Texture = _whiteTexture;
+        _baseColorTextures = asset.Textures.Select(texture =>
+        {
+            using var stream = new MemoryStream(texture.Content, writable: false);
+            return Texture2D.FromStream(graphicsDevice, stream);
+        }).ToArray();
+        _baseColorSamplers = asset.Textures.Select(CreateSamplerState).ToArray();
         _primaryKitBaseColor = FindDiffuseColor(asset, "Shirt") ?? Vector3.One;
         _accentKitBaseColor = FindDiffuseColor(asset, "Player Detail | Jersey Collar") ?? _primaryKitBaseColor;
         _meshes = asset.Meshes
@@ -42,6 +51,7 @@ public sealed class SkinnedPlayerRenderer : IDisposable
                 mesh.DiffuseColor.X,
                 mesh.DiffuseColor.Y,
                 mesh.DiffuseColor.Z,
+                mesh.BaseColorTextureIndex,
                 KitColorSlot: GetKitColorSlot(mesh.Name)))
             .Select(group =>
             {
@@ -55,6 +65,7 @@ public sealed class SkinnedPlayerRenderer : IDisposable
                     graphicsDevice,
                     group.ToList(),
                     new Vector3(group.Key.X, group.Key.Y, group.Key.Z),
+                    group.Key.BaseColorTextureIndex,
                     group.Key.KitColorSlot,
                     baseColor);
             })
@@ -75,31 +86,42 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         _effect.View = view;
         _effect.Projection = projection;
         _effect.SetBoneTransforms(skinMatrices);
-
-        foreach (var mesh in _meshes)
+        var previousSampler = _graphicsDevice.SamplerStates[0];
+        try
         {
-            _effect.DiffuseColor = mesh.KitColorSlot switch
+            foreach (var mesh in _meshes)
             {
-                KitColorSlot.Primary => ClampColor(mesh.TeamColorRatio * primaryKitColor),
-                KitColorSlot.Accent => ClampColor(mesh.TeamColorRatio * accentKitColor),
-                _ => mesh.DiffuseColor
-            };
-            _graphicsDevice.SetVertexBuffer(mesh.VertexBuffer);
-            _graphicsDevice.Indices = mesh.IndexBuffer;
+                var textureIndex = mesh.BaseColorTextureIndex;
+                _effect.Texture = textureIndex >= 0 ? _baseColorTextures[textureIndex] : _whiteTexture;
+                _effect.DiffuseColor = mesh.KitColorSlot switch
+                {
+                    KitColorSlot.Primary => ClampColor(mesh.TeamColorRatio * primaryKitColor),
+                    KitColorSlot.Accent => ClampColor(mesh.TeamColorRatio * accentKitColor),
+                    _ => mesh.DiffuseColor
+                };
+                _graphicsDevice.SetVertexBuffer(mesh.VertexBuffer);
+                _graphicsDevice.Indices = mesh.IndexBuffer;
 
-            foreach (var pass in _effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                _graphicsDevice.DrawIndexedPrimitives(
-                    PrimitiveType.TriangleList,
-                    0,
-                    0,
-                    mesh.IndexCount / 3);
+                foreach (var pass in _effect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    _graphicsDevice.SamplerStates[0] = textureIndex >= 0
+                        ? _baseColorSamplers[textureIndex]
+                        : SamplerState.LinearWrap;
+                    _graphicsDevice.DrawIndexedPrimitives(
+                        PrimitiveType.TriangleList,
+                        0,
+                        0,
+                        mesh.IndexCount / 3);
+                }
             }
         }
-
-        _graphicsDevice.SetVertexBuffer(null);
-        _graphicsDevice.Indices = null;
+        finally
+        {
+            _graphicsDevice.SetVertexBuffer(null);
+            _graphicsDevice.Indices = null;
+            _graphicsDevice.SamplerStates[0] = previousSampler;
+        }
     }
 
     private static Vector3? FindDiffuseColor(PlayerAsset asset, string meshName)
@@ -136,8 +158,46 @@ public sealed class SkinnedPlayerRenderer : IDisposable
     {
         foreach (var mesh in _meshes)
             mesh.Dispose();
+        foreach (var texture in _baseColorTextures)
+            texture.Dispose();
+        foreach (var sampler in _baseColorSamplers)
+            sampler.Dispose();
         _whiteTexture.Dispose();
         _effect.Dispose();
+    }
+
+    internal static SamplerState CreateSamplerState(PlayerTextureData texture) => new()
+    {
+        Filter = ToTextureFilter(texture.MinFilter, texture.MagFilter),
+        AddressU = ToAddressMode(texture.WrapU),
+        AddressV = ToAddressMode(texture.WrapV),
+        AddressW = TextureAddressMode.Clamp
+    };
+
+    private static TextureAddressMode ToAddressMode(int mode) => mode switch
+    {
+        10497 => TextureAddressMode.Wrap,
+        33071 => TextureAddressMode.Clamp,
+        33648 => TextureAddressMode.Mirror,
+        _ => throw new InvalidDataException($"Unsupported glTF texture wrap mode '{mode}'.")
+    };
+
+    private static TextureFilter ToTextureFilter(int minFilter, int magFilter)
+    {
+        var minLinear = minFilter is 9729 or 9985 or 9987;
+        var mipLinear = minFilter is 9728 or 9729 or 9986 or 9987;
+        var magLinear = magFilter == 9729;
+        return (minLinear, magLinear, mipLinear) switch
+        {
+            (true, true, true) => TextureFilter.Linear,
+            (false, false, false) => TextureFilter.Point,
+            (true, false, true) => TextureFilter.MinLinearMagPointMipLinear,
+            (true, false, false) => TextureFilter.MinLinearMagPointMipPoint,
+            (false, true, true) => TextureFilter.MinPointMagLinearMipLinear,
+            (false, true, false) => TextureFilter.MinPointMagLinearMipPoint,
+            (true, true, false) => TextureFilter.LinearMipPoint,
+            (false, false, true) => TextureFilter.PointMipLinear
+        };
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -166,6 +226,7 @@ public sealed class SkinnedPlayerRenderer : IDisposable
             GraphicsDevice graphicsDevice,
             IReadOnlyList<PlayerMeshData> meshes,
             Vector3 diffuseColor,
+            int baseColorTextureIndex,
             KitColorSlot kitColorSlot,
             Vector3 referenceColor)
         {
@@ -206,6 +267,7 @@ public sealed class SkinnedPlayerRenderer : IDisposable
             IndexBuffer.SetData(indices);
             IndexCount = indexCount;
             DiffuseColor = diffuseColor;
+            BaseColorTextureIndex = baseColorTextureIndex;
             KitColorSlot = kitColorSlot;
             TeamColorRatio = new Vector3(
                 ColorRatio(diffuseColor.X, referenceColor.X),
@@ -217,6 +279,7 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         public IndexBuffer IndexBuffer { get; }
         public int IndexCount { get; }
         public Vector3 DiffuseColor { get; }
+        public int BaseColorTextureIndex { get; }
         public KitColorSlot KitColorSlot { get; }
         public Vector3 TeamColorRatio { get; }
 

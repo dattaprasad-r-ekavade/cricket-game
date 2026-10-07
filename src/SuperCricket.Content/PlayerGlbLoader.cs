@@ -73,6 +73,7 @@ internal static class PlayerGlbLoader
             throw new InvalidDataException($"Player GLB '{path}' uses unsupported coordinates '{coordinateSystem}'.");
         var animations = model.LogicalAnimations.Select(animation =>
             ImportAnimation(animation, orderedNodes, bones, assetName)).ToList();
+        var textureImport = ImportBaseColorTextures(model, path);
 
         var asset = new PlayerAsset
         {
@@ -80,7 +81,8 @@ internal static class PlayerGlbLoader
             CoordinateSystem = coordinateSystem,
             PoseSpace = "local",
             Bones = bones,
-            Meshes = ImportMeshes(model, skin, originalToOrdered, path),
+            Textures = textureImport.Textures,
+            Meshes = ImportMeshes(model, skin, originalToOrdered, textureImport.IndexMap, path),
             Animations = animations
         };
         var errors = asset.Validate();
@@ -117,6 +119,7 @@ internal static class PlayerGlbLoader
         ModelRoot model,
         Skin skin,
         IReadOnlyList<int> originalToOrdered,
+        IReadOnlyDictionary<int, int> textureIndexMap,
         string path)
     {
         var meshes = new List<PlayerMeshData>();
@@ -148,6 +151,10 @@ internal static class PlayerGlbLoader
                     jointValues.Length != positions.Length || weightValues.Length != positions.Length)
                     throw new InvalidDataException($"Player GLB primitive '{node.Name}' has inconsistent vertex attributes.");
 
+                var materialInfo = ReadMaterial(model, primitive.Material?.LogicalIndex ?? -1, textureIndexMap, node.Name);
+                if (materialInfo.TextureIndex >= 0 && uvAccessor is null)
+                    throw new InvalidDataException($"Player GLB primitive '{node.Name}' uses a base-color texture but has no TEXCOORD_0 accessor.");
+
                 var flatPositions = new float[positions.Length * 3];
                 var flatNormals = new float[normals.Length * 3];
                 var flatUvs = new float[uvs.Length * 2];
@@ -157,8 +164,9 @@ internal static class PlayerGlbLoader
                 {
                     WriteVector3(flatPositions, index * 3, positions[index]);
                     WriteVector3(flatNormals, index * 3, normals[index]);
-                    flatUvs[index * 2] = uvs[index].X;
-                    flatUvs[index * 2 + 1] = uvs[index].Y;
+                    var uv = Vector2.Transform(uvs[index], materialInfo.UvTransform);
+                    flatUvs[index * 2] = uv.X;
+                    flatUvs[index * 2 + 1] = uv.Y;
                     WriteJointIndices(flatJoints, index * 4, jointValues[index], originalToOrdered, node.Name, index);
                     WriteVector4(flatWeights, index * 4, weightValues[index]);
                 }
@@ -169,12 +177,11 @@ internal static class PlayerGlbLoader
                 if (indices.Length == 0)
                     throw new InvalidDataException($"Player GLB primitive '{node.Name}' has no triangles.");
 
-                var materialIndex = primitive.Material?.LogicalIndex ?? -1;
-                var diffuseColor = ReadMaterialColor(model, materialIndex, node.Name);
                 meshes.Add(new PlayerMeshData
                 {
                     Name = node.Name,
-                    DiffuseColor = diffuseColor,
+                    DiffuseColor = materialInfo.DiffuseColor,
+                    BaseColorTextureIndex = materialInfo.TextureIndex,
                     Positions = flatPositions,
                     Normals = flatNormals,
                     TextureCoordinates = flatUvs,
@@ -194,21 +201,113 @@ internal static class PlayerGlbLoader
         primitive.GetVertexAccessor(semantic)
         ?? throw new InvalidDataException($"Player GLB mesh '{meshName}' is missing its {semantic} vertex accessor.");
 
-    private static Vector3Data ReadMaterialColor(ModelRoot model, int materialIndex, string meshName)
+    private static (List<PlayerTextureData> Textures, Dictionary<int, int> IndexMap) ImportBaseColorTextures(ModelRoot model, string path)
+    {
+        var sourceIndices = model.LogicalNodes
+            .Where(node => node.Mesh is not null)
+            .SelectMany(node => node.Mesh!.Primitives)
+            .Select(primitive => primitive.Material?.FindChannel("BaseColor"))
+            .Where(channel => channel.HasValue && channel.Value.Texture is not null)
+            .Select(channel => channel!.Value.Texture!.LogicalIndex)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var textures = new List<PlayerTextureData>(sourceIndices.Length);
+        var indexMap = new Dictionary<int, int>(sourceIndices.Length);
+        foreach (var sourceIndex in sourceIndices)
+        {
+            if (sourceIndex < 0 || sourceIndex >= model.LogicalTextures.Count)
+                throw new InvalidDataException($"Player GLB '{path}' references an invalid base-color texture index {sourceIndex}.");
+            var texture = model.LogicalTextures[sourceIndex];
+            var image = texture.PrimaryImage
+                ?? throw new InvalidDataException($"Player GLB '{path}' texture '{texture.Name}' has no primary image.");
+            var content = image.Content;
+            var mimeType = content.IsPng ? "image/png" : content.IsJpg ? "image/jpeg" : null;
+            if (mimeType is null || content.IsEmpty)
+                throw new InvalidDataException($"Player GLB '{path}' texture '{texture.Name}' must use an embedded PNG or JPEG image.");
+            indexMap.Add(sourceIndex, textures.Count);
+            textures.Add(new PlayerTextureData
+            {
+                MimeType = mimeType,
+                Content = content.Content.ToArray(),
+                MinFilter = ToMinFilter(texture.Sampler?.MinFilter ?? TextureMipMapFilter.DEFAULT),
+                MagFilter = ToMagFilter(texture.Sampler?.MagFilter ?? TextureInterpolationFilter.DEFAULT),
+                WrapU = ToWrapMode(texture.Sampler?.WrapS ?? TextureWrapMode.REPEAT),
+                WrapV = ToWrapMode(texture.Sampler?.WrapT ?? TextureWrapMode.REPEAT)
+            });
+        }
+        return (textures, indexMap);
+    }
+
+    private static int ToMinFilter(TextureMipMapFilter filter) => filter.ToString() switch
+    {
+        "DEFAULT" or "LINEAR_MIPMAP_LINEAR" => 9987,
+        "NEAREST" => 9728,
+        "LINEAR" => 9729,
+        "NEAREST_MIPMAP_NEAREST" => 9984,
+        "LINEAR_MIPMAP_NEAREST" => 9985,
+        "NEAREST_MIPMAP_LINEAR" => 9986,
+        _ => throw new InvalidDataException($"Unsupported glTF texture minification filter '{filter}'.")
+    };
+
+    private static int ToMagFilter(TextureInterpolationFilter filter) => filter.ToString() switch
+    {
+        "DEFAULT" or "LINEAR" => 9729,
+        "NEAREST" => 9728,
+        _ => throw new InvalidDataException($"Unsupported glTF texture magnification filter '{filter}'.")
+    };
+
+    private static int ToWrapMode(TextureWrapMode mode) => mode.ToString() switch
+    {
+        "REPEAT" => 10497,
+        "CLAMP_TO_EDGE" => 33071,
+        "MIRRORED_REPEAT" => 33648,
+        _ => throw new InvalidDataException($"Unsupported glTF texture wrap mode '{mode}'.")
+    };
+
+    private static MaterialInfo ReadMaterial(
+        ModelRoot model,
+        int materialIndex,
+        IReadOnlyDictionary<int, int> textureIndexMap,
+        string meshName)
     {
         if (materialIndex < 0 || materialIndex >= model.LogicalMaterials.Count)
-            return new Vector3Data { X = 1f, Y = 1f, Z = 1f };
+            return MaterialInfo.Untextured;
 
         var material = model.LogicalMaterials[materialIndex];
+        if (material.Alpha.ToString() != "OPAQUE")
+            throw new InvalidDataException($"Player GLB material '{material.Name}' on mesh '{meshName}' uses unsupported alpha mode '{material.Alpha}'.");
+
         var baseColor = material.FindChannel("BaseColor");
-        if (baseColor.HasValue)
+        if (!baseColor.HasValue)
+            return MaterialInfo.Untextured;
+
+        var channel = baseColor.Value;
+        var rgba = channel.Color;
+        var textureIndex = -1;
+        var uvTransform = Matrix3x2.Identity;
+        if (channel.Texture is not null)
         {
-            if (baseColor.Value.Texture is not null || material.Alpha.ToString() != "OPAQUE")
-                throw new InvalidDataException($"Player GLB material '{material.Name}' on mesh '{meshName}' uses an unsupported texture or alpha mode.");
-            var rgba = baseColor.Value.Color;
-            return new Vector3Data { X = rgba.X, Y = rgba.Y, Z = rgba.Z };
+            if (channel.TextureCoordinate != 0)
+                throw new InvalidDataException($"Player GLB material '{material.Name}' on mesh '{meshName}' uses TEXCOORD_{channel.TextureCoordinate}; only TEXCOORD_0 is supported.");
+            var sourceTextureIndex = channel.Texture.LogicalIndex;
+            if (!textureIndexMap.TryGetValue(sourceTextureIndex, out textureIndex))
+                throw new InvalidDataException($"Player GLB material '{material.Name}' on mesh '{meshName}' references an invalid base-color texture.");
+            uvTransform = channel.TextureTransform?.Matrix ?? Matrix3x2.Identity;
         }
-        return new Vector3Data { X = 1f, Y = 1f, Z = 1f };
+
+        return new MaterialInfo(
+            new Vector3Data { X = rgba.X, Y = rgba.Y, Z = rgba.Z },
+            textureIndex,
+            uvTransform);
+    }
+
+    private sealed record MaterialInfo(Vector3Data DiffuseColor, int TextureIndex, Matrix3x2 UvTransform)
+    {
+        public static MaterialInfo Untextured { get; } = new(
+            new Vector3Data { X = 1f, Y = 1f, Z = 1f },
+            -1,
+            Matrix3x2.Identity);
     }
 
     private static PlayerAnimationData ImportAnimation(
