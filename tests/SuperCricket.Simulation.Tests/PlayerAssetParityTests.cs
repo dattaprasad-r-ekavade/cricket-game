@@ -1,17 +1,25 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using SuperCricket.Content;
 
 namespace SuperCricket.Simulation.Tests;
 
 public sealed class PlayerAssetParityTests
 {
+    private static readonly JsonSerializerOptions LegacyFixtureOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+    };
+
     [Fact]
     public void BattingPractice_HumanoidGlbPreservesLegacyContactSummary()
     {
         var shots = BattingShotSet.Load(TestAssets.Asset("batting", "shots.json"));
         var delivery = DeliveryPreset.Load(TestAssets.Asset("deliveries", "standard-pace.json"));
         var legacySamples = BattingPracticeAnalyzer.Analyze(
-            PlayerAsset.Load(TestAssets.Asset("characters", "practice-batter.scplayer.json")),
-            PlayerAsset.Load(TestAssets.Asset("characters", "practice-bowler.scplayer.json")),
+            LoadLegacyParityFixture(TestAssets.Asset("characters", "practice-batter.scplayer.json")),
+            LoadLegacyParityFixture(TestAssets.Asset("characters", "practice-bowler.scplayer.json")),
             shots,
             delivery);
         var glbSamples = BattingPracticeAnalyzer.Analyze(
@@ -38,6 +46,15 @@ public sealed class PlayerAssetParityTests
             AssertClose(legacyBest.InputDelaySeconds, glbBest.InputDelaySeconds, shotName + " ideal input delay");
             AssertClose(legacyBest.ContactQuality, glbBest.ContactQuality, shotName + " best contact quality");
         }
+    }
+
+    private static PlayerAsset LoadLegacyParityFixture(string path)
+    {
+        var asset = JsonSerializer.Deserialize<PlayerAsset>(File.ReadAllText(path), LegacyFixtureOptions)
+            ?? throw new InvalidDataException($"Legacy parity fixture '{path}' was empty.");
+        var errors = asset.Validate();
+        Assert.Empty(errors);
+        return asset;
     }
 
     private static void AssertClose(float? expected, float? actual, string context)

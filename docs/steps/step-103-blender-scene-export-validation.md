@@ -21,8 +21,8 @@ Added the Blender script directory to `sys.path` before importing `player_animat
 - `validate-player` accepted both temporary `.scplayer.json` outputs.
 - `pwsh -NoProfile -File tools/review.ps1` passed in the default headless mode. Its xUnit, GLB, asset, calibration, deterministic-match, and build checks passed; game-host checks and renderer captures remained off.
 - No tracked Blender source or player asset was overwritten. No game window or capture was started.
-- Hosted Windows validation is pending for this commit.
+- Hosted Windows validation passed in [run 37601970419](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37601970419).
 
 ## Remaining
 
-This validates the exporter path; it does not complete C1. A dedicated fielder rig, textured character assets, and `.scplayer.json` retirement remain open, as do human visual review and the keyboard/GamePad playtests.
+This validates the exporter path; it does not complete C1. A dedicated fielder rig and textured character assets remain open, as do human visual review and the keyboard/GamePad playtests. Step 104 separately retires `.scplayer.json` from runtime loading while keeping parity fixtures for the migration test.

@@ -25,8 +25,6 @@ try {
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
     Invoke-CheckedDotNet @('build', 'trials/godot/SuperCricket.GodotTrial.csproj', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
-    $batterSourcePath = 'assets/characters/practice-batter.scplayer.json'
-    $bowlerSourcePath = 'assets/characters/practice-bowler.scplayer.json'
     $batterContractPath = 'assets/characters/practice-batter.animation-contract.json'
     $bowlerContractPath = 'assets/characters/practice-bowler.animation-contract.json'
     $batterPath = 'assets/characters/practice-batter-humanoid.glb'
@@ -38,7 +36,7 @@ try {
     & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --animation-contract $bowlerContractPath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
-    foreach ($playerPath in @($batterSourcePath, $bowlerSourcePath, $batterPath, $bowlerPath)) {
+    foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
     }
     $coastalRosterPath = 'assets/teams/coastal-xi.json'
@@ -80,18 +78,6 @@ try {
         Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
     }
     Write-Output 'PASS: invalid team accent kit color rejected.'
-    $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
-    try {
-        $invalidScaleAsset = Get-Content -LiteralPath $batterSourcePath -Raw | ConvertFrom-Json
-        $invalidScaleAsset.bones[0].bindPose.scale.x = 10.0
-        $invalidScaleAsset | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidScalePath -Encoding utf8
-        $null = & dotnet $toolsDll validate-player $invalidScalePath 2>&1
-        if ($LASTEXITCODE -ne 1) { throw 'Player validator accepted an invalid rig scale.' }
-    }
-    finally {
-        Remove-Item -LiteralPath $invalidScalePath -Force -ErrorAction SilentlyContinue
-    }
-    Write-Output 'PASS: invalid player rig scale rejected.'
     Invoke-CheckedDotNet @($toolsDll, 'validate-shots', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)

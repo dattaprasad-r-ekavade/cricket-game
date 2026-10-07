@@ -16,7 +16,7 @@ Start the game with `dotnet run --project src/SuperCricket.Game -- --debug` to e
 
 Run the review on Windows with `pwsh -File tools/review.ps1`. By default it stays headless: it builds Release, validates assets, runs batting/field/rules diagnostics, checks repeated CSV output and rejected inputs, and runs simulation checks without starting the game host or creating renderer captures. Pass `-RunGameChecks` to exercise the production game update, and pass `-CaptureVisuals` to profile the renderer and save captures under `artifacts/`; either option starts the game host. Use both switches for the complete review. The legacy `-SkipGame` and `-SkipCaptures` switches remain accepted as opt-outs. The headless pass also checks a seeded six-match 10-over physics batch against a broad score and event envelope, including safe double runs. Game checks can also run directly with `dotnet run --project src/SuperCricket.Game -- --verify-gameplay`; they load the real content and exercise pause/resume, shot contact at 30/60/120 FPS, a two-innings match, extras, boundaries, catches, and pickup/throw run-outs. `verify-match` checks innings limits, target chasing, results, seeded CPU bowling decisions, adaptive field tactics, and batting/bowling/fielding outcome responses; `verify-cpu-batting` checks live CPU shot, timing, field-aware placement, and physics-based single/double running decisions against standard and wide deliveries; `verify-match-batch` verifies deterministic synthetic match completion across all supported overs lengths; `simulate-match-batch` writes scorecards from seeded, rating-aware synthetic outcomes; `simulate-physics-match-batch` uses exported swing clips, ball-flight physics, the saved field, fielder ratings and movement, and production match rules to write inspectable scorecards with run intents, safe runs, double plans, and doubles scored; `verify-fielding` covers low catches, ground pickups, and airborne versus rope-skim boundary crossings.
 
-Player-asset arguments to the analyzer and simulation commands accept either legacy `.scplayer.json` files or humanoid `.glb` files. The review workflow and current batting-analysis examples use the humanoid GLBs; the legacy files remain compatibility fixtures, a bridge for refreshing animation contracts, and migration-comparison fixtures.
+Player-asset arguments to runtime, analyzer, and simulation commands accept humanoid `.glb` files only. The checked-in `.scplayer.json` files remain parity fixtures for the migration test; the one-off Blender bootstrap extractor can still convert an archived fixture into a compact contract.
 
 To capture a scene with the debug overlay and its release marker, pass `--show-debug-overlay` to the game's `--capture-frame` command; `tools/review.ps1` saves one under `artifacts/review-debug-overlay.png`.
 
@@ -56,7 +56,7 @@ The simulation command writes a CSV trajectory to `artifacts/standard-pace-traje
 
 `analyze-batting-practice` samples the supplied batter clips against a real delivery preset and the bowler's run-up/release timing. It sweeps input time from 0.5 s before release until the ball reaches the batter and checks the available lateral footwork positions, then writes the chosen step distance alongside the contact window, sweet-spot quality, bat-point speed, outgoing speed, and in-play/four/six result for every shot. Contact is eligible only after shot input; misses have blank contact metrics, and launch angle describes the final outgoing velocity including bat movement. Outcomes are ballistic estimates without fielders or running. Pass an optional final step size in seconds to refine the timing grid; `verify-batting-practice` requires all three shots to find contact against the supplied delivery and checks an overlapping-blade fixture for pre-input contact. `verify-footwork` checks the step limits and confirms that all three shots can reach the wide-pace preset with a timed step. The yorker pace preset pitches near the striker and is checked for a low wicket-line crossing.
 
-Validate the player export with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json`. Regenerate the starter rig and game asset with:
+Validate the shipped player with `dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter-humanoid.glb`. Regenerate the starter rig and its legacy parity export with:
 
 ```powershell
 blender --background --factory-startup --python tools/blender/build_practice_batter.py -- `
@@ -64,7 +64,7 @@ blender --background --factory-startup --python tools/blender/build_practice_bat
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
 
-Create the editable 61-joint humanoid batter and bowler GLBs. The MonoGame runtime and batting review workflow load these GLBs directly through SharpGLTF.Core. The `.blend` scenes author geometry and actions; compact `*.animation-contract.json` files carry clip events and root-motion samples. The scene exporter writes both the legacy `.scplayer.json` compatibility asset and the compact GLB contract. The old `.scplayer.json` files remain for runtime compatibility and migration parity.
+Create the editable 61-joint humanoid batter and bowler GLBs. The MonoGame runtime and batting review workflow load these GLBs directly through SharpGLTF.Core. The `.blend` scenes author geometry and actions; compact `*.animation-contract.json` files carry clip events and root-motion samples. The scene exporter writes a legacy `.scplayer.json` parity artifact and the compact GLB contract. The game and C# player/analyzer commands do not accept the legacy format; the Python bootstrap extractor is the only utility that still reads archived files.
 
 Use this extractor only when bootstrapping a compact contract from a legacy player asset that has no contract yet:
 
@@ -96,7 +96,7 @@ dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler-humanoid.glb
 ```
 
-Exporting either source `.blend` also updates its compact `*.animation-contract.json` beside the `.scplayer.json` output. Pass `--animation-contract-output <path>` to write the contract elsewhere.
+Exporting either source `.blend` also updates its compact `*.animation-contract.json` beside the `.scplayer.json` parity output. Pass `--animation-contract-output <path>` to write the contract elsewhere.
 
 The Godot trial also imports the batter GLB to verify its skeleton, named actions, and grip-preview pose. The MonoGame loader supports opaque triangle meshes with identity mesh transforms, four joint influences per vertex, embedded PNG/JPEG base-color textures, sampler and UV transforms, and the embedded animation metadata contract.
 
@@ -107,8 +107,9 @@ blender --background assets/characters/practice-batter.blend --python tools/blen
   --from-scene --include-clip batting-step-offside --include-clip batting-step-legside `
   --blend-output assets/characters/practice-batter.blend `
   --asset-output assets/characters/practice-batter.scplayer.json
-dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter.scplayer.json
 ```
+
+The `.scplayer.json` output is a parity fixture only. Validate player assets with `validate-player` after producing their humanoid GLB; the game and C# player/analyzer commands reject the legacy JSON format.
 
 The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five base clips in the batter file, authors the mirrored `batting-step-offside` and `batting-step-legside` actions when requested, and exports other named actions with `--include-clip`. The bowler source is an edited copy of the player scene with authored `bowling-run-up` and `overarm-delivery` actions; re-export it with:
 
@@ -122,7 +123,6 @@ blender --background assets/characters/practice-bowler.blend --python tools/blen
   --include-clip fielder-catch --include-clip fielder-pickup --include-clip fielder-throw `
   --blend-output assets/characters/practice-bowler.blend `
   --asset-output assets/characters/practice-bowler.scplayer.json
-dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler.scplayer.json
 ```
 
 The bowler source tools add shin-weighted trouser meshes so the leg silhouette meets the shoes, then author the three fielder actions. The Blender `overarm-delivery` action stores its release marker in the `sc_events` custom property (`ball-release` at frame 21). The exporter converts that frame to seconds; the game reads the event from the validated player asset to time ball visibility and flight. The fielder throw has its own `ball-release` marker, and the catch and pickup clips mark when the ball is secured.

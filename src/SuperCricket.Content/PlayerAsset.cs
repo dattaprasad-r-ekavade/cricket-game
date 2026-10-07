@@ -1,7 +1,5 @@
 using System.IO;
 using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SuperCricket.Content;
 
@@ -12,12 +10,6 @@ public sealed class PlayerAsset
     private const float MaximumRigScale = 2f;
     private const float MinimumPlayerHeightMeters = 0.5f;
     private const float MaximumPlayerHeightMeters = 4f;
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNameCaseInsensitive = true,
-        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
-    };
 
     public int Version { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
@@ -30,19 +22,10 @@ public sealed class PlayerAsset
 
     public static PlayerAsset Load(string path)
     {
-        if (string.Equals(Path.GetExtension(path), ".glb", StringComparison.OrdinalIgnoreCase))
-            return PlayerGlbLoader.Load(path);
+        if (!string.Equals(Path.GetExtension(path), ".glb", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Player asset '{path}' is not supported by the game or C# player tools. Use a humanoid GLB (.glb); legacy .scplayer.json files are parity fixtures only.");
 
-        var json = File.ReadAllText(path);
-        var asset = JsonSerializer.Deserialize<PlayerAsset>(json, JsonOptions)
-            ?? throw new InvalidDataException($"Player asset '{path}' was empty.");
-        var errors = asset.Validate();
-        if (errors.Count > 0)
-        {
-            throw new InvalidDataException($"Invalid player asset '{path}': {string.Join(" ", errors)}");
-        }
-
-        return asset;
+        return PlayerGlbLoader.Load(path);
     }
 
     public List<string> Validate()
