@@ -2,6 +2,10 @@
 
 This guide contains the full CLI, content-authoring, validation, capture, and profiling workflow. The main build/run path and normal controls are in [README.md](../README.md).
 
+## Automated tests
+
+Run the isolated xUnit tests with `dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release`. They do not launch the game. The Windows validation workflow runs this suite before the asset and simulation review.
+
 ## Developer controls
 
 Start the game with `dotnet run --project src/SuperCricket.Game -- --debug` to expose diagnostic shot selection, aim/footwork controls, animation cycling, delivery presets, camera orbit/elevation, and F1 diagnostics. Capture a named authored batting-footwork pose with `--batter-footwork <clip> --action-time <seconds>`.

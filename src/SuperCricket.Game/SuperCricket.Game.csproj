@@ -18,6 +18,9 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.5.1" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="SuperCricket.Game.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\SuperCricket.Simulation\SuperCricket.Simulation.csproj" />
     <ProjectReference Include="..\SuperCricket.Content\SuperCricket.Content.csproj" />
   </ItemGroup>

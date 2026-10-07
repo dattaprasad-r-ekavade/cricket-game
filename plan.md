@@ -6,13 +6,13 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-MonoGame remains the shipping host. Step 69's GLB player runtime and Step 70's headless Windows CI are complete; Step 71 shortens the README and moves detailed tool instructions to [docs/tool-reference.md](docs/tool-reference.md). The hosted Step 70 review passes: [GitHub Actions run](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37568952887). The human keyboard retest after Step 67 remains open; GamePad play, contact replay, and guided practice also remain open. C1 still needs a dedicated fielder rig, broader material/texture support, and legacy-format retirement. Keep gameplay additions behind the human retest and require human review of visual captures. See [Step 67](docs/steps/step-67-player-focused-camera-feedback.md), [Step 69](docs/steps/step-69-monogame-glb-player-runtime.md), [Step 70](docs/steps/step-70-windows-validation-workflow.md), [Step 71](docs/steps/step-71-readme-tool-reference.md), and the earlier implementation notes in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
+MonoGame remains the shipping host. Steps 69–71 complete GLB player loading, headless Windows CI, and the compact README/tool guide. Step 72 extracts keyboard/controller state tracking to `MatchInputRouter` and adds the first focused xUnit tests; the full `Game1` split and migration of production `*ReviewChecks` remain open. The human keyboard retest after Step 67 remains open; GamePad play, contact replay, and guided practice also remain open. C1 still needs a dedicated fielder rig, broader material/texture support, and legacy-format retirement. Keep gameplay additions behind the human retest and require human review of visual captures. See [Step 67](docs/steps/step-67-player-focused-camera-feedback.md), [Step 69](docs/steps/step-69-monogame-glb-player-runtime.md), [Step 70](docs/steps/step-70-windows-validation-workflow.md), [Step 71](docs/steps/step-71-readme-tool-reference.md), [Step 72](docs/steps/step-72-input-router.md), and the earlier implementation notes in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
 | Simulation and rules | 7/10 | 120 Hz ball flight, swept bat contact, sweet-spot impact, two-innings match, CPU batting/bowling/running/field placement, seeded physics match batches |
 | Tooling | 8/10 | Validators, analyzers, deterministic capture and profiling, `tools/review.ps1` |
-| Architecture | 6/10 | `Simulation`/`Content` are graphics-free (only `System.Numerics`, `System.Text.Json`); `Game1.cs` is ≈2,250 lines with ≈130 fields; checks live in production assemblies |
+| Architecture | 6/10 | `Simulation`/`Content` are graphics-free; input state moved to `MatchInputRouter`, but `Game1.cs` remains ≈2,550 lines and most checks remain in production assemblies |
 | Visual fidelity vs Cricket 07 | 2/10 | MonoGame remains a flat-colour prototype; the Godot B2 trial now proves a low-detail GLB player, procedural stadium, shadows, and post-processing, but does not yet raise the game's fidelity |
 | Animation | 2/10 | 13-bone rig, script-keyed clips, no hands/fingers, no IK |
 | Audio | 1/10 | Procedural placeholder cues only |
@@ -137,7 +137,9 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
 ### Engineering tasks (run alongside A–E)
 
 - [ ] Split `Game1` into match controller, presentation, input router, and camera director; target no file over ≈600 lines.
+  - [x] Step 72: extract keyboard/controller state and edge tracking to `MatchInputRouter`; the match, presentation, and camera split remains open.
 - [ ] Move `*ReviewChecks` into an xUnit test project; keep `review.ps1` for asset, capture, and game-host checks.
+  - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
 - [x] Add GitHub Actions on Windows: build, tests, validators. Step 70's hosted run passes.
 - [x] Shorten the README: build/run, controls table, links to tool docs. See Step 71.
 

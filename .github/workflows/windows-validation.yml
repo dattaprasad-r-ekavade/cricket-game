@@ -27,6 +27,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Run xUnit tests
+        shell: pwsh
+        run: dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release
+
       - name: Build, validate content, and run headless checks
         shell: pwsh
         run: pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures

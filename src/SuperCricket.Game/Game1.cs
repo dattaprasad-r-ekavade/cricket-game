@@ -99,8 +99,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private static readonly int[] OversChoices = [1, 2, 5, 10];
     private LimitedOversMatch _match = null!;
     private readonly FieldingSide _fieldingSide = new();
-    private KeyboardState _previousKeyboard;
-    private MatchControllerButtons _previousControllerButtons;
+    private readonly MatchInputRouter _inputRouter = new();
     private float _simulationAccumulator;
     private bool _simulationPaused;
     private bool _audioUnavailable;
@@ -470,19 +469,14 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     protected override void Update(GameTime gameTime)
     {
-        var controllerState = GamePad.GetState(PlayerIndex.One);
-        var controllerButtons = ReadControllerButtons(controllerState);
-        var controllerAimAxis = controllerState.ThumbSticks.Left.X;
-        var controllerActions = MatchControllerInputModel.ReadPressedActions(
-            controllerButtons,
-            _previousControllerButtons,
+        var controllerInput = _inputRouter.ReadController(
+            GamePad.GetState(PlayerIndex.One),
             IsCpuBattingControlled,
             _match.IsMatchComplete,
             _simulationPaused,
             _developerMode);
-        _previousControllerButtons = controllerButtons;
-        UpdateMatch(gameTime, Keyboard.GetState(), controllerActions, controllerAimAxis,
-            controllerState.ThumbSticks.Left.Y, controllerState.IsButtonDown(Buttons.B));
+        UpdateMatch(gameTime, Keyboard.GetState(), controllerInput.Actions, controllerInput.AimAxis,
+            controllerInput.AimLengthAxis, controllerInput.RunHeld);
     }
 
     private void UpdateMatch(GameTime gameTime, KeyboardState keyboard) =>
@@ -498,8 +492,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
+        _inputRouter.BeginKeyboardFrame(keyboard);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
-        bool KeyPressed(Keys key) => keyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+        bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
         var pressedKeys = keyboard.GetPressedKeys();
         if (pressedKeys.Length > 0)
             _lastInputWasGamePad = false;
@@ -512,12 +507,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             Exit();
         }
 
-        if (((keyboard.IsKeyDown(Keys.R) && !_previousKeyboard.IsKeyDown(Keys.R)) ||
+        if ((KeyPressed(Keys.R) ||
              ControllerPressed(MatchControllerActions.RestartMatch)) && !_simulationPaused)
         {
             StartNewMatch();
         }
-        if (((keyboard.IsKeyDown(Keys.N) && !_previousKeyboard.IsKeyDown(Keys.N)) ||
+        if ((KeyPressed(Keys.N) ||
              ControllerPressed(MatchControllerActions.NextBall)) &&
             !_simulationPaused && _deliveryComplete && !_match.IsMatchComplete)
         {
@@ -526,7 +521,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             else
                 BeginDelivery();
         }
-        if (((keyboard.IsKeyDown(Keys.O) && !_previousKeyboard.IsKeyDown(Keys.O)) ||
+        if ((KeyPressed(Keys.O) ||
              ControllerPressed(MatchControllerActions.CycleOvers)) && _match.IsMatchComplete && !_simulationPaused)
         {
             var currentIndex = Array.IndexOf(OversChoices, _selectedOversPerInnings);
@@ -535,7 +530,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             SaveGameSettings();
             StartNewMatch();
         }
-        if (((keyboard.IsKeyDown(Keys.D) && !_previousKeyboard.IsKeyDown(Keys.D)) ||
+        if ((KeyPressed(Keys.D) ||
              ControllerPressed(MatchControllerActions.CycleDifficulty)) && _match.IsMatchComplete && !_simulationPaused)
         {
             _cpuDifficulty = CpuDifficultyModel.Next(_cpuDifficulty);
@@ -557,33 +552,33 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         if (KeyPressed(Keys.V) || ControllerPressed(MatchControllerActions.CycleCamera)) _camera.CyclePreset();
         if (_developerMode && KeyPressed(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
         if (_developerMode && !IsCpuBattingControlled && !_simulationPaused &&
-            ((keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X)) ||
+            (KeyPressed(Keys.X) ||
              ControllerPressed(MatchControllerActions.CancelRun))) CancelRun();
-        if ((keyboard.IsKeyDown(Keys.P) && !_previousKeyboard.IsKeyDown(Keys.P)) ||
+        if (KeyPressed(Keys.P) ||
             ControllerPressed(MatchControllerActions.Pause))
         {
             _simulationPaused = !_simulationPaused;
         }
         if (_simulationPaused &&
-            ((keyboard.IsKeyDown(Keys.H) && !_previousKeyboard.IsKeyDown(Keys.H)) ||
+            (KeyPressed(Keys.H) ||
              ControllerPressed(MatchControllerActions.ToggleHighContrast)))
         {
             _gameSettings.HighContrast = !_gameSettings.HighContrast;
             SaveGameSettings();
         }
         if (_simulationPaused &&
-            ((keyboard.IsKeyDown(Keys.T) && !_previousKeyboard.IsKeyDown(Keys.T)) ||
+            (KeyPressed(Keys.T) ||
              ControllerPressed(MatchControllerActions.ToggleLargeText)))
         {
             _gameSettings.LargeText = !_gameSettings.LargeText;
             SaveGameSettings();
         }
         if (_simulationPaused &&
-            ((keyboard.IsKeyDown(Keys.OemMinus) && !_previousKeyboard.IsKeyDown(Keys.OemMinus)) ||
+            (KeyPressed(Keys.OemMinus) ||
              ControllerPressed(MatchControllerActions.DecreaseEffectsVolume)))
             AdjustEffectsVolume(-0.1f);
         if (_simulationPaused &&
-            ((keyboard.IsKeyDown(Keys.OemPlus) && !_previousKeyboard.IsKeyDown(Keys.OemPlus)) ||
+            (KeyPressed(Keys.OemPlus) ||
              ControllerPressed(MatchControllerActions.IncreaseEffectsVolume)))
             AdjustEffectsVolume(0.1f);
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete &&
@@ -637,9 +632,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         }
         if (_developerMode && !IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete && !_battedBall && !_isRunning)
         {
-            if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
+            if (KeyPressed(Keys.Q))
                 StepBatterFootwork(1f);
-            if (keyboard.IsKeyDown(Keys.E) && !_previousKeyboard.IsKeyDown(Keys.E))
+            if (KeyPressed(Keys.E))
                 StepBatterFootwork(-1f);
             if (ControllerPressed(MatchControllerActions.StepOffSide))
                 StepBatterFootwork(1f);
@@ -676,7 +671,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         {
             _runHoldElapsed = 0f;
         }
-        _previousKeyboard = keyboard;
+        _inputRouter.EndKeyboardFrame();
         _camera.Update(gameTime, _developerMode, keyboard);
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
@@ -1274,25 +1269,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
 
     private void DrawOverlayText(string text, Vector2 position, Color color, float scale) =>
         _spriteBatch.DrawString(_debugFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-
-    private static MatchControllerButtons ReadControllerButtons(GamePadState state)
-    {
-        var buttons = MatchControllerButtons.None;
-        if (state.IsButtonDown(Buttons.A)) buttons |= MatchControllerButtons.A;
-        if (state.IsButtonDown(Buttons.B)) buttons |= MatchControllerButtons.B;
-        if (state.IsButtonDown(Buttons.X)) buttons |= MatchControllerButtons.X;
-        if (state.IsButtonDown(Buttons.Y)) buttons |= MatchControllerButtons.Y;
-        if (state.IsButtonDown(Buttons.Start)) buttons |= MatchControllerButtons.Start;
-        if (state.IsButtonDown(Buttons.Back)) buttons |= MatchControllerButtons.Back;
-        if (state.IsButtonDown(Buttons.LeftShoulder)) buttons |= MatchControllerButtons.LeftShoulder;
-        if (state.IsButtonDown(Buttons.RightShoulder)) buttons |= MatchControllerButtons.RightShoulder;
-        if (state.IsButtonDown(Buttons.DPadUp)) buttons |= MatchControllerButtons.DPadUp;
-        if (state.IsButtonDown(Buttons.DPadDown)) buttons |= MatchControllerButtons.DPadDown;
-        if (state.IsButtonDown(Buttons.DPadLeft)) buttons |= MatchControllerButtons.DPadLeft;
-        if (state.IsButtonDown(Buttons.DPadRight)) buttons |= MatchControllerButtons.DPadRight;
-        if (state.IsButtonDown(Buttons.LeftStick)) buttons |= MatchControllerButtons.LeftStick;
-        return buttons;
-    }
 
     private void LoadGameSettings()
     {

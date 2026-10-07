@@ -171,7 +171,7 @@ public partial class Game1
             Tick();
         }
 
-        _previousKeyboard = default;
+        _inputRouter.ResetKeyboardHistory();
         _cpuDifficulty = scenario.Difficulty;
         _selectedOversPerInnings = scenario.Overs;
         StartNewMatch(scenario.Seed);

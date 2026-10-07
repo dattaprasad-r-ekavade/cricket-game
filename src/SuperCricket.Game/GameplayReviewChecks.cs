@@ -20,7 +20,7 @@ public partial class Game1
         }
         void Reset(int deliveryPresetIndex = 0)
         {
-            _previousKeyboard = default;
+            _inputRouter.ResetKeyboardHistory();
             _nextDeliveryPresetIndex = deliveryPresetIndex;
             _selectedOversPerInnings = 1;
             _match.Reset(_selectedOversPerInnings);
