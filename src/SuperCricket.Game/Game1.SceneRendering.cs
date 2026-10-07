@@ -147,29 +147,11 @@ public partial class Game1
         return Texture2D.FromStream(GraphicsDevice, stream);
     }
 
-    private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()
-    {
-        var strikerStartsNear = _liveCompletedRunCrossings % 2 == 0;
-        var strikerStartZ = strikerStartsNear ? NearBatterZ : FarBatterZ;
-        var strikerEndZ = strikerStartsNear ? FarBatterZ : NearBatterZ;
-        var nonStrikerStartZ = strikerStartsNear ? FarBatterZ : NearBatterZ;
-        var nonStrikerEndZ = strikerStartsNear ? NearBatterZ : FarBatterZ;
-        if (_isRunning)
-        {
-            var progress = MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f);
-            return (
-                BatterWorld(MathHelper.Lerp(strikerStartZ, strikerEndZ, progress), strikerStartsNear, _batterFootworkOffsetX),
-                BatterWorld(MathHelper.Lerp(nonStrikerStartZ, nonStrikerEndZ, progress), !strikerStartsNear));
-        }
-
-        return (
-            BatterWorld(strikerStartZ, strikerStartsNear, _batterFootworkOffsetX),
-            BatterWorld(nonStrikerStartZ, !strikerStartsNear));
-    }
+    private (Matrix Striker, Matrix NonStriker) GetBatterWorlds() =>
+        BatterRunningPresenter.GetWorlds(_runners, NearBatterZ, FarBatterZ, _batterFootworkOffsetX);
 
     private static Matrix BatterWorld(float z, bool atNearEnd, float lateralOffsetX = 0f) =>
-        Matrix.CreateRotationY(atNearEnd ? 0f : MathHelper.Pi) *
-        Matrix.CreateTranslation(new Vector3(-0.48f + lateralOffsetX, -0.025f, z));
+        BatterRunningPresenter.CreateWorld(z, atNearEnd, lateralOffsetX);
 
     private Matrix GetFielderWorld(int fielderIndex, NumericsVector3 ballPosition)
     {

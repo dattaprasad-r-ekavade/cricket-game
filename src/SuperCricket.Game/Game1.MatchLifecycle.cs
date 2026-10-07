@@ -83,13 +83,11 @@ public partial class Game1
         _batterFootworkOffsetX = 0f;
         _targetBatterFootworkOffsetX = 0f;
         _footworkTransitionActive = false;
-        _isRunning = false;
+        _runners.Reset();
         _runRequestedPending = false;
         _cpuRunsRemaining = 0;
-        _liveCompletedRunCrossings = 0;
         _cpuBattingPlan = null;
         _cpuShotStarted = false;
-        _runElapsed = 0f;
         _runHoldElapsed = 0f;
         _fielderThrowActive = false;
         _fielderThrowBallReleased = false;

@@ -238,8 +238,9 @@ public partial class Game1
         Reset();
         _battedBall = true;
         CurrentDelivery.RecordCompletedRun();
-        _isRunning = true;
-        _runElapsed = 0.15f;
+        _runners.CompleteRun();
+        _runners.StartRun();
+        _runners.Advance(0.15f, _runDurationSeconds);
         ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.GroundPickup));
         for (var step = 0; step < 180 && !_deliveryComplete; step++) Tick(1f / 120f);
         Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _match.Runs == 1 &&
@@ -406,7 +407,7 @@ public partial class Game1
             Reset(presetIndex);
             _battedBall = true;
             StartRun();
-            _runElapsed = _runDurationSeconds * progress;
+            _runners.Advance(_runDurationSeconds * progress, _runDurationSeconds);
             _ballFlight.StopAtContact(new NumericsVector3(0f, 0f, 0f));
             ResolveSettledBall(_ballFlight.CurrentFrame);
             var expectedBatterRuns = progress >= 0.5f ? 1 : 0;
@@ -435,8 +436,8 @@ public partial class Game1
         _battedBall = true;
         for (var run = 0; run < 4; run++)
             CurrentDelivery.RecordCompletedRun();
-        _isRunning = true;
-        _runElapsed = _runDurationSeconds * 0.6f;
+        _runners.StartRun();
+        _runners.Advance(_runDurationSeconds * 0.6f, _runDurationSeconds);
         ResolveBoundaryCrossing(new BoundaryCrossing(
             1f,
             new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 0.1f, 0f),

@@ -31,13 +31,16 @@ public readonly record struct DeliveryResult(
     bool IsLegal = true,
     DeliveryExtra Extra = DeliveryExtra.None,
     DismissalKind Dismissal = DismissalKind.None,
-    DismissedEnd DismissedEnd = DismissedEnd.Striker)
+    DismissedEnd DismissedEnd = DismissedEnd.Striker,
+    bool SwapEndsOnRunOut = false)
 {
     public string? Validate()
     {
         if (BatterRuns is < 0 or > 12) return "Batter runs must be between zero and twelve.";
         if (ExtraRuns < 0) return "Extra runs cannot be negative.";
         if (CompletedRuns < 0) return "Completed runs cannot be negative.";
+        if (SwapEndsOnRunOut && Dismissal != DismissalKind.RunOut)
+            return "An uncompleted crossing may change ends only on a run-out.";
         if (!Enum.IsDefined(Extra) || !Enum.IsDefined(Dismissal) || !Enum.IsDefined(DismissedEnd))
             return "Delivery contains an unknown scoring or dismissal type.";
         if (CompletedRuns > BatterRuns + ExtraRuns)

@@ -314,7 +314,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 else
                 {
                     telemetry.GroundPickups++;
-                    var throwArrivalTime = current.TimeSeconds + pickupDuration + throwDuration;
+                    var throwArrivalTime = elapsedSinceContact + pickupDuration + throwDuration;
                     while (completedRuns < plannedRuns &&
                         throwArrivalTime >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
                     {
@@ -324,8 +324,17 @@ public static class PhysicsAutomatedMatchBatchSimulator
                     }
                     if (completedRuns < plannedRuns)
                     {
-                        session.ResolveRunOut();
-                        telemetry.RunOuts++;
+                        var runners = new BetweenWicketsState();
+                        for (var run = 0; run < completedRuns; run++)
+                            runners.CompleteRun();
+                        runners.StartRun();
+                        runners.Advance(throwArrivalTime - completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
+                            CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
+                        if (runners.TryResolveRunOut(WicketEnd.Near, wicketBroken: true, out var runOut))
+                        {
+                            session.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
+                            telemetry.RunOuts++;
+                        }
                     }
                 }
                 if (session.CompletedRuns >= 2)

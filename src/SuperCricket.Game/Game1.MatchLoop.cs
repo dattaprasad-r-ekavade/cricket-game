@@ -210,6 +210,10 @@ public partial class Game1
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
             UpdateCpuBatting(flightElapsed);
+        var runningElapsedDuringFielding = elapsedSeconds;
+        if (_fielderSequencePhase == FielderSequencePhase.Throw)
+            runningElapsedDuringFielding = MathF.Min(elapsedSeconds,
+                MathF.Max(0f, _fielderThrowDurationSeconds - _fielderAnimators[_fielderThrowerIndex].CurrentTimeSeconds));
         if (_captureTarget is null && !_simulationPaused)
         {
             _previousBatWorld = _currentBatWorld;
@@ -219,7 +223,7 @@ public partial class Game1
             UpdateFielderAnimations(elapsedSeconds);
         }
         if (!_simulationPaused && _isRunning && (_fielderThrowActive || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled))
-            UpdateRun(elapsedSeconds);
+            UpdateRun(runningElapsedDuringFielding);
         if (!_simulationPaused && _fielderThrowActive)
             UpdateFielderThrow();
 
@@ -232,6 +236,8 @@ public partial class Game1
                    _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled)
             {
                 var previousFrame = _ballFlight.CurrentFrame;
+                if (_isRunning)
+                    UpdateRun(_ballFlight.FixedTimeStepSeconds);
                 if (_battedBall)
                     _fieldingSide.Step(_ballFlight.FixedTimeStepSeconds, previousFrame.Position);
 
@@ -292,7 +298,11 @@ public partial class Game1
                         _runRequestedPending = _cpuRunsRemaining > 0;
                     }
                     if (_runRequestedPending)
+                    {
                         StartRun();
+                        if (_isRunning)
+                            UpdateRun(_ballFlight.FixedTimeStepSeconds * (1f - battingContact.HitFraction));
+                    }
                 }
                 else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < NearBatterZ - 0.45f && frame.Velocity.Z < 0f)
                 {
@@ -334,9 +344,6 @@ public partial class Game1
                 {
                     ResolveSettledBall(frame);
                 }
-
-                if (_isRunning)
-                    UpdateRun(_ballFlight.FixedTimeStepSeconds);
 
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),

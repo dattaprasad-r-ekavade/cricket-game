@@ -150,13 +150,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _match.OversPerInnings,
         _match.Target,
         _match.CurrentBowler.Name));
-    private bool _isRunning;
+    private readonly BetweenWicketsState _runners = new();
+    private bool _isRunning => _runners.IsMoving;
     private bool _runRequestedPending;
     private int _cpuRunsRemaining;
-    private int _liveCompletedRunCrossings;
     private CpuLiveBattingPlan? _cpuBattingPlan;
     private bool _cpuShotStarted;
-    private float _runElapsed;
+    private float _runElapsed => _runners.Progress * _runDurationSeconds;
     private float _runDurationSeconds = CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
     private bool _fielderThrowActive;
     private bool _fielderThrowBallReleased;

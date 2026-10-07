@@ -122,7 +122,7 @@ public partial class Game1
         Tick(0.1f, Keys.Enter);
         Require(_isRunning, "the Enter button did not start a manual run");
         Tick(0.5f, Keys.Enter);
-        Require(!_isRunning,
+        Require(!_isRunning || _runners.IsReturning,
             $"holding the run button did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
 
         Reset();
@@ -132,7 +132,24 @@ public partial class Game1
         Require(_isRunning, "the GamePad B button did not start a manual run");
         UpdateMatch(new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5)), new KeyboardState(),
             MatchControllerActions.None, controllerRunHeld: true);
-        Require(!_isRunning, "holding GamePad B did not turn the batter back");
+        Require(!_isRunning || _runners.IsReturning, "holding GamePad B did not turn the batter back");
+        Reset();
+        _battedBall = true;
+        StartRun();
+        UpdateRun(_runDurationSeconds * 0.6f);
+        StartRun();
+        var beforeTurn = GetBatterWorlds();
+        CancelRun();
+        var afterTurn = GetBatterWorlds();
+        Require(_isRunning && _runners.IsReturning && !_runRequestedPending &&
+            beforeTurn.Striker.Translation == afterTurn.Striker.Translation &&
+            beforeTurn.NonStriker.Translation == afterTurn.NonStriker.Translation,
+            "turn-back teleported a runner or preserved a queued run");
+        UpdateRun(_runDurationSeconds * 0.2f);
+        Require(_isRunning && _runners.Progress < 0.6f, "turn-back did not move towards home continuously");
+        UpdateRun(_runDurationSeconds);
+        Require(!_isRunning && _match.CurrentDelivery?.CompletedRuns == 0,
+            "returning home credited an uncompleted run");
         _developerMode = developerModeWasEnabled;
         Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
 

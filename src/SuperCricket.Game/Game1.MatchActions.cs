@@ -177,7 +177,7 @@ public partial class Game1
             return;
         if (_isRunning)
         {
-            if (!IsCpuBattingControlled)
+            if (!IsCpuBattingControlled && !_runners.IsReturning)
             {
                 _runRequestedPending = true;
                 _shotOutcome = "Another run requested.";
@@ -199,8 +199,7 @@ public partial class Game1
         }
         _targetBatterFootworkOffsetX = 0f;
         _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
-        _isRunning = true;
-        _runElapsed = 0f;
+        _runners.StartRun();
         _runHoldElapsed = 0f;
         _playerAnimator.Play("between-wickets", 0.12f);
     }
@@ -208,30 +207,32 @@ public partial class Game1
     private void CancelRun()
     {
         if (_simulationPaused) return;
-        if (_runRequestedPending)
-        {
-            _runRequestedPending = false;
-            if (IsCpuBattingControlled)
-                _cpuRunsRemaining = 0;
-            return;
-        }
+        _runRequestedPending = false;
+        _cpuRunsRemaining = 0;
         if (!_isRunning)
             return;
-        if (IsCpuBattingControlled)
-            _cpuRunsRemaining = 0;
-        _isRunning = false;
-        _runElapsed = 0f;
+        _runners.TurnBack();
         _runHoldElapsed = 0f;
-        _playerAnimator.Play("practice-stance", 0.12f);
+        _shotOutcome = "Turning back; reach the crease before the return throw.";
     }
 
     private void UpdateRun(float deltaTime)
     {
-        _runElapsed += deltaTime;
-        if (_runElapsed < _runDurationSeconds)
-            return;
-
-        CompleteRun();
+        do
+        {
+            var result = _runners.Advance(deltaTime, _runDurationSeconds, out var unusedSeconds);
+            if (result == RunMovementResult.CompletedRun)
+                CompleteRun(updateRunnerState: false);
+            else if (result == RunMovementResult.ReturnedHome)
+            {
+                _runHoldElapsed = 0f;
+                _shotOutcome = "Returned safely; no additional run.";
+                _playerAnimator.Play("practice-stance", 0.12f);
+            }
+            else
+                break;
+            deltaTime = unusedSeconds;
+        } while (_isRunning && deltaTime > 0f);
     }
 
     private void UpdateFielderAnimations(float deltaTime)
@@ -292,15 +293,18 @@ public partial class Game1
         if (!animation.IsOneShotComplete)
             return;
 
+        var wicketBroken = WicketContactModel.IsBroken(_fielderThrowTarget, -PracticeGround.WicketOffset,
+            _deliveryPreset.BallRadiusMeters, _fielderBallSecured, _fielderThrowBallReleased);
+        _groundVertices = PracticeGround.CreateField(nearWicketBroken: wicketBroken);
         _ballFlight.StopAtContact(_fielderThrowTarget);
         _fielderThrowActive = false;
         _fielderThrowBallReleased = false;
         _fielderSequencePhase = FielderSequencePhase.None;
         _fielderActionClips[_fielderThrowerIndex] = null;
         _fielderActionHoldAtEnd[_fielderThrowerIndex] = false;
-        if (_isRunning)
+        if (_runners.TryResolveRunOut(WicketEnd.Near, wicketBroken, out var runOut))
         {
-            CurrentDelivery.ResolveRunOut();
+            CurrentDelivery.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
             _shotOutcome = $"OUT: fielder {_fielderThrowerIndex + 1} threw to the wicketkeeper";
         }
         else
@@ -310,13 +314,12 @@ public partial class Game1
         FinishDelivery();
     }
 
-    private void CompleteRun(bool recordScoring = true, bool allowNextRun = true)
+    private void CompleteRun(bool recordScoring = true, bool allowNextRun = true, bool updateRunnerState = true)
     {
         if (recordScoring)
             CurrentDelivery.RecordCompletedRun();
-        _liveCompletedRunCrossings++;
-        _isRunning = false;
-        _runElapsed = 0f;
+        if (updateRunnerState)
+            _runners.CompleteRun();
         _runHoldElapsed = 0f;
         _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
         _playerAnimator.Play("practice-stance", 0.12f);
@@ -417,13 +420,13 @@ public partial class Game1
     {
         if (_isRunning)
         {
-            var crossed = RunningScoringModel.HasCrossed(_runElapsed, _runDurationSeconds);
+            var crossed = _runners.CurrentRunCrossed;
             CurrentDelivery.ResolveDeadBall(crossed);
             if (crossed)
                 CompleteRun(recordScoring: false, allowNextRun: false);
             else
             {
-                _isRunning = false;
+                _runners.Stop();
                 _shotOutcome = _batterRuns > 0
                     ? $"RUN: {_batterRuns} batter run(s); ball dead before the next crossing"
                     : "DOT: ball dead before the batters crossed";
@@ -437,12 +440,12 @@ public partial class Game1
 
     private void ResolveBoundaryCrossing(BoundaryCrossing crossing)
     {
-        CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runElapsed >= _runDurationSeconds * 0.5f);
+        CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runners.CurrentRunCrossed);
         _shotOutcome = crossing.ClearedInTheAir ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
         PlayAudio(CricketAudioCue.Boundary);
         _cpuRunsRemaining = 0;
         _runRequestedPending = false;
-        _isRunning = false;
+        _runners.Stop();
         _ballFlight.StopAtContact(crossing.Position);
         FinishDelivery();
     }
@@ -453,10 +456,9 @@ public partial class Game1
             return;
 
         _matchController.CompleteDelivery();
-        _isRunning = false;
+        _runners.Stop();
         _runRequestedPending = false;
         _cpuRunsRemaining = 0;
-        _liveCompletedRunCrossings = 0;
         _fielderThrowActive = false;
         _fielderSequencePhase = FielderSequencePhase.None;
         if (_dismissal != DismissalKind.None)
