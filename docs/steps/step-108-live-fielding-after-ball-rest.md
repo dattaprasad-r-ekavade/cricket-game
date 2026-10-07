@@ -27,7 +27,7 @@ The dead-ball decision and no-ball behavior follow Laws 20.1.2, 21.13, and 21.17
 - Added 44 cases: 24 resting-ball cases and 20 no-ball collection cases. They cover the live advance gate, fixed-step continuation at 30/60/120 Hz, actual batch scoring/run-outs after rest, boundary collection, laboratory cutoff bypass, diagnostic exhaustion, legal/no-ball catch routing, authored catch/return windows, and invalid inputs.
 - The Step 106 fixture expectations now require physical collection and completed runs; explicit dead-ball scoring tests remain unchanged.
 - Default headless review: passed on the final source, including both builds, content validation, seeded physics batch repeatability, and batting calibration.
-- Hosted validation: pending.
+- Hosted validation: code commit `b75ad916d85c77dbbf2eec5bafee5672b4c2f407` passed in [run 37615704555](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37615704555).
 - No game window, game-host check, capture, or runtime profiling session was started.
 
 ## Remaining
