@@ -102,7 +102,7 @@ blender --background --factory-startup --python tools/blender/build_practice_bat
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
 
-Create editable 61-joint humanoid batter and bowler GLB pilots without overwriting the original `.scplayer.json` inputs. The exporter carries each gameplay clip's events and sampled root motion in `animations[].extras.superCricket`; validation checks those values against the authoritative player assets:
+Create the editable 61-joint humanoid batter and bowler GLBs. The MonoGame runtime loads these GLBs directly through SharpGLTF.Core; the original `.scplayer.json` assets remain the authoring/analyzer reference while fielder-specific content is migrated. The exporter carries each gameplay clip's events and sampled root motion in `animations[].extras.superCricket`; the review checks those values against the source assets and validates the C# runtime import:
 
 ```powershell
 blender --background --python tools/blender/build_humanoid_batter.py -- `
@@ -117,9 +117,11 @@ python tools/blender/validate_humanoid_glb.py assets/characters/practice-batter-
   --role batter --player-asset assets/characters/practice-batter.scplayer.json
 python tools/blender/validate_humanoid_glb.py assets/characters/practice-bowler-humanoid.glb `
   --role bowler --player-asset assets/characters/practice-bowler.scplayer.json
+dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-batter-humanoid.glb
+dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler-humanoid.glb
 ```
 
-The Godot trial imports the batter GLB to verify its skeleton, named actions, and grip-preview pose. These pilots do not replace the current MonoGame `.scplayer.json` runtime assets.
+The Godot trial also imports the batter GLB to verify its skeleton, named actions, and grip-preview pose. The MonoGame loader currently supports opaque, untextured triangle meshes with identity mesh transforms, four joint influences per vertex, and the embedded animation metadata contract.
 
 After editing the saved `.blend` in Blender or through Blender MCP, export that scene without rebuilding it:
 

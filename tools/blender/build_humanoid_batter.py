@@ -360,6 +360,24 @@ def render_pose_previews(
     scene.render.image_settings.file_format = previous_format
 
 
+def sync_gltf_material_colors() -> None:
+    """Carry source diffuse colors into unlinked default Principled shaders."""
+    default_shader_color = (0.8, 0.8, 0.8, 1.0)
+    for material in bpy.data.materials:
+        if material.node_tree is None:
+            continue
+        principled = next((node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
+        if principled is None:
+            continue
+        base_color = principled.inputs.get("Base Color")
+        if base_color is None or base_color.is_linked:
+            continue
+        shader_color = tuple(float(value) for value in base_color.default_value)
+        diffuse_color = tuple(float(value) for value in material.diffuse_color)
+        if all(abs(value - default) <= 1e-5 for value, default in zip(shader_color, default_shader_color)):
+            base_color.default_value = diffuse_color
+
+
 def main() -> None:
     args = parse_args()
     defaults = ASSET_PATHS[args.role]
@@ -427,6 +445,7 @@ def main() -> None:
     for pose_bone in armature.pose.bones:
         pose_bone.rotation_mode = "XYZ"
 
+    sync_gltf_material_colors()
     scene = bpy.context.scene
     scene.render.fps = 30
     scene.frame_set(1)

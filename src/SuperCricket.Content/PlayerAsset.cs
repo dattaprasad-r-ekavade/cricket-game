@@ -22,12 +22,16 @@ public sealed class PlayerAsset
     public int Version { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
     public string CoordinateSystem { get; set; } = "right-handed-y-up-metres";
+    public string PoseSpace { get; set; } = "global";
     public List<PlayerBoneData> Bones { get; set; } = [];
     public List<PlayerMeshData> Meshes { get; set; } = [];
     public List<PlayerAnimationData> Animations { get; set; } = [];
 
     public static PlayerAsset Load(string path)
     {
+        if (string.Equals(Path.GetExtension(path), ".glb", StringComparison.OrdinalIgnoreCase))
+            return PlayerGlbLoader.Load(path);
+
         var json = File.ReadAllText(path);
         var asset = JsonSerializer.Deserialize<PlayerAsset>(json, JsonOptions)
             ?? throw new InvalidDataException($"Player asset '{path}' was empty.");
@@ -46,6 +50,7 @@ public sealed class PlayerAsset
         if (Version != 1) errors.Add($"Unsupported player asset version {Version}; expected 1.");
         if (string.IsNullOrWhiteSpace(Name)) errors.Add("Player name must not be empty.");
         if (CoordinateSystem != "right-handed-y-up-metres") errors.Add("Coordinate system must be right-handed-y-up-metres.");
+        if (PoseSpace is not ("global" or "local")) errors.Add("Pose space must be either global or local.");
         if (Bones is null || Bones.Count is < 1 or > 72)
         {
             errors.Add("Player must contain between 1 and 72 bones.");

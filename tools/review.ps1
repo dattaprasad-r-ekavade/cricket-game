@@ -21,6 +21,9 @@ try {
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
     }
+    foreach ($playerGlbPath in @('assets/characters/practice-batter-humanoid.glb', 'assets/characters/practice-bowler-humanoid.glb')) {
+        Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerGlbPath)
+    }
     $coastalRosterPath = 'assets/teams/coastal-xi.json'
     $highlandRosterPath = 'assets/teams/highland-xi.json'
     foreach ($teamPath in @($coastalRosterPath, $highlandRosterPath)) {

@@ -351,11 +351,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "highland-xi.json")),
             _selectedOversPerInnings);
-        var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter.scplayer.json");
+        var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter-humanoid.glb");
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
         _playerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _playerAsset);
-        var bowlerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-bowler.scplayer.json");
+        var bowlerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-bowler-humanoid.glb");
         _bowlerAsset = PlayerAsset.Load(bowlerPath);
         _bowlerAnimator = new PlayerAnimator(_bowlerAsset);
         _bowlerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _bowlerAsset);
