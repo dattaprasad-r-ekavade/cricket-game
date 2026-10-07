@@ -448,6 +448,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             {
                 SetBowlerCaptureReleasePose();
             }
+            if (_captureBowlingTarget && !_captureCameraPresetSpecified && IsHumanBowling)
+                _camera.SelectPreset("ball-follow");
             if (_camera.FollowsBall)
                 _camera.FollowBall(ToXna(_ballFlight.CurrentFrame.Position), 0f);
             _simulationPaused = true;
@@ -822,6 +824,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var cameraBallPosition = _fielderThrowActive
             ? ToXna(GetFielderThrowBallPosition())
             : ToXna(_ballFlight.CurrentFrame.Position);
+        if (!_captureCameraPresetSpecified && IsHumanBowling && !_bowlerReleased && !_deliveryComplete &&
+            _camera.PresetName == "Bowler end")
+        {
+            _camera.TrackTarget(GetBowlerWorld().Translation + new Vector3(0f, 0.9f, 0f), elapsedSeconds);
+        }
         _camera.FollowBall(cameraBallPosition, elapsedSeconds);
         if (!_simulationPaused)
         {
@@ -1105,7 +1112,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     {
         var gamePad = _lastInputWasGamePad;
         var pause = gamePad ? "Start: pause" : "P: pause";
-        var camera = gamePad ? "L3: camera" : "V: camera    PgUp/Dn: zoom";
+        var camera = gamePad ? "L3: camera" : "V: camera    PgDn: zoom in / PgUp: out";
         string WithCamera(string hint) => $"{hint}    {camera}";
         if (_match.IsMatchComplete)
             return gamePad
@@ -1240,7 +1247,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             "GamePad batting: left stick aim | A ground/defend | Y loft",
             "Running: Enter/B starts; tap again for another; hold to turn back",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "V/L3: camera | PgUp/Dn: zoom | R/A replay | D/LB difficulty | O/RB overs when match ends",
+            "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
             $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(_gameSettings.HighContrast ? "ON" : "OFF")}",
             $"T/Pad X: larger text {(_gameSettings.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up { _gameSettings.EffectsVolume:P0}",
             _settingsStatusMessage ?? (_audioUnavailable
@@ -1509,7 +1516,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             ? _bowlingTargetMarkerPosition
             : null;
         if (!_captureCameraPresetSpecified)
+        {
             _camera.SelectPreset(GetRoleCameraPreset(IsCpuBattingControlled));
+            if (IsHumanBowling)
+                _camera.SetTarget(GetBowlerWorld().Translation + new Vector3(0f, 0.9f, 0f));
+        }
 
         if (IsCpuBattingControlled)
         {
@@ -1635,6 +1646,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             if (!_bowlerReleased && _bowlerActionElapsed >= _bowlerReleaseTimeSeconds)
             {
                 _bowlerReleased = true;
+                if (!_captureCameraPresetSpecified && IsHumanBowling && _camera.PresetName == "Bowler end")
+                    _camera.SelectPreset("ball-follow");
                 _releaseMarkerPosition = ToXna(_ballFlight.CurrentFrame.Position);
                 _trajectoryVertices.Add(new VertexPositionColor(
                     ToXna(_ballFlight.CurrentFrame.Position) + new Vector3(0f, 0.01f, 0f),

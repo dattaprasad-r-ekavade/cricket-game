@@ -358,14 +358,9 @@ public partial class Game1
         }
 
         var viewport = GraphicsDevice.Viewport;
-        var titleScale = _gameSettings.LargeText ? 1.50f : 1.40f;
-        var detailScale = _gameSettings.LargeText ? 1.20f : 1.10f;
-        var preferredPanelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 640 : 560);
-        var hudRight = _matchHudBounds.Right > 20 ? _matchHudBounds.Right : 20;
-        var safeRightWidth = viewport.Width - hudRight - 32;
-        var panelWidth = safeRightWidth >= 360
-            ? Math.Min(preferredPanelWidth, safeRightWidth)
-            : preferredPanelWidth;
+        var titleScale = _gameSettings.LargeText ? 1.65f : 1.55f;
+        var detailScale = _gameSettings.LargeText ? 1.25f : 1.15f;
+        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 820 : 760);
         var textWidth = panelWidth - 52;
         var detailLines = WrapFeedbackLines(new[] { detail }, textWidth, detailScale);
         var lineSpacing = (int)MathF.Round(25 * detailScale);
@@ -376,7 +371,6 @@ public partial class Game1
         var panel = CalculateLiveFeedbackBannerBounds(
             viewport.Width,
             viewport.Height,
-            hudRight,
             hudBottom,
             panelWidth,
             panelHeight);
@@ -387,6 +381,7 @@ public partial class Game1
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
         _spriteBatch.Draw(_feedbackMapPixel, panel, background);
         _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 9, panel.Height), accent);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, panel.Width, 5), accent);
         DrawOverlayText(title, new Vector2(panel.X + 22, panel.Y + 8), accent, titleScale);
         for (var index = 0; index < detailLines.Count; index++)
             DrawOverlayText(detailLines[index], new Vector2(panel.X + 22, panel.Y + 46 + index * lineSpacing),
@@ -399,19 +394,14 @@ public partial class Game1
     internal static Rectangle CalculateLiveFeedbackBannerBounds(
         int viewportWidth,
         int viewportHeight,
-        int hudRight,
         int hudBottom,
         int panelWidth,
         int panelHeight)
     {
         var width = Math.Min(viewportWidth - 40, panelWidth);
         var height = Math.Min(viewportHeight - 24, panelHeight);
-        var rightX = hudRight + 12;
-        var canUseUpperRight = rightX + width <= viewportWidth - 20;
-        var x = canUseUpperRight ? rightX : Math.Max(20, (viewportWidth - width) / 2);
-        var y = canUseUpperRight
-            ? 20
-            : Math.Max(20, Math.Min(hudBottom + 12, viewportHeight - height - 12));
+        var x = (viewportWidth - width) / 2;
+        var y = Math.Clamp(hudBottom + 12, 20, viewportHeight - height - 12);
         return new Rectangle(x, y, width, height);
     }
 

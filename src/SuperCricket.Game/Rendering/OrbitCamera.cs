@@ -9,17 +9,17 @@ public sealed class OrbitCamera
 {
     private const float MinDistance = 4f;
     private const float MaxDistance = 100f;
-    private const float MinPlayerZoomDistance = 6f;
-    private const float MaxPlayerZoomDistance = 32f;
+    private const float MinPlayerZoomDistance = 4.5f;
+    private const float MaxPlayerZoomDistance = 28f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
     private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
-        // Keep the action larger on screen and offset the camera slightly so the
-        // bat, ball, and wicket do not collapse into a single straight-on silhouette.
-        ("Behind striker", MathHelper.Pi + 0.22f, 0.30f, 12.5f, 45f, new Vector3(0f, 0f, -2f), false),
-        ("Bowler end", 0.22f, 0.30f, 12.5f, 45f, new Vector3(0f, 0f, 2f), false),
+        // Aim at the active crease/player. Keeping the focus at mid-pitch made
+        // zooming move the end-on cameras away from the person being controlled.
+        ("Behind striker", MathHelper.Pi + 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, -8.72f), false),
+        ("Bowler end", 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, 8.72f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
@@ -65,6 +65,18 @@ public sealed class OrbitCamera
         if (!float.IsFinite(distanceChangeMeters))
             throw new ArgumentOutOfRangeException(nameof(distanceChangeMeters), "Camera zoom change must be finite.");
         Distance = MathHelper.Clamp(Distance + distanceChangeMeters, MinPlayerZoomDistance, MaxPlayerZoomDistance);
+    }
+
+    public void SetTarget(Vector3 target)
+    {
+        _hasBallTarget = false;
+        Target = target;
+    }
+
+    public void TrackTarget(Vector3 target, float elapsedSeconds)
+    {
+        var blend = 1f - MathF.Exp(-12f * MathF.Max(0f, elapsedSeconds));
+        Target = Vector3.Lerp(Target, target, blend);
     }
 
     public void Focus(Vector3 target, float distance, float yaw, float elevation, string name = "Focus")
