@@ -146,13 +146,15 @@ public partial class Game1
     private void DrawShotLaneMeter(Rectangle panel, int y, Color accent, float scale)
     {
         var aim = _chosenShot is { } shot ? shot.HorizontalAim : Math.Clamp(_humanShotAimOffset, -1f, 1f);
+        var forward = _chosenShot is { } chosen ? chosen.ForwardAim : _humanForwardShotAim;
         var direction = aim switch
         {
             < -0.12f => "LEFT",
             > 0.12f => "RIGHT",
             _ => "STRAIGHT"
         };
-        DrawOverlayText($"SHOT LANE  /  {direction}",
+        var depth = forward < -0.12f ? "BEHIND" : "DOWNFIELD";
+        DrawOverlayText($"SHOT AIM  /  {direction} / {depth}",
             new Vector2(panel.X + 14, y),
             accent,
             0.68f * scale);
@@ -179,6 +181,8 @@ public partial class Game1
     {
         if (_isRunning)
             return "RUNNING";
+        if (_battingInputRecorder.HasPendingInput)
+            return $"REC  {_battingInputRecorder.PendingLabel}";
         if (_chosenShot is not { } shot)
             return _playerAnimator.CurrentClipName switch
             {
@@ -186,8 +190,19 @@ public partial class Game1
                 "batting-step-legside" => "STEP RIGHT",
                 _ => "READY"
             };
-        return string.Equals(_playerAnimator.CurrentClipName, shot.AnimationClip, StringComparison.OrdinalIgnoreCase)
-            ? $"SWINGING {shot.Name.ToUpperInvariant()}"
-            : $"SHOT {shot.Name.ToUpperInvariant()}";
+        var action = shot.AnimationClip switch
+        {
+            "defensive-block" => "DEFEND",
+            "front-foot-drive" => "FRONT DRIVE",
+            "back-foot-drive" => "BACK DRIVE",
+            "lofted-drive" => "FRONT LOFT",
+            "back-foot-loft" => "BACK LOFT",
+            _ => shot.Name.ToUpperInvariant()
+        };
+        var state = string.Equals(_playerAnimator.CurrentClipName, shot.AnimationClip, StringComparison.OrdinalIgnoreCase)
+            ? "SWINGING"
+            : "SHOT";
+        var label = string.IsNullOrWhiteSpace(_shotControlLabel) ? string.Empty : $"  [{_shotControlLabel}]";
+        return $"{state} {action}{label}";
     }
 }

@@ -54,6 +54,9 @@ public sealed class BattingShotSet
                 errors.Add($"Shot '{shot.Name}' launch angle must be between -5 and 70 degrees.");
             if (!float.IsFinite(shot.HorizontalAim) || shot.HorizontalAim is < -1f or > 1f)
                 errors.Add($"Shot '{shot.Name}' horizontal aim must be between -1 and 1.");
+            if (!float.IsFinite(shot.ForwardAim) || shot.ForwardAim is < -1f or > 1f ||
+                (MathF.Abs(shot.HorizontalAim) < 0.001f && MathF.Abs(shot.ForwardAim) < 0.001f))
+                errors.Add($"Shot '{shot.Name}' must have a finite, non-zero forward aim between -1 and 1.");
             if (!float.IsFinite(shot.SpeedTransfer) || shot.SpeedTransfer is <= 0f or > 1.5f)
                 errors.Add($"Shot '{shot.Name}' speed transfer must be greater than 0 and at most 1.5.");
         }
@@ -70,5 +73,6 @@ public sealed class BattingShotData
     public string AnimationClip { get; set; } = string.Empty;
     public float LaunchAngleDegrees { get; set; }
     public float HorizontalAim { get; set; }
+    public float ForwardAim { get; set; } = 1f;
     public float SpeedTransfer { get; set; }
 }

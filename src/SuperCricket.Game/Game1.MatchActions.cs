@@ -72,7 +72,12 @@ public partial class Game1
         _bowlingTargetMarkerPosition = ToXna(bounce.Position) + Vector3.UnitY * 0.045f;
     }
 
-    private void StartShot(string name, float? horizontalAimOverride = null)
+    private void StartShot(
+        string name,
+        float? horizontalAimOverride = null,
+        float? forwardAimOverride = null,
+        string? animationClipOverride = null,
+        string? controlLabelOverride = null)
     {
         if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
@@ -84,15 +89,21 @@ public partial class Game1
                 : _humanShotAimOffset,
             -1f,
             1f);
+        var forwardAim = forwardAimOverride ?? (IsCpuBattingControlled
+            ? authoredShot.ForwardAim
+            : _humanForwardShotAim);
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAimOverride), "Shot direction must be between -1 and 1.");
-        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+        if (!float.IsFinite(forwardAim) || forwardAim is < -1f or > 1f ||
+            (MathF.Abs(horizontalAim) < 0.001f && MathF.Abs(forwardAim) < 0.001f))
+            throw new ArgumentOutOfRangeException(nameof(forwardAimOverride), "Shot direction must be a finite, non-zero vector between -1 and 1.");
+        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim, forwardAim, animationClipOverride);
         RecordShotTiming(name);
         _shotInputDelaySeconds = _bowlerRunUpElapsed + _bowlerActionElapsed -
             (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
         _shotControlLabel = IsCpuBattingControlled
             ? null
-            : MatchHudPresenter.GetShotControlLabel(name, _lastInputWasGamePad);
+            : controlLabelOverride ?? MatchHudPresenter.GetShotControlLabel(name, _lastInputWasGamePad);
         _battingStepRecoveryActive = false;
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
@@ -110,17 +121,49 @@ public partial class Game1
 
         var authoredShot = _shotSet.Get(chosenShot.Name);
         var horizontalAim = Math.Clamp(_humanShotAimOffset, -1f, 1f);
-        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim);
+        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim, chosenShot.ForwardAim, chosenShot.AnimationClip);
     }
 
-    private static BattingShotData CopyShotWithAim(BattingShotData shot, float horizontalAim) => new()
+    private static BattingShotData CopyShotWithAim(
+        BattingShotData shot,
+        float horizontalAim,
+        float forwardAim,
+        string? animationClipOverride = null) => new()
     {
         Name = shot.Name,
-        AnimationClip = shot.AnimationClip,
+        AnimationClip = animationClipOverride ?? shot.AnimationClip,
         LaunchAngleDegrees = shot.LaunchAngleDegrees,
         HorizontalAim = horizontalAim,
+        ForwardAim = forwardAim,
         SpeedTransfer = shot.SpeedTransfer
     };
+
+    private void SetHumanForwardShotAim(float aim)
+    {
+        if (!float.IsFinite(aim) || aim == 0f)
+            return;
+        _humanForwardShotAim = Math.Clamp(aim, -1f, 1f);
+        _humanForwardShotAimSelected = true;
+        if (_chosenShot is not { } chosenShot || _shotResolved || IsCpuBattingControlled)
+            return;
+
+        var authoredShot = _shotSet.Get(chosenShot.Name);
+        _chosenShot = CopyShotWithAim(
+            authoredShot,
+            Math.Clamp(_humanShotAimOffset, -1f, 1f),
+            _humanForwardShotAim,
+            chosenShot.AnimationClip);
+    }
+
+    private static string FormatKeyboardShotControlLabel(string recordedKeys, float horizontalAim, float forwardAim)
+    {
+        var direction = new List<string>(2);
+        if (horizontalAim < -0.12f) direction.Add("LEFT");
+        else if (horizontalAim > 0.12f) direction.Add("RIGHT");
+        if (forwardAim < -0.12f) direction.Add("BEHIND");
+        else if (forwardAim > 0.12f) direction.Add("DOWNFIELD");
+        return direction.Count == 0 ? recordedKeys : $"{string.Join(" + ", direction)} | {recordedKeys}";
+    }
 
     private string HumanShotAimStatus
     {

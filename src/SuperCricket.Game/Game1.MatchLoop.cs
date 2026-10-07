@@ -104,6 +104,8 @@ public partial class Game1
         if (_developerMode && !IsCpuBattingControlled && !_simulationPaused &&
             (KeyPressed(Keys.X) ||
              ControllerPressed(MatchControllerActions.CancelRun))) CancelRun();
+        if (!_developerMode && !IsCpuBattingControlled && !_simulationPaused && _battedBall && KeyPressed(Keys.A))
+            CancelRun();
         if (KeyPressed(Keys.P) ||
             ControllerPressed(MatchControllerActions.Pause))
         {
@@ -141,6 +143,10 @@ public partial class Game1
             if (KeyPressed(_developerMode ? Keys.L : Keys.Right) ||
                 ControllerPressed(MatchControllerActions.AimLegSide))
                 AdjustHumanShotAim(aimStep);
+            if (!_developerMode && KeyPressed(Keys.Up))
+                SetHumanForwardShotAim(1f);
+            if (!_developerMode && KeyPressed(Keys.Down))
+                SetHumanForwardShotAim(-1f);
 
             var stickIntent = MatchInputRouter.NormalizeAimAxis(controllerAimAxis);
             if (stickIntent != 0f)
@@ -181,21 +187,45 @@ public partial class Game1
         }
         if (!IsCpuBattingControlled && !_simulationPaused)
         {
-            var groundShotPressed = _developerMode
-                ? KeyPressed(Keys.A) || ControllerPressed(MatchControllerActions.Defend)
-                : KeyPressed(Keys.Space) || ControllerPressed(MatchControllerActions.Defend);
-            var loftShotPressed = _developerMode
-                ? KeyPressed(Keys.D) || ControllerPressed(MatchControllerActions.Loft)
-                : KeyPressed(Keys.LeftShift) || KeyPressed(Keys.RightShift) || ControllerPressed(MatchControllerActions.Loft);
-            if (groundShotPressed)
-                StartShot(MathF.Abs(_humanShotAimOffset) < 0.08f ? "defence" : "drive");
-            if (_developerMode && (KeyPressed(Keys.S) || ControllerPressed(MatchControllerActions.Drive)))
-                StartShot("drive");
-            if (loftShotPressed) StartShot("loft");
-            if (KeyPressed(Keys.Enter) || ControllerPressed(MatchControllerActions.Run)) StartRun();
+            if (_developerMode)
+            {
+                if (KeyPressed(Keys.A) || ControllerPressed(MatchControllerActions.Defend))
+                    StartShot(MathF.Abs(_humanShotAimOffset) < 0.08f ? "defence" : "drive");
+                if (KeyPressed(Keys.S) || ControllerPressed(MatchControllerActions.Drive)) StartShot("drive");
+                if (KeyPressed(Keys.D) || ControllerPressed(MatchControllerActions.Loft)) StartShot("loft");
+            }
+            else
+            {
+                if (ControllerPressed(MatchControllerActions.Defend))
+                    StartShot(MathF.Abs(_humanShotAimOffset) < 0.08f ? "defence" : "drive");
+                if (ControllerPressed(MatchControllerActions.Loft)) StartShot("loft");
+
+                var pressedStyleKeys = pressedKeys.Where(KeyPressed).ToArray();
+                if (_battedBall || _isRunning)
+                {
+                    _battingInputRecorder.Reset();
+                    if (pressedStyleKeys.Contains(Keys.D)) StartRun();
+                }
+                else if (!_deliveryComplete && !_shotResolved)
+                {
+                    var command = _battingInputRecorder.Update(elapsedSeconds, pressedStyleKeys);
+                    if (command is { } stroke)
+                    {
+                        var isBackFootStroke = stroke.Stroke is
+                            RecordedBattingStroke.BackFootDrive or RecordedBattingStroke.BackFootLoft;
+                        var forwardAim = isBackFootStroke && !_humanForwardShotAimSelected
+                                ? -1f
+                                : _humanForwardShotAim;
+                        StartShot(stroke.ShotName, _humanShotAimOffset, forwardAim,
+                            stroke.AnimationClip,
+                            FormatKeyboardShotControlLabel(stroke.ControlLabel, _humanShotAimOffset, forwardAim));
+                    }
+                }
+            }
+            if ((_developerMode && KeyPressed(Keys.Enter)) || ControllerPressed(MatchControllerActions.Run)) StartRun();
         }
         if (!_simulationPaused && !IsCpuBattingControlled && _isRunning &&
-            (keyboard.IsKeyDown(Keys.Enter) || controllerRunHeld))
+            ((_developerMode && keyboard.IsKeyDown(Keys.Enter)) || controllerRunHeld))
         {
             _runHoldElapsed += elapsedSeconds;
             if (_runHoldElapsed >= 0.45f)

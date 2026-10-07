@@ -46,48 +46,78 @@ public partial class Game1
         Require(_predictedBouncePosition is { } predictedBounce &&
             Vector3.Distance(predictedBounce, ToXna(expectedBounce.Position)) < 0.001f,
             "the projected pitch-point marker did not use the current delivery's simulated bounce");
+        Require(ShouldShowPredictedBounce(isHumanBowling: false, deliveryComplete: false,
+                hasBounced: false, hasPrediction: true) &&
+            !ShouldShowPredictedBounce(isHumanBowling: true, deliveryComplete: false,
+                hasBounced: false, hasPrediction: true) &&
+            !ShouldShowPredictedBounce(isHumanBowling: false, deliveryComplete: false,
+                hasBounced: true, hasPrediction: true),
+            "the batter's projected landing marker was hidden before release or shown for the wrong role/phase");
         Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 8f) < 0.001f &&
             MathF.Abs(_camera.Target.Z - NearBatterZ) < 0.001f &&
             MathF.Abs(_camera.Position.X - _camera.Target.X) < 0.001f &&
             _camera.Position.Z < _camera.Target.Z,
             "the batting delivery did not start with the focused behind-striker view");
-        Require(GetPrimaryControlHint().Contains("Left / Right: choose direction", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Space: centre defend / aimed drive", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
+        Require(GetPrimaryControlHint().Contains("Arrows: aim", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("S+D: front drive", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("W+D: back drive", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Shift adds loft", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("PgDn: zoom in / PgUp: out", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
             "the normal batting HUD did not show compact shot controls and the camera shortcut");
         var keyboardActions = MatchHudPresenter.BuildActionHints(new MatchHudState(false, MatchHudPhase.Batting, "Standard pace"));
-        Require(keyboardActions.Count == 4 && keyboardActions[1].Input == "SPACE" &&
-            keyboardActions[1].Action.Contains("aimed = ground drive", StringComparison.Ordinal),
-            "the keyboard control panel did not explain how a directional ground shot becomes a drive");
+        Require(keyboardActions.Count == 7 && keyboardActions[1].Input == "S" &&
+            keyboardActions[2].Input == "S + D" && keyboardActions[3].Input == "W + D" &&
+            keyboardActions[4].Input == "SHIFT + S" && keyboardActions[5].Input == "SHIFT + W + D",
+            "the keyboard control panel did not map the recorded Cricket 07 batting chords");
         _lastInputWasGamePad = true;
         Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
             "the normal GamePad HUD did not show the camera shortcut");
         _lastInputWasGamePad = false;
-        Tick(0f, Keys.Space);
+        Tick(0f, Keys.S);
         Require(_chosenShot?.Name == "defence" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
             _playerAnimator.CurrentClipName == "defensive-block" &&
-            _shotControlLabel == "SPACE at centre aim",
-            "a neutral Space input did not select and animate a straight defensive block");
+            _shotControlLabel == "DOWNFIELD | S",
+            "S did not immediately select and animate a straight defensive block");
 
         Reset();
-        Tick(0f, Keys.Left);
-        Tick(0f);
-        Tick(0f, Keys.Space);
-        Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim + 0.5f) < 0.001f &&
+        Tick(0.04f, Keys.S);
+        Tick(0.04f, Keys.S, Keys.D);
+        Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
             _playerAnimator.CurrentClipName == "front-foot-drive" &&
-            _shotControlLabel == "LEFT / RIGHT + SPACE",
-            "left direction plus Space did not select, aim, and animate a left-directed drive");
+            _shotControlLabel == "DOWNFIELD | S > D",
+            "staggered S then D did not update the immediate block into the matching front-foot drive");
         Reset();
         Tick(0f, Keys.LeftShift);
+        Tick(0.04f, Keys.LeftShift, Keys.S);
         Require(_chosenShot?.Name == "loft" && _playerAnimator.CurrentClipName == "lofted-drive" &&
-            _shotControlLabel == "SHIFT",
-            "Shift did not select and animate the lofted shot");
+            _shotControlLabel == "DOWNFIELD | SHIFT > S",
+            "Shift+S did not select and animate the matching lofted shot");
+        Reset();
+        Tick(0f, Keys.W);
+        Require(_chosenShot is null, "W alone unexpectedly started a batting shot");
+        Tick(0.04f, Keys.W, Keys.D);
+        Require(_chosenShot?.Name == "drive" && _chosenShot.AnimationClip == "back-foot-drive" &&
+            _chosenShot.ForwardAim == -1f && _playerAnimator.CurrentClipName == "back-foot-drive" &&
+            _shotControlLabel == "BEHIND | W > D",
+            "staggered W then D did not select the matching back-foot animation");
+        Reset();
+        Tick(0f, Keys.W);
+        Tick(0.04f, Keys.W, Keys.D);
+        Tick(0.03f, Keys.W, Keys.D, Keys.LeftShift);
+        Require(_chosenShot?.AnimationClip == "back-foot-loft" &&
+            _playerAnimator.CurrentClipName == "back-foot-loft" && _chosenShot.ForwardAim == -1f,
+            "Shift+W+D did not select the extra lofted back-foot action with its matching animation");
+        Reset();
+        Tick(0f, Keys.Down);
+        Tick(0f);
+        Tick(0f, Keys.S, Keys.D);
+        Require(_chosenShot?.ForwardAim == -1f && _shotControlLabel == "BEHIND | S + D",
+            $"the down arrow did not select the behind-batter stroke direction (forward {_chosenShot?.ForwardAim}, label '{_shotControlLabel}')");
         Reset();
         Tick(0f, Keys.A);
-        Require(_chosenShot is null, "legacy A/S/D keyboard controls remained active outside developer mode");
+        Require(_chosenShot is null, "A used for run turn-back unexpectedly selected a batting shot");
 
         Reset();
         UpdateMatch(
@@ -135,11 +165,11 @@ public partial class Game1
 
         Reset();
         _battedBall = true;
-        Tick(0.1f, Keys.Enter);
-        Require(_isRunning, "the Enter button did not start a manual run");
-        Tick(0.5f, Keys.Enter);
+        Tick(0.1f, Keys.D);
+        Require(_isRunning, "D did not start a manual run after contact");
+        Tick(0.1f, Keys.A);
         Require(!_isRunning || _runners.IsReturning,
-            $"holding the run button did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
+            $"tapping A did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
 
         Reset();
         _battedBall = true;
@@ -169,7 +199,7 @@ public partial class Game1
             _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "returning home credited an uncompleted run");
         _developerMode = developerModeWasEnabled;
-        Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
+        Console.WriteLine("PASS: recorded Cricket 07 batting chords, matching front/back-foot and loft animations, depth aim, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
 
         var ballCamera = new CameraDirector();
         Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
@@ -240,6 +270,21 @@ public partial class Game1
             bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
             MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
             "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
+        var fieldPlot = new Rectangle(320, 240, 240, 240);
+        var fieldMapCenter = MapFieldPosition(Vector3.Zero, fieldPlot, 42f);
+        var fieldMapNorth = MapFieldPosition(new Vector3(0f, 0f, 42f), fieldPlot, 42f);
+        var fieldMapEast = MapFieldPosition(new Vector3(42f, 0f, 0f), fieldPlot, 42f);
+        var fieldMapNearWicket = MapFieldPosition(new Vector3(0f, 0f, NearBatterZ), fieldPlot, 42f);
+        var rightAimBoundaryPoint = GetShotAimBoundaryPoint(
+            new Vector3(0f, 0f, NearBatterZ), 1f, 0f, 42f);
+        Require(MathF.Abs(fieldMapCenter.X - fieldPlot.Center.X) < 0.001f &&
+            MathF.Abs(fieldMapCenter.Y - fieldPlot.Center.Y) < 0.001f &&
+            fieldMapNorth.Y == fieldPlot.Top && fieldMapEast.X == fieldPlot.Right &&
+            fieldMapNearWicket.Y > fieldMapCenter.Y &&
+            MathF.Abs(MathF.Sqrt(rightAimBoundaryPoint.X * rightAimBoundaryPoint.X +
+                rightAimBoundaryPoint.Z * rightAimBoundaryPoint.Z) - 42f) < 0.01f &&
+            rightAimBoundaryPoint.X > 0f,
+            "the batting field inset did not keep field, batter, or shot-aim positions oriented on the ground");
         var accurateBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
             new Vector3(0f, 0f, -4f), new Vector3(0.3f, 0f, -4.5f), NearBatterZ);
         var missedBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
@@ -262,7 +307,7 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: role cameras focus the active player, follow the bowler then ball, and center live feedback below the HUD.");
+        Console.WriteLine("PASS: role cameras focus the active player, the projected landing appears before release, the batting field map tracks aim/ball/runners, and live feedback stays below the HUD.");
 
         RunAdvancedGameplayReviewChecks(Tick, Reset, Require);
     }

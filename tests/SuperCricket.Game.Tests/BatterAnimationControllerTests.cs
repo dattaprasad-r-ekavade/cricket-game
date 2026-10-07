@@ -26,6 +26,8 @@ public sealed class BatterAnimationControllerTests
     [InlineData("defensive-block")]
     [InlineData("front-foot-drive")]
     [InlineData("lofted-drive")]
+    [InlineData("back-foot-drive")]
+    [InlineData("back-foot-loft")]
     [InlineData("batting-step-offside")]
     [InlineData("batting-step-legside")]
     public void StrikerActionDoesNotBecomeTheNonStrikerPose(string clip)
@@ -47,6 +49,8 @@ public sealed class BatterAnimationControllerTests
     [InlineData("defensive-block")]
     [InlineData("front-foot-drive")]
     [InlineData("lofted-drive")]
+    [InlineData("back-foot-drive")]
+    [InlineData("back-foot-loft")]
     public void ShotActionPlaysOnceAndReturnsToReadyPose(string clip)
     {
         var pair = Create();

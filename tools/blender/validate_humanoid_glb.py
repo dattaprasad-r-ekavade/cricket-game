@@ -28,6 +28,7 @@ REQUIRED_FINGER_BONES = {
 REQUIRED_ANIMATIONS = {
     "batting-step-legside", "batting-step-offside", "between-wickets", "defensive-block",
     "finger-grip-preview", "front-foot-drive", "lofted-drive", "practice-stance",
+    "back-foot-drive", "back-foot-loft",
 }
 
 

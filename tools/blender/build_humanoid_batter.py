@@ -402,7 +402,7 @@ def main() -> None:
     }
     if set(old_bones) != required_old_bones:
         raise RuntimeError(f"Expected the untouched 13-bone practice rig; found {len(old_bones)} bones.")
-    required_actions = {"practice-stance", "front-foot-drive"} if args.role == "batter" else {
+    required_actions = {"practice-stance", "defensive-block", "front-foot-drive", "lofted-drive", "back-foot-drive", "back-foot-loft"} if args.role == "batter" else {
         "practice-stance", "bowling-run-up", "overarm-delivery"
     }
     if not required_actions.issubset({action.name for action in bpy.data.actions}):

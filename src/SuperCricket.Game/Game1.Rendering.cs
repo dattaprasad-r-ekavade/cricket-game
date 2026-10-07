@@ -118,6 +118,7 @@ public partial class Game1
         DrawDeliveryFeedbackCard();
         DrawDebugOverlay();
         DrawLiveFeedbackBanner();
+        DrawBattingFieldInset();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
 

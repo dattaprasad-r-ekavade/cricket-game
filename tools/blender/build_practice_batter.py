@@ -392,6 +392,34 @@ def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
         ],
     )
 
+    back_foot_drive = create_animation(
+        armature,
+        "back-foot-drive",
+        [
+            (1, neutral),
+            (13, {**neutral, "spine": (0.07, -0.08, 0.0), "head": (-0.03, 0.0, 0.0), "thigh.R": (0.0, -0.35, -0.03), "shin.R": (0.06, 0.0, 0.0), "thigh.L": (0.0, 0.05, 0.04), "upper_arm.R": (0.08, 0.0, 0.12)}),
+            (19, {**neutral, "spine": (0.02, 0.27, 0.0), "head": (0.02, 0.0, 0.0), "upper_arm.L": (-0.35, 0.0, -0.16), "forearm.L": (-0.42, 0.0, 0.0), "upper_arm.R": (-0.55, 0.0, 0.38), "forearm.R": (-0.82, 0.0, 0.0), "thigh.R": (0.0, -0.34, -0.02), "shin.R": (0.04, 0.0, 0.0), "thigh.L": (0.0, 0.03, 0.06)}),
+            (28, {**neutral, "spine": (-0.04, 0.14, 0.0), "upper_arm.L": (-0.18, 0.0, -0.10), "upper_arm.R": (-0.36, 0.0, 0.22), "forearm.R": (-0.40, 0.0, 0.0), "thigh.R": (0.0, -0.18, -0.01), "shin.R": (0.02, 0.0, 0.0)}),
+            (40, {**neutral, "thigh.R": (0.0, -0.06, 0.0), "thigh.L": (0.0, 0.02, 0.02)}),
+            (46, neutral),
+            (61, neutral),
+        ],
+    )
+
+    back_foot_loft = create_animation(
+        armature,
+        "back-foot-loft",
+        [
+            (1, neutral),
+            (13, {**neutral, "spine": (0.08, -0.10, 0.0), "head": (-0.04, 0.0, 0.0), "thigh.R": (0.0, -0.35, -0.03), "shin.R": (0.06, 0.0, 0.0), "thigh.L": (0.0, 0.06, 0.05), "upper_arm.R": (0.10, 0.0, 0.15)}),
+            (19, {**neutral, "spine": (-0.06, 0.33, 0.0), "head": (0.04, 0.0, 0.0), "upper_arm.L": (-0.42, 0.0, -0.18), "forearm.L": (-0.48, 0.0, 0.0), "upper_arm.R": (-0.70, 0.0, 0.48), "forearm.R": (-1.05, 0.0, 0.0), "thigh.R": (0.0, -0.32, -0.02), "shin.R": (0.04, 0.0, 0.0), "thigh.L": (0.0, 0.03, 0.07)}),
+            (29, {**neutral, "spine": (-0.10, 0.18, 0.0), "upper_arm.L": (-0.23, 0.0, -0.12), "upper_arm.R": (-0.46, 0.0, 0.28), "forearm.R": (-0.55, 0.0, 0.0), "thigh.R": (0.0, -0.16, -0.01)}),
+            (42, {**neutral, "thigh.R": (0.0, -0.05, 0.0), "thigh.L": (0.0, 0.02, 0.02)}),
+            (46, neutral),
+            (61, neutral),
+        ],
+    )
+
     run_a = {
         **neutral,
         "spine": (-0.14, 0.0, 0.0),
@@ -425,7 +453,7 @@ def create_animations(armature: bpy.types.Object) -> list[bpy.types.Action]:
             (49, neutral), (55, run_a), (61, neutral),
         ],
     )
-    return [stance, defence, drive, loft, running, *create_batting_step_actions(armature)]
+    return [stance, defence, drive, loft, back_foot_drive, back_foot_loft, running, *create_batting_step_actions(armature)]
 
 
 def export_mesh(part: bpy.types.Object, armature: bpy.types.Object, bone_indices: dict[str, int]) -> dict:
@@ -594,7 +622,11 @@ def main() -> None:
         )
         if not parts:
             raise RuntimeError("The Player Mesh collection contains no meshes marked sc_player_part.")
-        clip_names = ["practice-stance", "defensive-block", "front-foot-drive", "lofted-drive", "between-wickets"]
+        clip_names = [
+            "practice-stance", "defensive-block", "front-foot-drive", "lofted-drive",
+            "back-foot-drive", "back-foot-loft", "between-wickets",
+            "batting-step-offside", "batting-step-legside",
+        ]
         actions_by_name = {action.name: action for action in bpy.data.actions}
         missing_clips = [name for name in clip_names if name not in actions_by_name]
         if missing_clips:

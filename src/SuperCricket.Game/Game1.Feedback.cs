@@ -49,8 +49,11 @@ public partial class Game1
 
     private void DrawWorldFeedbackMarkers()
     {
-        var showPredictedBounce = !IsHumanBowling && _bowlerReleased && !_deliveryComplete &&
-            _firstBouncePosition is null && _predictedBouncePosition is not null;
+        var showPredictedBounce = ShouldShowPredictedBounce(
+            IsHumanBowling,
+            _deliveryComplete,
+            _firstBouncePosition is not null,
+            _predictedBouncePosition is not null);
         var showBattingContactZone = GetBattingContactZoneAlpha() > 0 && !IsCpuBattingControlled &&
             _bowlerReleased && !_battedBall && !_deliveryComplete;
         if (!showPredictedBounce && !showBattingContactZone &&
@@ -68,21 +71,23 @@ public partial class Game1
                 ? _deliveryPreset.PitchSurfaceHeightMeters
                 : _deliveryPreset.FieldSurfaceHeightMeters;
             var center = new Vector3(predictedBounce.X, surfaceHeight + 0.04f, predictedBounce.Z);
-            var alpha = _gameSettings.HighContrast ? 0.95f : _cpuDifficulty switch
+            var alpha = _gameSettings.HighContrast ? 0.98f : !_bowlerReleased ? 0.94f : _cpuDifficulty switch
             {
                 CpuDifficulty.Rookie => 0.92f,
                 CpuDifficulty.Standard => 0.72f,
                 _ => 0.52f
             };
             var color = WithAlpha(_gameSettings.HighContrast ? Color.White : new Color(72, 222, 255), alpha);
-            var radius = _cpuDifficulty switch
+            var radius = !_bowlerReleased ? 0.68f : _cpuDifficulty switch
             {
                 CpuDifficulty.Rookie => 0.72f,
                 CpuDifficulty.Standard => 0.58f,
                 _ => 0.44f
             };
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
             DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, radius, color);
             DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.12f, WithAlpha(Color.White, alpha));
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         }
 
         if (showBattingContactZone)
@@ -127,6 +132,13 @@ public partial class Game1
         GraphicsDevice.BlendState = BlendState.Opaque;
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
     }
+
+    private static bool ShouldShowPredictedBounce(
+        bool isHumanBowling,
+        bool deliveryComplete,
+        bool hasBounced,
+        bool hasPrediction) =>
+        !isHumanBowling && !deliveryComplete && !hasBounced && hasPrediction;
 
     private int GetBattingContactZoneAlpha() => MatchHudPresenter.GetBattingContactZoneAlpha(_cpuDifficulty);
 

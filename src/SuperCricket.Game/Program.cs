@@ -14,6 +14,7 @@ float? captureActionTimeSeconds = null;
 var captureDebugOverlay = false;
 var captureBowlingTarget = false;
 var captureFeedbackPreview = false;
+var captureFieldInsetPreview = false;
 CpuDifficulty? captureDifficultyOverride = null;
 var developerMode = args.Length == 1 && args[0] == "--debug";
 var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
@@ -58,6 +59,12 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode &
         if (option == "--feedback-preview" && !captureFeedbackPreview)
         {
             captureFeedbackPreview = true;
+            argumentIndex++;
+            continue;
+        }
+        if (option == "--live-field-preview" && !captureFieldInsetPreview)
+        {
+            captureFieldInsetPreview = true;
             argumentIndex++;
             continue;
         }
@@ -114,6 +121,7 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode &
         captureTimeCount > 1 ||
         captureBowlingTarget && (hasActionCapture || captureTimeCount > 0) ||
         captureFeedbackPreview && (hasActionCapture || captureTimeCount > 0) ||
+        captureFieldInsetPreview && (hasActionCapture || captureTimeCount > 0 || captureBowlingTarget || captureFeedbackPreview) ||
         captureFielderAction is not null && captureBatterFootworkAction is not null ||
         hasActionCapture && captureTimeCount > 0 ||
         captureBatterFootworkAction is not null && captureBatterFootworkAction is not
@@ -138,8 +146,9 @@ using var game = new SuperCricket.Game.Game1(
     developerMode || verifyGameplay || liveMatchReviewMode,
     captureBowlingTarget,
     captureFeedbackPreview,
-    captureDifficultyOverride);
+    captureDifficultyOverride,
+    captureFieldInsetPreview);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target] [--feedback-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
+    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target | --live-field-preview] [--feedback-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";

@@ -214,6 +214,8 @@ public partial class Game1
             _simulationPaused = true;
             if (_captureFeedbackPreview)
                 PrepareFeedbackPreviewCapture();
+            else if (_captureFieldInsetPreview)
+                PrepareLiveFieldInsetCapture();
         }
         if (_verifyGameplay)
         {

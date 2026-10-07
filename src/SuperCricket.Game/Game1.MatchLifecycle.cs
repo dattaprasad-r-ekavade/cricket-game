@@ -79,6 +79,9 @@ public partial class Game1
         _chosenShot = null;
         _shotControlLabel = null;
         _humanShotAimOffset = 0f;
+        _humanForwardShotAim = 1f;
+        _humanForwardShotAimSelected = false;
+        _battingInputRecorder.Reset();
         _battingStepRecoveryActive = false;
         _shotResolved = false;
         _battedBall = false;
