@@ -14,7 +14,7 @@ MonoGame remains the shipping host. Steps 69–77 complete the GLB runtime pilot
 | Tooling | 8/10 | Validators, analyzers, deterministic capture and profiling, `tools/review.ps1` |
 | Architecture | 6/10 | `Simulation`/`Content` are graphics-free; `Game1` is now divided into focused partial files but still shares one stateful class; graphics-free review checks are isolated in xUnit, while host-dependent checks stay in the Game review path |
 | Visual fidelity vs Cricket 07 | 2/10 | MonoGame remains a flat-colour prototype; the Godot B2 trial now proves a low-detail GLB player, procedural stadium, shadows, and post-processing, but does not yet raise the game's fidelity |
-| Animation | 2/10 | 13-bone rig, script-keyed clips, no hands/fingers, no IK |
+| Animation | 2/10 | 61-bone batter/bowler GLBs with finger-grip clips; fielders reuse the bowler rig; IK and visual validation remain open |
 | Audio | 1/10 | Procedural placeholder cues only |
 | Game feel validated by a human | 1/10 | Steps 29–44 were built without running the game window |
 
