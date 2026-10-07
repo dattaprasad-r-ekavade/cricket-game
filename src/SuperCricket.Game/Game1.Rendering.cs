@@ -105,7 +105,7 @@ public partial class Game1
         _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection,
             skinMatrices, battingPrimaryColor, battingAccentColor);
         _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection,
-            skinMatrices, battingPrimaryColor, battingAccentColor);
+            _batterAnimations.NonStriker.GetSkinMatrices(), battingPrimaryColor, battingAccentColor);
         _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection,
             _bowlerAnimator.GetSkinMatrices(), fieldingPrimaryColor, fieldingAccentColor);
         DrawWorldFeedbackMarkers();

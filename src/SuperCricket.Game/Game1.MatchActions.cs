@@ -201,7 +201,7 @@ public partial class Game1
         _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
         _runners.StartRun();
         _runHoldElapsed = 0f;
-        _playerAnimator.Play("between-wickets", 0.12f);
+        _batterAnimations.SetRunning(true);
     }
 
     private void CancelRun()
@@ -227,7 +227,7 @@ public partial class Game1
             {
                 _runHoldElapsed = 0f;
                 _shotOutcome = "Returned safely; no additional run.";
-                _playerAnimator.Play("practice-stance", 0.12f);
+                _batterAnimations.SetRunning(false);
             }
             else
                 break;
@@ -322,7 +322,6 @@ public partial class Game1
             _runners.CompleteRun();
         _runHoldElapsed = 0f;
         _shotOutcome = $"RUN completed: {_batterRuns} batter run(s)";
-        _playerAnimator.Play("practice-stance", 0.12f);
         if (allowNextRun && IsCpuBattingControlled && _cpuRunsRemaining > 0 && !_deliveryComplete)
             StartRun();
         else if (allowNextRun && !IsCpuBattingControlled && _runRequestedPending && !_deliveryComplete)
@@ -333,6 +332,7 @@ public partial class Game1
             else
                 _shotOutcome = "RUN completed; the next run was unsafe and cancelled.";
         }
+        _batterAnimations.SetRunning(_isRunning);
     }
 
     private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
@@ -460,6 +460,7 @@ public partial class Game1
 
         _matchController.CompleteDelivery();
         _runners.Stop();
+        _batterAnimations.SetRunning(false);
         _runRequestedPending = false;
         _cpuRunsRemaining = 0;
         _fielderThrowActive = false;

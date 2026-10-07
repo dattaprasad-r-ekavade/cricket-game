@@ -90,7 +90,9 @@ public partial class Game1
         _battedBall = true;
         StartRun();
         StartRun();
-        Require(_isRunning && _runRequestedPending,
+        Require(_isRunning && _runRequestedPending &&
+            _playerAnimator.CurrentClipName == "between-wickets" &&
+            _batterAnimations.NonStriker.CurrentClipName == "between-wickets",
             "pressing the run button during a run did not queue another run");
         CompleteRun();
         Require(_isRunning && !_runRequestedPending && _match.CurrentDelivery?.CompletedRuns == 1,
@@ -104,7 +106,8 @@ public partial class Game1
         StartRun();
         StartRun();
         CompleteRun();
-        Require(!_isRunning && !_runRequestedPending && _shotOutcome.Contains("unsafe", StringComparison.Ordinal),
+        Require(!_isRunning && !_runRequestedPending && _shotOutcome.Contains("unsafe", StringComparison.Ordinal) &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "Rookie did not cancel a queued follow-up run when the ball was unsafe");
 
         Reset();
@@ -148,7 +151,9 @@ public partial class Game1
         UpdateRun(_runDurationSeconds * 0.2f);
         Require(_isRunning && _runners.Progress < 0.6f, "turn-back did not move towards home continuously");
         UpdateRun(_runDurationSeconds);
-        Require(!_isRunning && _match.CurrentDelivery?.CompletedRuns == 0,
+        Require(!_isRunning && _match.CurrentDelivery?.CompletedRuns == 0 &&
+            _playerAnimator.CurrentClipName == "practice-stance" &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "returning home credited an uncompleted run");
         _developerMode = developerModeWasEnabled;
         Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");

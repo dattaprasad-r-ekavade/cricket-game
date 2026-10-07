@@ -111,7 +111,7 @@ public partial class Game1
             _selectedOversPerInnings));
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter-humanoid.glb");
         _playerAsset = PlayerAsset.Load(playerPath);
-        _playerAnimator = new PlayerAnimator(_playerAsset);
+        _batterAnimations = new BatterAnimationController(_playerAsset);
         _playerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _playerAsset);
         var bowlerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-bowler-humanoid.glb");
         _bowlerAsset = PlayerAsset.Load(bowlerPath);

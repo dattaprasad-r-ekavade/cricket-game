@@ -214,10 +214,12 @@ public partial class Game1
         if (_fielderSequencePhase == FielderSequencePhase.Throw)
             runningElapsedDuringFielding = MathF.Min(elapsedSeconds,
                 MathF.Max(0f, _fielderThrowDurationSeconds - _fielderAnimators[_fielderThrowerIndex].CurrentTimeSeconds));
-        if (_captureTarget is null && !_simulationPaused)
-        {
+        var freezeBatterAnimations = _captureTarget is not null || _simulationPaused;
+        if (!freezeBatterAnimations)
             _previousBatWorld = _currentBatWorld;
-            _playerAnimator.Update(elapsedSeconds);
+        _batterAnimations.Update(elapsedSeconds, frozen: freezeBatterAnimations);
+        if (!freezeBatterAnimations)
+        {
             UpdateBatterFootwork(elapsedSeconds);
             _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);

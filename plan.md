@@ -53,7 +53,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] Preserve running and return-throw opportunities when a fielder holds a batted no-ball; do not treat it as a caught dismissal or instant dead ball. See [Step 108](docs/steps/step-108-live-fielding-after-ball-rest.md), code commit `b75ad91`, and its passing local/hosted headless review.
 - [x] Move turn-back continuously from the runners' current positions and preserve run-out risk until they reach their crease. See [Step 107](docs/steps/step-107-continuous-running-and-run-outs.md), code commit `9df1950`, and its passing hosted validation. Visual acceptance remains open.
 - [ ] Validate grounded bat/body geometry at the actual popping creases and the visual turn-back against the running model.
-- [ ] Animate the non-striker independently of the striker's shot.
+- [ ] Animate the non-striker independently of the striker's shot. See [Step 109](docs/steps/step-109-independent-batter-animation.md); visual acceptance remains open.
 
 **Playtest 1 findings (blocking, in priority order):**
 

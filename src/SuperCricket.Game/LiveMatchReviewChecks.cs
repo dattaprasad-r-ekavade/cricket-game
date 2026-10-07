@@ -253,11 +253,14 @@ public partial class Game1
                     Press(Keys.P);
                     var frozenBall = _ballFlight.CurrentFrame;
                     var frozenTime = _playerAnimator.CurrentTimeSeconds;
+                    var frozenNonStrikerTime = _batterAnimations.NonStriker.CurrentTimeSeconds;
                     var frozenShot = _cpuShotStarted;
                     var frozenRun = _runElapsed;
                     for (var pausedFrame = 0; pausedFrame < scenario.FrameRate / 2; pausedFrame++) Tick();
                     RequireLiveReview(_simulationPaused && frozenBall == _ballFlight.CurrentFrame &&
-                        frozenTime == _playerAnimator.CurrentTimeSeconds && frozenShot == _cpuShotStarted && frozenRun == _runElapsed,
+                        frozenTime == _playerAnimator.CurrentTimeSeconds &&
+                        frozenNonStrikerTime == _batterAnimations.NonStriker.CurrentTimeSeconds &&
+                        frozenShot == _cpuShotStarted && frozenRun == _runElapsed,
                         "paused live CPU advanced batting, flight, or running");
                     Press(Keys.P);
                     pauseChecked = true;

@@ -86,7 +86,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private BattingShotSet _shotSet = null!;
     private BallFlightSimulator _ballFlight = null!;
     private PlayerAsset _playerAsset = null!;
-    private PlayerAnimator _playerAnimator = null!;
+    private BatterAnimationController _batterAnimations = null!;
+    private PlayerAnimator _playerAnimator => _batterAnimations.Striker;
     private SkinnedPlayerRenderer _playerRenderer = null!;
     private PlayerAsset _bowlerAsset = null!;
     private PlayerAnimator _bowlerAnimator = null!;

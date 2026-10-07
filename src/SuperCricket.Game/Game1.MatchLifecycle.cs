@@ -107,7 +107,7 @@ public partial class Game1
         _shotIdealInputDelaySeconds = null;
         _shotBattingTimingRequest = null;
         _contactSweetSpotOffset = null;
-        _playerAnimator.Play("practice-stance", 0.12f);
+        _batterAnimations.ResetDelivery();
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
         _bowlerRunUpElapsed = 0f;

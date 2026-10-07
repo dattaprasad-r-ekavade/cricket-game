@@ -196,11 +196,13 @@ public partial class Game1
         Tick(0.1f);
         Tick(0f, Keys.P);
         var batterTime = _playerAnimator.CurrentTimeSeconds;
+        var nonStrikerTime = _batterAnimations.NonStriker.CurrentTimeSeconds;
         var bowlerTime = _bowlerRunUpElapsed;
         var fielderTime = _fielderAnimators[0].CurrentTimeSeconds;
         var ballFrame = _ballFlight.CurrentFrame;
         Tick(1f);
         Require(_playerAnimator.CurrentTimeSeconds == batterTime && _bowlerRunUpElapsed == bowlerTime &&
+            _batterAnimations.NonStriker.CurrentTimeSeconds == nonStrikerTime &&
             _fielderAnimators[0].CurrentTimeSeconds == fielderTime && _ballFlight.CurrentFrame == ballFrame,
             "pause advanced an animation, ball, or run-up");
         Tick(0.1f, Keys.S, Keys.Enter);
@@ -360,7 +362,8 @@ public partial class Game1
 
         Reset(1);
         Tick(0f, Keys.Q);
-        Require(_playerAnimator.CurrentClipName == "batting-step-offside" && !_playerAnimator.IsOneShotComplete,
+        Require(_playerAnimator.CurrentClipName == "batting-step-offside" && !_playerAnimator.IsOneShotComplete &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "off-side footwork did not play its authored step clip");
         Tick(0.6f);
         Require(MathF.Abs(_batterFootworkOffsetX - BatterFootwork.StepDistanceMeters) < 0.001f &&
@@ -369,7 +372,8 @@ public partial class Game1
 
         Reset(1);
         Tick(0f, Keys.E);
-        Require(_playerAnimator.CurrentClipName == "batting-step-legside" && !_playerAnimator.IsOneShotComplete,
+        Require(_playerAnimator.CurrentClipName == "batting-step-legside" && !_playerAnimator.IsOneShotComplete &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "leg-side footwork did not play its authored step clip");
         Tick(0.6f);
         Require(MathF.Abs(_batterFootworkOffsetX + BatterFootwork.StepDistanceMeters) < 0.001f &&
