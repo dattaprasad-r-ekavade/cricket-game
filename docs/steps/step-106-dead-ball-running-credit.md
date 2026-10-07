@@ -23,7 +23,7 @@ The rule follows MCC Law 18.9: completed runs stand, and a crossed run in progre
 
 - `dotnet test SuperCricket.sln -c Release --no-restore`: all 180 tests passed (Content 9, Simulation 67, Game 104), including 35 new dead-ball regression cases.
 - `pwsh -NoProfile -File tools/review.ps1`: passed in default headless mode, including both builds, content validation, physics match replay, and batting repeatability.
-- Hosted validation: pending.
+- Code committed as `18d288d6e2a50b11a1ecb0d1a1692bca8c51a3da`; hosted Windows validation passed in [run 37610316749](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37610316749).
 - No game window or visual capture was started.
 
 ## Remaining
