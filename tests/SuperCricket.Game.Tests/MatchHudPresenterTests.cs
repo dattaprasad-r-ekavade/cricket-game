@@ -7,6 +7,24 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Fact]
+    public void BallTrailColorMapsSlowMediumAndFastSpeedsToCoolWarmAndHot()
+    {
+        Assert.Equal(new Color(68, 220, 255), MatchHudPresenter.GetBallTrailColor(8f));
+        Assert.Equal(new Color(255, 226, 70), MatchHudPresenter.GetBallTrailColor(22f));
+        Assert.Equal(new Color(255, 86, 58), MatchHudPresenter.GetBallTrailColor(36f));
+        Assert.Equal(MatchHudPresenter.GetBallTrailColor(8f), MatchHudPresenter.GetBallTrailColor(float.NaN));
+        Assert.Equal(MatchHudPresenter.GetBallTrailColor(8f), MatchHudPresenter.GetBallTrailColor(float.PositiveInfinity));
+    }
+
+    [Fact]
+    public void BattingContactZoneAlphaStepsDownWithDifficulty()
+    {
+        Assert.Equal(220, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Rookie));
+        Assert.Equal(120, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Standard));
+        Assert.Equal(0, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Pro));
+    }
+
+    [Fact]
     public void PauseMenuLayoutPreservesComfortableViewportSizing()
     {
         var layout = MatchHudPresenter.CalculatePauseMenuLayout(

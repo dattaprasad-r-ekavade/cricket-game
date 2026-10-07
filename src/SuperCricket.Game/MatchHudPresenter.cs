@@ -77,6 +77,27 @@ internal readonly record struct ContactFeedbackPresentationState(
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static Color GetBallTrailColor(float speedMetersPerSecond)
+    {
+        if (!float.IsFinite(speedMetersPerSecond))
+            speedMetersPerSecond = 0f;
+
+        var speedFraction = Math.Clamp((speedMetersPerSecond - 8f) / 28f, 0f, 1f);
+        var cool = new Color(68, 220, 255);
+        var warm = new Color(255, 226, 70);
+        var hot = new Color(255, 86, 58);
+        return speedFraction < 0.5f
+            ? Color.Lerp(cool, warm, speedFraction * 2f)
+            : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
+    }
+
+    public static int GetBattingContactZoneAlpha(CpuDifficulty difficulty) => difficulty switch
+    {
+        CpuDifficulty.Rookie => 220,
+        CpuDifficulty.Standard => 120,
+        _ => 0
+    };
+
     public static string GetContactFeedbackLabel(ContactFeedbackPresentationState state) => state.IsMiss
         ? "NO CONTACT"
         : state.Quality switch

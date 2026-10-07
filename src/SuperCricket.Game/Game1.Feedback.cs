@@ -45,19 +45,8 @@ public partial class Game1
     private Color GetContactFeedbackColor() =>
         MatchHudPresenter.GetContactFeedbackColor(ContactFeedbackPresentation);
 
-    private static Color GetBallTrailColor(float speedMetersPerSecond)
-    {
-        if (!float.IsFinite(speedMetersPerSecond))
-            speedMetersPerSecond = 0f;
-
-        var speedFraction = Math.Clamp((speedMetersPerSecond - 8f) / 28f, 0f, 1f);
-        var cool = new Color(68, 220, 255);
-        var warm = new Color(255, 226, 70);
-        var hot = new Color(255, 86, 58);
-        return speedFraction < 0.5f
-            ? Color.Lerp(cool, warm, speedFraction * 2f)
-            : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
-    }
+    private static Color GetBallTrailColor(float speedMetersPerSecond) =>
+        MatchHudPresenter.GetBallTrailColor(speedMetersPerSecond);
 
     private void DrawWorldFeedbackMarkers()
     {
@@ -140,12 +129,7 @@ public partial class Game1
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
     }
 
-    private int GetBattingContactZoneAlpha() => _cpuDifficulty switch
-    {
-        CpuDifficulty.Rookie => 220,
-        CpuDifficulty.Standard => 120,
-        _ => 0
-    };
+    private int GetBattingContactZoneAlpha() => MatchHudPresenter.GetBattingContactZoneAlpha(_cpuDifficulty);
 
     private void DrawBattingContactZone()
     {
