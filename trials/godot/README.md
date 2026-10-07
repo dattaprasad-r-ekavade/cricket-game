@@ -17,13 +17,13 @@ Press `C` to switch between the behind-striker role view and the high stadium vi
 
 ## Reproducible assets and captures
 
-The source player is `assets/characters/practice-batter.blend`. Export the rig and all Blender actions into the Godot project with:
+The source player is `assets/characters/practice-batter-humanoid.blend`, a 61-bone continuation of the original practice batter. The rig adds pelvis/chest/neck segmentation, clavicles and scapulae, hands with three articulated segments per finger, eyes/jaw, and toes/heels while preserving the existing batting clips. Export the rig and its actions into the Godot project with:
 
 ```powershell
 & "$env:USERPROFILE\scoop\apps\blender\current\blender.exe" --background --python trials/godot/tools/export-practice-batter.py
 ```
 
-The exporter checks for one rig plus the stance and drive actions before writing `trials/godot/assets/practice-batter.glb`. Godot imports the GLB when the editor scans the project.
+The exporter checks for the 61-bone rig and the stance, drive, and grip-preview actions before writing `trials/godot/assets/practice-batter.glb`. The project's startup validation checks the imported skeleton and named joints. `-- --capture=grip` renders the closed-grip pose for visual inspection; Godot imports the GLB when the editor scans the project.
 
 Generate fixed review captures from the repository root:
 

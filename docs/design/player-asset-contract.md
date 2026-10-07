@@ -2,6 +2,12 @@
 
 The first runtime importer is the versioned `.scplayer.json` format exported by `tools/blender/build_practice_batter.py`. The batter and bowler exports are real assets consumed by the MonoGame renderer and CLI validators; no hand repair is required between export and runtime.
 
+## GLB rig pilot
+
+Step 63 adds `assets/characters/practice-batter-humanoid.blend` and `practice-batter-humanoid.glb` as an editable 61-joint humanoid pilot. Its hierarchy retains the named batting bones used by the v1 clips and adds pelvis/spine/chest/neck segments, clavicles and scapulae, jaw/eyes, hands, three articulated segments for each of five digits, and toe/heel joints. Glove details are weighted across the finger chains; the bat and glove are attached at the hands. The added `finger-grip-preview` action exercises those joints.
+
+`tools/blender/validate_humanoid_glb.py` checks the GLB header, 61-joint skin, required names, all eight animation clips, skinned primitives, and grip-preview channels. The Godot presentation trial imports this GLB and checks the skeleton and named actions. This is a bridge asset, not the MonoGame runtime format: the game still loads the v1 `.scplayer.json` assets, and the existing player validator/analyzer contract remains authoritative. The GLB event/root-motion mapping and the migration of the batter, bowler, and fielder assets remain open before v1 can be retired.
+
 ## Coordinate and skeleton rules
 
 - `coordinateSystem` is `right-handed-y-up-metres`; all geometry, translations, event times, and root motion use metres and seconds.

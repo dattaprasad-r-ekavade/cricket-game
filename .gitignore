@@ -8,6 +8,8 @@
 **/Content/bin/
 **/Content/obj
 **/Content/.mgstats
+__pycache__/
+*.py[cod]
 
 # Godot trial editor/import cache
 /trials/godot/.godot/

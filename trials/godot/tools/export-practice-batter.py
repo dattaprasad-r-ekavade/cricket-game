@@ -5,8 +5,9 @@ import bpy
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-SOURCE_BLEND = REPOSITORY_ROOT / "assets" / "characters" / "practice-batter.blend"
+SOURCE_BLEND = REPOSITORY_ROOT / "assets" / "characters" / "practice-batter-humanoid.blend"
 OUTPUT_GLB = REPOSITORY_ROOT / "trials" / "godot" / "assets" / "practice-batter.glb"
+EXPECTED_BONE_COUNT = 61
 
 
 if not SOURCE_BLEND.is_file():
@@ -16,10 +17,13 @@ bpy.ops.wm.open_mainfile(filepath=str(SOURCE_BLEND))
 armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
 if len(armatures) != 1:
     raise RuntimeError(f"Expected one batter armature, found {len(armatures)}.")
+if len(armatures[0].data.bones) != EXPECTED_BONE_COUNT:
+    raise RuntimeError(f"Expected the standard {EXPECTED_BONE_COUNT}-bone humanoid rig, found {len(armatures[0].data.bones)}.")
 
 action_names = sorted(action.name for action in bpy.data.actions)
-if "practice-stance" not in action_names or "front-foot-drive" not in action_names:
-    raise RuntimeError("The source batter must include its stance and drive actions.")
+required_actions = {"practice-stance", "front-foot-drive", "finger-grip-preview"}
+if not required_actions.issubset(action_names):
+    raise RuntimeError("The source batter must include its stance, drive, and finger-grip preview actions.")
 
 OUTPUT_GLB.parent.mkdir(parents=True, exist_ok=True)
 result = bpy.ops.export_scene.gltf(

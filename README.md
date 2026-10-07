@@ -100,6 +100,17 @@ blender --background --factory-startup --python tools/blender/build_practice_bat
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
 
+Create the separate 61-joint humanoid/GLB migration pilot without overwriting the original player assets, then validate its glTF structure:
+
+```powershell
+blender --background --python tools/blender/build_humanoid_batter.py -- `
+  --blend-output assets/characters/practice-batter-humanoid.blend `
+  --glb-output assets/characters/practice-batter-humanoid.glb
+python tools/blender/validate_humanoid_glb.py assets/characters/practice-batter-humanoid.glb
+```
+
+The Godot trial imports this GLB to verify its skeleton, named actions, and grip-preview pose. It does not replace the current MonoGame `.scplayer.json` runtime assets.
+
 After editing the saved `.blend` in Blender or through Blender MCP, export that scene without rebuilding it:
 
 ```powershell

@@ -82,6 +82,12 @@ public partial class Main : Node3D
         BuildLightingAndPostProcessing();
         BuildFeedbackOverlay();
         ResetDelivery();
+        if (_capturePhase == "grip")
+        {
+            _sequenceComplete = true;
+            _batterAnimation?.Play("finger-grip-preview");
+            _batterAnimation?.Seek(14f / 30f, update: true);
+        }
     }
 
     public override void _Process(double delta)
@@ -130,6 +136,21 @@ public partial class Main : Node3D
         player.Position = new Vector3(-0.48f, 0f, BattingPracticeAnalyzer.BatterWicketLineZ);
         AddChild(player);
 
+        var skeletons = player.FindChildren("*", "Skeleton3D", recursive: true, owned: false)
+            .OfType<Skeleton3D>()
+            .ToArray();
+        if (skeletons.Length != 1 || skeletons[0].GetBoneCount() != 61)
+            throw new InvalidDataException($"The humanoid GLB must import one 61-bone Skeleton3D; found {skeletons.Length} skeletons.");
+        var skeleton = skeletons[0];
+        var boneNames = Enumerable.Range(0, skeleton.GetBoneCount())
+            .Select(index => skeleton.GetBoneName(index).ToString())
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var requiredBone in new[] { "pelvis", "spine.02", "clavicle.L", "hand.L", "thumb.01.L", "index.03.R", "toe.R" })
+        {
+            if (!boneNames.Contains(requiredBone))
+                throw new InvalidDataException($"The humanoid GLB is missing standard rig joint '{requiredBone}'.");
+        }
+
         _batterAnimation = FindAnimationPlayer(player);
         if (_batterAnimation is null)
             throw new InvalidDataException("The practice batter GLB did not import an AnimationPlayer.");
@@ -140,6 +161,9 @@ public partial class Main : Node3D
             throw new InvalidDataException("The practice batter GLB is missing its practice-stance animation.");
         if (!animationNames.Contains(ShotAnimation, StringComparer.Ordinal))
             throw new InvalidDataException($"The practice batter GLB is missing its '{ShotAnimation}' animation.");
+        if (!animationNames.Contains("finger-grip-preview", StringComparer.Ordinal))
+            throw new InvalidDataException("The practice batter GLB is missing its finger-grip-preview animation.");
+        GD.Print($"Imported standard humanoid skeleton: {skeleton.GetBoneCount()} bones, including both hands and articulated digits.");
         _batterAnimation.Play("practice-stance");
     }
 
@@ -579,6 +603,7 @@ public partial class Main : Node3D
             "wide" => _broadcastView,
             "contact" => _contactSeen,
             "result" => _sequenceComplete,
+            "grip" => _sequenceComplete,
             _ => false
         };
         if (!targetReached)
@@ -590,13 +615,14 @@ public partial class Main : Node3D
         if (_captureDelay > 0f)
             return;
 
-        var path = Path.Combine(_repositoryRoot, "artifacts", $"godot-b3-{_capturePhase}.png");
+        var capturePrefix = _capturePhase == "grip" ? "step63-humanoid" : "godot-b3";
+        var path = Path.Combine(_repositoryRoot, "artifacts", $"{capturePrefix}-{_capturePhase}.png");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         GD.Print($"Godot capture state: phase={_capturePhase}, shot-camera={_shotCameraActive}, current={GetViewport().GetCamera3D()?.Name}.");
         var error = GetViewport().GetTexture().GetImage().SavePng(path);
         if (error != Error.Ok)
-            throw new IOException($"Could not save Godot B3 capture '{path}': {error}.");
-        GD.Print($"Godot B3 screenshot saved: {path}");
+            throw new IOException($"Could not save Godot capture '{path}': {error}.");
+        GD.Print($"Godot capture saved: {path}");
         GetTree().Quit();
         _capturePhase = string.Empty;
     }

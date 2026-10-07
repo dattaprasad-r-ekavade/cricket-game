@@ -11,6 +11,8 @@ try {
 
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
+    & python 'tools/blender/validate_humanoid_glb.py' 'assets/characters/practice-batter-humanoid.glb'
+    if ($LASTEXITCODE -ne 0) { throw 'The humanoid GLB validation failed.' }
     $batterPath = 'assets/characters/practice-batter.scplayer.json'
     $bowlerPath = 'assets/characters/practice-bowler.scplayer.json'
     $shotsPath = 'assets/batting/shots.json'
