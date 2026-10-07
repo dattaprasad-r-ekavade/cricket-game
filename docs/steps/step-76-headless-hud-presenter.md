@@ -8,5 +8,5 @@ Moved phase-specific keyboard/GamePad control hints and feedback-banner bounds c
 
 - `dotnet test SuperCricket.sln -c Release`: 14 Simulation tests and 23 Game helper tests passed; 0 failed.
 - `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with a zero-warning Release build and the headless asset/simulation review.
+- Hosted Windows validation passed: [run 37575155083](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37575155083).
 - No game host, window, or renderer capture was started.
-- Hosted Windows validation will be recorded after the push.
