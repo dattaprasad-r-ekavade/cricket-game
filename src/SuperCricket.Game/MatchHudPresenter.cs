@@ -69,9 +69,42 @@ internal readonly record struct PauseMenuLayout(
     float TextScale,
     int LineSpacing);
 
+internal readonly record struct ContactFeedbackPresentationState(
+    bool IsMiss,
+    float? Quality,
+    bool HighContrast);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static string GetContactFeedbackLabel(ContactFeedbackPresentationState state) => state.IsMiss
+        ? "NO CONTACT"
+        : state.Quality switch
+        {
+            >= 0.88f => "MIDDLE",
+            >= 0.75f => "CLEAN CONTACT",
+            >= 0.60f => "EDGE CONTACT",
+            > 0f => "THIN CONTACT",
+            _ => string.Empty
+        };
+
+    public static Color GetContactFeedbackColor(ContactFeedbackPresentationState state)
+    {
+        if (state.IsMiss)
+            return state.HighContrast ? Color.Red : new Color(255, 91, 77);
+        if (state.Quality is not { } quality)
+            return Color.White;
+        if (state.HighContrast)
+            return quality >= 0.75f ? Color.Yellow : Color.Red;
+        return quality switch
+        {
+            >= 0.88f => new Color(135, 255, 159),
+            >= 0.75f => new Color(89, 232, 255),
+            >= 0.60f => new Color(255, 220, 85),
+            _ => new Color(255, 143, 75)
+        };
+    }
+
     public static PauseMenuLayout CalculatePauseMenuLayout(
         int viewportWidth,
         int viewportHeight,

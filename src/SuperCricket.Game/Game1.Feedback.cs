@@ -34,6 +34,16 @@ public partial class Game1
     private BattingTimingCalibrationAsset _battingTimingCalibration = null!;
     private string CalibrationDeliveryName => _deliveryPresets[_activeDeliveryPresetIndex].Name;
     private bool IsHumanBowling => _activeBowlingTargetPosition is not null;
+    private ContactFeedbackPresentationState ContactFeedbackPresentation => new(
+        _contactFeedbackIsMiss,
+        _contactFeedbackQuality,
+        _gameSettings.HighContrast);
+
+    private string GetContactFeedbackLabel() =>
+        MatchHudPresenter.GetContactFeedbackLabel(ContactFeedbackPresentation);
+
+    private Color GetContactFeedbackColor() =>
+        MatchHudPresenter.GetContactFeedbackColor(ContactFeedbackPresentation);
 
     private static Color GetBallTrailColor(float speedMetersPerSecond)
     {
@@ -47,34 +57,6 @@ public partial class Game1
         return speedFraction < 0.5f
             ? Color.Lerp(cool, warm, speedFraction * 2f)
             : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
-    }
-
-    private string GetContactFeedbackLabel() => _contactFeedbackIsMiss
-        ? "NO CONTACT"
-        : _contactFeedbackQuality switch
-        {
-            >= 0.88f => "MIDDLE",
-            >= 0.75f => "CLEAN CONTACT",
-            >= 0.60f => "EDGE CONTACT",
-            > 0f => "THIN CONTACT",
-            _ => string.Empty
-        };
-
-    private Color GetContactFeedbackColor()
-    {
-        if (_contactFeedbackIsMiss)
-            return _gameSettings.HighContrast ? Color.Red : new Color(255, 91, 77);
-        if (_contactFeedbackQuality is not { } quality)
-            return Color.White;
-        if (_gameSettings.HighContrast)
-            return quality >= 0.75f ? Color.Yellow : Color.Red;
-        return quality switch
-        {
-            >= 0.88f => new Color(135, 255, 159),
-            >= 0.75f => new Color(89, 232, 255),
-            >= 0.60f => new Color(255, 220, 85),
-            _ => new Color(255, 143, 75)
-        };
     }
 
     private void DrawWorldFeedbackMarkers()

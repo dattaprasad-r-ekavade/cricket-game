@@ -61,6 +61,56 @@ public sealed class MatchHudPresenterTests
             ["line"], 100, 1f, null!));
     }
 
+    [Theory]
+    [InlineData(0.88f, "MIDDLE")]
+    [InlineData(0.75f, "CLEAN CONTACT")]
+    [InlineData(0.60f, "EDGE CONTACT")]
+    [InlineData(0.01f, "THIN CONTACT")]
+    [InlineData(0f, "")]
+    public void ContactFeedbackLabelUsesCalibratedQualityBands(float quality, string expected)
+    {
+        Assert.Equal(expected, MatchHudPresenter.GetContactFeedbackLabel(
+            new ContactFeedbackPresentationState(false, quality, HighContrast: false)));
+    }
+
+    [Fact]
+    public void ContactFeedbackLabelShowsMissAndMissingQualityStates()
+    {
+        Assert.Equal("NO CONTACT", MatchHudPresenter.GetContactFeedbackLabel(
+            new ContactFeedbackPresentationState(true, 0.95f, HighContrast: false)));
+        Assert.Equal(string.Empty, MatchHudPresenter.GetContactFeedbackLabel(
+            new ContactFeedbackPresentationState(false, null, HighContrast: false)));
+    }
+
+    [Theory]
+    [InlineData(0.90f, false, 135, 255, 159)]
+    [InlineData(0.80f, false, 89, 232, 255)]
+    [InlineData(0.65f, false, 255, 220, 85)]
+    [InlineData(0.20f, false, 255, 143, 75)]
+    [InlineData(0.80f, true, 255, 255, 0)]
+    [InlineData(0.65f, true, 255, 0, 0)]
+    public void ContactFeedbackColorReflectsQualityAndContrast(
+        float quality,
+        bool highContrast,
+        byte red,
+        byte green,
+        byte blue)
+    {
+        Assert.Equal(new Color(red, green, blue), MatchHudPresenter.GetContactFeedbackColor(
+            new ContactFeedbackPresentationState(false, quality, highContrast)));
+    }
+
+    [Fact]
+    public void ContactFeedbackColorHandlesMissAndUnavailableQuality()
+    {
+        Assert.Equal(Color.Red, MatchHudPresenter.GetContactFeedbackColor(
+            new ContactFeedbackPresentationState(true, null, HighContrast: true)));
+        Assert.Equal(new Color(255, 91, 77), MatchHudPresenter.GetContactFeedbackColor(
+            new ContactFeedbackPresentationState(true, null, HighContrast: false)));
+        Assert.Equal(Color.White, MatchHudPresenter.GetContactFeedbackColor(
+            new ContactFeedbackPresentationState(false, null, HighContrast: false)));
+    }
+
     [Fact]
     public void PauseMenuListsControlsAndAccessibilitySettingsWithoutDebugActions()
     {
