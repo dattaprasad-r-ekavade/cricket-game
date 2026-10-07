@@ -167,13 +167,13 @@ public partial class Game1
         Require(bowlerCamera.PresetName == "Bowler end" && MathF.Abs(bowlerCamera.Distance - 8f) < 0.001f &&
             bowlerCamera.Target.Z < 23f && bowlerCamera.Target.Z > 18f,
             "the bowler-end view did not follow the bowler through the run-up while preserving close zoom");
-        var readableFeedback = CalculateLiveFeedbackBannerBounds(1440, 900, 158, 760, 96);
+        var readableFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 760, 96);
         Require(readableFeedback.X == 340 && readableFeedback.Y == 170 && readableFeedback.Width == 760,
             "live feedback banner was not centered immediately below the scoreboard");
-        var longHudFeedback = CalculateLiveFeedbackBannerBounds(1440, 900, 158, 448, 116);
+        var longHudFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 448, 116);
         Require(longHudFeedback.X == 496 && longHudFeedback.Y == 170 && longHudFeedback.Right == 944,
             "live bowling feedback did not remain centered and readable below the keyboard scoreboard");
-        var narrowFeedback = CalculateLiveFeedbackBannerBounds(1280, 720, 158, 720, 96);
+        var narrowFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1280, 720, 158, 720, 96);
         Require(narrowFeedback.X == 280 && narrowFeedback.Y == 170 && narrowFeedback.Bottom <= 696,
             "live feedback banner was not centered below the scoreboard at a narrower resolution");
         var keyboardZoomDistance = ballCamera.Distance;

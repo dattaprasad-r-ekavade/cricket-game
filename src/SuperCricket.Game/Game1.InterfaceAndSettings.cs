@@ -39,39 +39,23 @@ public partial class Game1
 
     private string GetPrimaryControlHint()
     {
-        var gamePad = _lastInputWasGamePad;
-        var pause = gamePad ? "Start: pause" : "P: pause";
-        var camera = gamePad ? "L3: camera" : "V: camera    PgDn: zoom in / PgUp: out";
-        string WithCamera(string hint) => $"{hint}    {camera}";
-        if (_match.IsMatchComplete)
-            return gamePad
-                ? WithCamera($"A: replay    LB: difficulty    RB: overs    {pause}")
-                : WithCamera($"R: replay    D: difficulty    O: overs    {pause}");
-        if (_match.IsInningsComplete)
-            return gamePad
-                ? WithCamera($"RB: start the chase    {pause}")
-                : WithCamera($"N: start the chase    {pause}");
-        if (IsCpuBattingControlled)
-        {
-            var aim = gamePad ? "Next pitch: D-pad / left stick aim" : "Next pitch: arrows aim";
-            var changeDelivery = gamePad ? "LB: delivery" : "C: delivery";
-            var nextDelivery = gamePad ? "RB: bowl next" : "N: bowl next";
-            return WithCamera(_deliveryComplete
-                ? $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name})    {nextDelivery}    {pause}"
-                : $"{aim}    {changeDelivery} ({_deliveryPresets[_nextDeliveryPresetIndex].Name}; next ball)    {pause}");
-        }
-        if (_deliveryComplete)
-            return WithCamera(gamePad ? $"RB: next ball    {pause}" : $"N: next ball    {pause}");
-        if (_isRunning)
-        {
-            var run = gamePad ? "B" : "Enter";
-            return WithCamera($"{run}: request another run    hold {run}: turn back    {pause}");
-        }
-        if (_battedBall)
-            return WithCamera(gamePad ? $"B: run    {pause}" : $"Enter: run    {pause}");
-        return gamePad
-            ? WithCamera($"Left stick: aim    A: ground / defend    Y: loft    {pause}")
-            : WithCamera($"Left / Right: aim    Space: ground / defend    Shift: loft    {pause}");
+        var phase = _match.IsMatchComplete
+            ? MatchHudPhase.MatchComplete
+            : _match.IsInningsComplete
+                ? MatchHudPhase.InningsComplete
+                : IsCpuBattingControlled
+                    ? _deliveryComplete ? MatchHudPhase.BowlingDeliveryComplete : MatchHudPhase.Bowling
+                    : _deliveryComplete
+                        ? MatchHudPhase.DeliveryComplete
+                        : _isRunning
+                            ? MatchHudPhase.Running
+                            : _battedBall
+                                ? MatchHudPhase.BallBatted
+                                : MatchHudPhase.Batting;
+        return MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(
+            _lastInputWasGamePad,
+            phase,
+            _deliveryPresets[_nextDeliveryPresetIndex].Name));
     }
 
     private void DrawDebugOverlay()

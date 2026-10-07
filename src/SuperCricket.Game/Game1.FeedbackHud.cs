@@ -104,7 +104,7 @@ public partial class Game1
         var panelHeight = Math.Max(90, 18 + 36 + detailLines.Count * lineSpacing + timingGaugeHeight);
         var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
         var hudBottom = (int)MathF.Ceiling(20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f));
-        var panel = CalculateLiveFeedbackBannerBounds(
+        var panel = MatchHudPresenter.CalculateFeedbackBannerBounds(
             viewport.Width,
             viewport.Height,
             hudBottom,
@@ -125,20 +125,6 @@ public partial class Game1
         if (timingCue is { } gauge)
             DrawBattingTimingGauge(new Rectangle(panel.X + 22, panel.Bottom - 13, panel.Width - 44, 7), gauge);
         _spriteBatch.End();
-    }
-
-    internal static Rectangle CalculateLiveFeedbackBannerBounds(
-        int viewportWidth,
-        int viewportHeight,
-        int hudBottom,
-        int panelWidth,
-        int panelHeight)
-    {
-        var width = Math.Min(viewportWidth - 40, panelWidth);
-        var height = Math.Min(viewportHeight - 24, panelHeight);
-        var x = (viewportWidth - width) / 2;
-        var y = Math.Clamp(hudBottom + 12, 20, viewportHeight - height - 12);
-        return new Rectangle(x, y, width, height);
     }
 
     private void DrawBattingTimingGauge(Rectangle bounds, BattingTimingCue cue)
