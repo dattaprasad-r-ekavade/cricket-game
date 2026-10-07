@@ -19,6 +19,7 @@ public partial class Game1
 {
     private void StartNewMatch(int? seed = null)
     {
+        _isFirstMatch = !_hasCompletedFirstMatch;
         _match.Reset(_selectedOversPerInnings);
         _matchBowlingSeed = seed ?? Random.Shared.Next();
         _nextDeliveryPresetIndex = 0;
@@ -87,6 +88,8 @@ public partial class Game1
         {
             _deliveryPreset = selectedPreset;
         }
+        if (!_verifyGameplay && !_developerMode && !IsCpuBattingControlled)
+            _deliveryPreset = DeliveryPaceModel.ApplyHumanBattingPace(_deliveryPreset, _cpuDifficulty, _isFirstMatch);
         ConfigureFieldingRatingsForCurrentSide();
         _match.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);

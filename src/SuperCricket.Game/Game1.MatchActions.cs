@@ -452,6 +452,8 @@ public partial class Game1
             return;
 
         _match.CompleteDelivery();
+        if (_match.IsMatchComplete)
+            _hasCompletedFirstMatch = true;
         _isRunning = false;
         _runRequestedPending = false;
         _cpuRunsRemaining = 0;

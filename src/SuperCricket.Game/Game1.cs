@@ -103,6 +103,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private float _simulationAccumulator;
     private bool _simulationPaused;
     private bool _audioUnavailable;
+    private bool _isFirstMatch;
+    private bool _hasCompletedFirstMatch;
     private float _bowlerRunUpDurationSeconds;
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;
