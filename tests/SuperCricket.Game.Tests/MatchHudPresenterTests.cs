@@ -7,6 +7,40 @@ namespace SuperCricket.Game.Tests;
 public sealed class MatchHudPresenterTests
 {
     [Fact]
+    public void PauseMenuLayoutPreservesComfortableViewportSizing()
+    {
+        var layout = MatchHudPresenter.CalculatePauseMenuLayout(
+            viewportWidth: 1280,
+            viewportHeight: 720,
+            largeText: false,
+            lineCount: 11);
+
+        Assert.Equal(new Rectangle(0, 0, 1280, 720), layout.OverlayBounds);
+        Assert.Equal(new Rectangle(190, 156, 900, 407), layout.PanelBounds);
+        Assert.Equal(1.1f, layout.TextScale);
+        Assert.Equal(33, layout.LineSpacing);
+    }
+
+    [Fact]
+    public void PauseMenuLayoutFitsDeveloperHelpInsideSmallerWindow()
+    {
+        var layout = MatchHudPresenter.CalculatePauseMenuLayout(
+            viewportWidth: 640,
+            viewportHeight: 480,
+            largeText: true,
+            lineCount: 12);
+
+        Assert.Equal(new Rectangle(0, 0, 640, 480), layout.OverlayBounds);
+        Assert.Equal(new Rectangle(20, 20, 600, 440), layout.PanelBounds);
+        Assert.Equal(1.1f, layout.TextScale);
+        Assert.Equal(33, layout.LineSpacing);
+        Assert.True(layout.PanelBounds.Left >= 0);
+        Assert.True(layout.PanelBounds.Top >= 0);
+        Assert.True(layout.PanelBounds.Right <= layout.OverlayBounds.Right);
+        Assert.True(layout.PanelBounds.Bottom <= layout.OverlayBounds.Bottom);
+    }
+
+    [Fact]
     public void PauseMenuListsControlsAndAccessibilitySettingsWithoutDebugActions()
     {
         var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(

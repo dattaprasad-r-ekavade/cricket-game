@@ -142,8 +142,6 @@ public partial class Game1
     private void DrawPauseMenu()
     {
         var viewport = GraphicsDevice.Viewport;
-        var scale = _gameSettings.LargeText ? 1.3f : 1.1f;
-        var lineSpacing = (int)MathF.Round(30 * scale);
         var scoreLine = $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText} overs";
         var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
             scoreLine,
@@ -154,18 +152,23 @@ public partial class Game1
             _gameSettings.EffectsVolume,
             _settingsStatusMessage,
             _audioUnavailable));
-        var panelWidth = Math.Min(900, viewport.Width - 40);
-        var panelHeight = 44 + lines.Count * lineSpacing;
-        var panelX = Math.Max(20, (viewport.Width - panelWidth) / 2);
-        var panelY = Math.Max(20, (viewport.Height - panelHeight) / 2);
+        var layout = MatchHudPresenter.CalculatePauseMenuLayout(
+            viewport.Width,
+            viewport.Height,
+            _gameSettings.LargeText,
+            lines.Count);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_debugPanel, new Rectangle(0, 0, viewport.Width, viewport.Height), new Color(0, 0, 0, 210));
-        _spriteBatch.Draw(_debugPanel, new Rectangle(panelX, panelY, panelWidth, panelHeight), Color.Black);
+        _spriteBatch.Draw(_debugPanel, layout.OverlayBounds, new Color(0, 0, 0, 210));
+        _spriteBatch.Draw(_debugPanel, layout.PanelBounds, Color.Black);
         for (var index = 0; index < lines.Count; index++)
         {
             var color = index == 0 ? Color.Yellow : Color.White;
-            DrawOverlayText(lines[index], new Vector2(panelX + 28, panelY + 18 + index * lineSpacing), color, scale);
+            DrawOverlayText(lines[index], new Vector2(
+                layout.PanelBounds.X + 28,
+                layout.PanelBounds.Y + 18 + index * layout.LineSpacing),
+                color,
+                layout.TextScale);
         }
         _spriteBatch.End();
     }

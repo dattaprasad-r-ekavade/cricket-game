@@ -63,9 +63,50 @@ internal readonly record struct MatchPauseMenuState(
     string? SettingsStatusMessage,
     bool AudioUnavailable);
 
+internal readonly record struct PauseMenuLayout(
+    Rectangle OverlayBounds,
+    Rectangle PanelBounds,
+    float TextScale,
+    int LineSpacing);
+
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static PauseMenuLayout CalculatePauseMenuLayout(
+        int viewportWidth,
+        int viewportHeight,
+        bool largeText,
+        int lineCount)
+    {
+        if (viewportWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(viewportWidth));
+        if (viewportHeight <= 0)
+            throw new ArgumentOutOfRangeException(nameof(viewportHeight));
+        if (lineCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(lineCount));
+
+        var textScale = largeText ? 1.3f : 1.1f;
+        var lineSpacing = (int)MathF.Round(30 * textScale);
+        var panelWidth = Math.Min(900, Math.Max(1, viewportWidth - 40));
+        var maximumPanelHeight = Math.Max(1, viewportHeight - 40);
+
+        if (lineCount > 0 && 44L + (long)lineCount * lineSpacing > maximumPanelHeight)
+        {
+            var availableLineSpacing = Math.Max(1, (maximumPanelHeight - 44) / lineCount);
+            lineSpacing = Math.Min(lineSpacing, availableLineSpacing);
+            textScale = Math.Min(textScale, lineSpacing / 30f);
+        }
+
+        var panelHeight = (int)Math.Min(maximumPanelHeight, 44L + (long)lineCount * lineSpacing);
+        var panelX = (viewportWidth - panelWidth) / 2;
+        var panelY = (viewportHeight - panelHeight) / 2;
+        return new PauseMenuLayout(
+            new Rectangle(0, 0, viewportWidth, viewportHeight),
+            new Rectangle(panelX, panelY, panelWidth, panelHeight),
+            textScale,
+            lineSpacing);
+    }
+
     public static IReadOnlyList<string> BuildPauseMenuLines(MatchPauseMenuState state)
     {
         var lines = new List<string>
