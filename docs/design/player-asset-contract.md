@@ -1,6 +1,6 @@
 # Blender player asset contract
 
-`PlayerAsset.Load` dispatches between legacy v1 `.scplayer.json` and glTF 2.0 `.glb`. The MonoGame runtime and batting review workflow use the 61-joint batter and bowler GLBs through `PlayerGlbLoader` in `SuperCricket.Content`, using SharpGLTF.Core. Blender scenes author mesh and animation data. Compact `*.animation-contract.json` files carry gameplay events and sampled root motion for the GLB exporter. The full `.scplayer.json` assets remain runtime-compatibility and migration-parity fixtures, and are the current bridge for refreshing contracts after legacy clip exports change; they are not current analyzer inputs.
+`PlayerAsset.Load` dispatches between legacy v1 `.scplayer.json` and glTF 2.0 `.glb`. The MonoGame runtime and batting review workflow use the 61-joint batter and bowler GLBs through `PlayerGlbLoader` in `SuperCricket.Content`, using SharpGLTF.Core. Blender scenes author mesh and animation data. Compact `*.animation-contract.json` files carry gameplay events and sampled root motion for the GLB exporter; the Blender scene exporter writes them directly alongside the legacy asset. The full `.scplayer.json` assets remain runtime-compatibility and migration-parity fixtures until all roles move to GLB; they are not current analyzer inputs.
 
 ## GLB rig pilot
 
@@ -29,7 +29,7 @@ Step 63 adds `assets/characters/practice-batter-humanoid.blend` and `practice-ba
 - Clip events have unique non-empty names and times inside the clip duration. Gameplay reads named release and secured-ball events from the same exported data used for preview.
 - Legacy JSON `rootMotion` is the player-local root displacement from the first clip frame. The exporter extracts horizontal travel from sampled poses; the game applies it along the player's facing direction.
 - Each GLB animation stores `extras.superCricket` with metadata version, asset/animation names, coordinate system, gameplay events, and a sampled root-motion track (`timeSeconds` plus `positionMeters`). The loader subtracts each root-motion sample from the sampled root-joint translation so motion is not applied twice.
-- The Blender scene remains the editable source for meshes and actions. `*.animation-contract.json` contains only clip events and root-motion samples; regenerate it from a legacy export with `tools/blender/extract_player_animation_contract.py`. Do not edit sampled root-motion arrays by hand. The full `.scplayer.json` export remains temporarily for runtime compatibility and parity tests.
+- The Blender scene remains the editable source for meshes and actions. `build_practice_batter.py` derives the compact `*.animation-contract.json` from the in-memory scene export and writes it alongside the full `.scplayer.json` compatibility export. Use `tools/blender/extract_player_animation_contract.py` only to bootstrap a contract for a legacy asset. Do not edit sampled root-motion arrays by hand.
 
 ## Validation and import checks
 

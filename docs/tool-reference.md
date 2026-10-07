@@ -64,7 +64,9 @@ blender --background --factory-startup --python tools/blender/build_practice_bat
   --asset-output assets/characters/practice-batter.scplayer.json
 ```
 
-Create the editable 61-joint humanoid batter and bowler GLBs. The MonoGame runtime and batting review workflow load these GLBs directly through SharpGLTF.Core. The `.blend` scenes author geometry and actions; compact `*.animation-contract.json` files carry clip events and root-motion samples. The older `.scplayer.json` assets remain runtime-compatibility and migration-parity fixtures, and are still the bridge for refreshing a compact contract after a legacy clip export changes:
+Create the editable 61-joint humanoid batter and bowler GLBs. The MonoGame runtime and batting review workflow load these GLBs directly through SharpGLTF.Core. The `.blend` scenes author geometry and actions; compact `*.animation-contract.json` files carry clip events and root-motion samples. The scene exporter writes both the legacy `.scplayer.json` compatibility asset and the compact GLB contract. The old `.scplayer.json` files remain for runtime compatibility and migration parity.
+
+Use this extractor only when bootstrapping a compact contract from a legacy player asset that has no contract yet:
 
 ```powershell
 python tools/blender/extract_player_animation_contract.py `
@@ -94,6 +96,8 @@ dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters
 dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters/practice-bowler-humanoid.glb
 ```
 
+Exporting either source `.blend` also updates its compact `*.animation-contract.json` beside the `.scplayer.json` output. Pass `--animation-contract-output <path>` to write the contract elsewhere.
+
 The Godot trial also imports the batter GLB to verify its skeleton, named actions, and grip-preview pose. The MonoGame loader supports opaque triangle meshes with identity mesh transforms, four joint influences per vertex, embedded PNG/JPEG base-color textures, sampler and UV transforms, and the embedded animation metadata contract.
 
 After editing the saved `.blend` in Blender or through Blender MCP, export that scene without rebuilding it:
@@ -107,8 +111,6 @@ dotnet run --project src/SuperCricket.Tools -- validate-player assets/characters
 ```
 
 The scene exporter reads skinned meshes marked `sc_player_part` from the `Player Mesh` collection. It keeps the five base clips in the batter file, authors the mirrored `batting-step-offside` and `batting-step-legside` actions when requested, and exports other named actions with `--include-clip`. The bowler source is an edited copy of the player scene with authored `bowling-run-up` and `overarm-delivery` actions; re-export it with:
-
-After refreshing a `.scplayer.json` export, regenerate that role's animation contract with `tools/blender/extract_player_animation_contract.py` before rebuilding its humanoid GLB.
 
 When regenerating these procedural batting steps, pass `--rebuild-batting-footwork` with both `--include-clip` options. Without the rebuild flag, edited footwork actions in the `.blend` are preserved.
 

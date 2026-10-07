@@ -16,6 +16,11 @@ import sys
 
 import bpy
 from mathutils import Matrix, Vector
+from player_animation_contract import (
+    contract_from_legacy_player_asset,
+    default_animation_contract_path,
+    write_animation_contract,
+)
 
 
 FPS = 30
@@ -56,6 +61,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--blend-output", default="assets/characters/practice-batter.blend")
     parser.add_argument("--asset-output", default="assets/characters/practice-batter.scplayer.json")
+    parser.add_argument("--animation-contract-output", type=Path,
+                        help="Compact event/root-motion contract output; defaults beside --asset-output.")
     parser.add_argument(
         "--from-scene",
         action="store_true",
@@ -558,8 +565,14 @@ def main() -> None:
     args = parse_args()
     blend_output = Path(args.blend_output).resolve()
     asset_output = Path(args.asset_output).resolve()
+    animation_contract_output = (
+        args.animation_contract_output.resolve()
+        if args.animation_contract_output is not None
+        else default_animation_contract_path(asset_output)
+    )
     blend_output.parent.mkdir(parents=True, exist_ok=True)
     asset_output.parent.mkdir(parents=True, exist_ok=True)
+    animation_contract_output.parent.mkdir(parents=True, exist_ok=True)
 
     scene = bpy.context.scene
     scene.render.fps = FPS
@@ -617,6 +630,8 @@ def main() -> None:
         scene.frame_end = 61
 
     asset = export_asset(armature, parts, actions)
+    animation_contract = contract_from_legacy_player_asset(asset)
+    write_animation_contract(animation_contract, animation_contract_output)
 
     with asset_output.open("w", encoding="utf-8", newline="\n") as output:
         json.dump(asset, output, separators=(",", ":"), ensure_ascii=False)
@@ -629,6 +644,7 @@ def main() -> None:
     print(f"Exported {len(asset['bones'])} bones, {len(asset['meshes'])} meshes, {len(asset['animations'])} clips")
     print(f"  Blender source: {blend_output}")
     print(f"  Game asset:     {asset_output}")
+    print(f"  GLB contract:   {animation_contract_output}")
 
 
 if __name__ == "__main__":

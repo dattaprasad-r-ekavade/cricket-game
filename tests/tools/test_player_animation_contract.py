@@ -19,8 +19,10 @@ sys.path.insert(0, str(BLENDER_TOOLS))
 from embed_player_metadata import embed_player_metadata  # noqa: E402
 from player_animation_contract import (  # noqa: E402
     contract_from_legacy_player_asset,
+    default_animation_contract_path,
     load_animation_contract,
     validate_animation_contract,
+    write_animation_contract,
 )
 from validate_humanoid_glb import load_glb_json, validate  # noqa: E402
 
@@ -32,6 +34,19 @@ ASSETS = (
 
 
 class PlayerAnimationContractTests(unittest.TestCase):
+    def test_default_contract_path_and_writer(self) -> None:
+        legacy_path = ROOT / "assets" / "characters" / "practice-batter.scplayer.json"
+        contract_path = default_animation_contract_path(legacy_path)
+        self.assertEqual("practice-batter.animation-contract.json", contract_path.name)
+
+        source = json.loads(legacy_path.read_text(encoding="utf-8"))
+        expected = contract_from_legacy_player_asset(source)
+        with tempfile.TemporaryDirectory(prefix="sc-contract-write-") as directory:
+            output = Path(directory) / contract_path.name
+            write_animation_contract(expected, output)
+            self.assertEqual(expected, load_animation_contract(output))
+            self.assertTrue(output.read_bytes().endswith(b"\n"))
+
     def test_checked_in_contracts_match_legacy_parity_sources(self) -> None:
         for _, asset_name in ASSETS:
             with self.subTest(asset=asset_name):

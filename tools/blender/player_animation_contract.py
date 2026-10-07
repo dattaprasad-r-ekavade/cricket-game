@@ -41,6 +41,20 @@ def contract_from_legacy_player_asset(player_asset: dict[str, Any]) -> dict[str,
     return validate_animation_contract(contract)
 
 
+def default_animation_contract_path(player_asset_path: Path) -> Path:
+    name = player_asset_path.name
+    legacy_suffix = ".scplayer.json"
+    stem = name[:-len(legacy_suffix)] if name.endswith(legacy_suffix) else player_asset_path.stem
+    return player_asset_path.with_name(f"{stem}.animation-contract.json")
+
+
+def write_animation_contract(contract: dict[str, Any], path: Path) -> None:
+    validate_animation_contract(contract)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(contract, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+    path.write_text(encoded, encoding="utf-8", newline="\n")
+
+
 def validate_animation_contract(contract: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(contract, dict) or contract.get("contractVersion") != CONTRACT_VERSION:
         raise ValueError(f"Animation contract version must be {CONTRACT_VERSION}.")
