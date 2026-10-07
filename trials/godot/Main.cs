@@ -54,8 +54,8 @@ public partial class Main : Node3D
         _preset = DeliveryPreset.Load(Path.Combine(_repositoryRoot, "assets", "deliveries", "standard-pace.json"));
         _flight = new BallFlightSimulator(_preset);
         var shotSet = BattingShotSet.Load(Path.Combine(_repositoryRoot, "assets", "batting", "shots.json"));
-        var batter = PlayerAsset.Load(Path.Combine(_repositoryRoot, "assets", "characters", "practice-batter.scplayer.json"));
-        var bowler = PlayerAsset.Load(Path.Combine(_repositoryRoot, "assets", "characters", "practice-bowler.scplayer.json"));
+        var batter = PlayerAsset.Load(Path.Combine(_repositoryRoot, "assets", "characters", "practice-batter-humanoid.glb"));
+        var bowler = PlayerAsset.Load(Path.Combine(_repositoryRoot, "assets", "characters", "practice-bowler-humanoid.glb"));
         _trajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
             batter,
             bowler,
