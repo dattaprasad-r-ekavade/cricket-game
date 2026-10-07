@@ -4,20 +4,24 @@ using Microsoft.Xna.Framework.Input;
 
 namespace SuperCricket.Game.Rendering;
 
-/// <summary>A metre-scaled orbit camera for inspecting the practice ground.</summary>
-public sealed class OrbitCamera
+/// <summary>Chooses and directs gameplay camera views, focus, and zoom.</summary>
+public sealed class CameraDirector
 {
     private const float MinDistance = 4f;
     private const float MaxDistance = 100f;
+    private const float MinPlayerZoomDistance = 4.5f;
+    private const float MaxPlayerZoomDistance = 28f;
     private const float MinElevation = 0.12f;
     private const float MaxElevation = 1.25f;
-    private readonly (string Name, float Yaw, float Elevation, float Distance, Vector3 Target, bool FollowsBall)[] _presets =
+    private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
-        ("Broadcast", 0.34f, 0.36f, 22f, new Vector3(0f, 0f, -1f), false),
-        ("Behind striker", MathHelper.Pi, 0.28f, 16f, new Vector3(0f, 0f, -2.5f), false),
-        ("Bowler end", 0f, 0.30f, 18f, new Vector3(0f, 0f, 2.5f), false),
-        ("Square leg", MathHelper.PiOver2, 0.36f, 27f, Vector3.Zero, false),
-        ("Ball follow", 0f, 0.36f, 9f, Vector3.Zero, true)
+        ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
+        // Aim at the active crease/player. Keeping the focus at mid-pitch made
+        // zooming move the end-on cameras away from the person being controlled.
+        ("Behind striker", MathHelper.Pi, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, -8.72f), false),
+        ("Bowler end", 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, 8.72f), false),
+        ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
+        ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
     private int _presetIndex;
     private int _previousWheel;
@@ -27,11 +31,17 @@ public sealed class OrbitCamera
     public float Yaw { get; private set; }
     public float Elevation { get; private set; }
     public float Distance { get; private set; }
+    public float FieldOfViewDegrees { get; private set; }
     public Vector3 Target { get; private set; }
     public string PresetName => _focusName ?? _presets[_presetIndex].Name;
     public bool FollowsBall => _focusName is null && _presets[_presetIndex].FollowsBall;
 
-    public OrbitCamera() => ApplyPreset(0);
+    public CameraDirector() => ApplyPreset(0);
+
+    public static string GetRolePresetName(bool isHumanBowling) =>
+        isHumanBowling ? "bowler-end" : "behind-striker";
+
+    public bool SelectRolePreset(bool isHumanBowling) => SelectPreset(GetRolePresetName(isHumanBowling));
 
     public Vector3 Position
     {
@@ -53,6 +63,25 @@ public sealed class OrbitCamera
     public void CyclePreset()
     {
         ApplyPreset((_presetIndex + 1) % _presets.Length);
+    }
+
+    public void ZoomBy(float distanceChangeMeters)
+    {
+        if (!float.IsFinite(distanceChangeMeters))
+            throw new ArgumentOutOfRangeException(nameof(distanceChangeMeters), "Camera zoom change must be finite.");
+        Distance = MathHelper.Clamp(Distance + distanceChangeMeters, MinPlayerZoomDistance, MaxPlayerZoomDistance);
+    }
+
+    public void SetTarget(Vector3 target)
+    {
+        _hasBallTarget = false;
+        Target = target;
+    }
+
+    public void TrackTarget(Vector3 target, float elapsedSeconds)
+    {
+        var blend = 1f - MathF.Exp(-12f * MathF.Max(0f, elapsedSeconds));
+        Target = Vector3.Lerp(Target, target, blend);
     }
 
     public void Focus(Vector3 target, float distance, float yaw, float elevation, string name = "Focus")
@@ -107,12 +136,12 @@ public sealed class OrbitCamera
         Yaw = preset.Yaw;
         Elevation = preset.Elevation;
         Distance = preset.Distance;
+        FieldOfViewDegrees = preset.FieldOfViewDegrees;
         Target = preset.Target;
     }
 
-    public void Update(GameTime gameTime, bool allowDeveloperControls)
+    public void Update(GameTime gameTime, bool allowDeveloperControls, KeyboardState keyboard)
     {
-        var keyboard = Keyboard.GetState();
         var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         const float orbitSpeed = 1.0f;
         const float elevationSpeed = 0.7f;
@@ -124,6 +153,12 @@ public sealed class OrbitCamera
             if (keyboard.IsKeyDown(Keys.PageUp)) Elevation += elevationSpeed * seconds;
             if (keyboard.IsKeyDown(Keys.PageDown)) Elevation -= elevationSpeed * seconds;
             if (keyboard.IsKeyDown(Keys.Home)) Reset();
+        }
+        else
+        {
+            const float playerZoomSpeedMetersPerSecond = 7f;
+            if (keyboard.IsKeyDown(Keys.PageUp)) ZoomBy(playerZoomSpeedMetersPerSecond * seconds);
+            if (keyboard.IsKeyDown(Keys.PageDown)) ZoomBy(-playerZoomSpeedMetersPerSecond * seconds);
         }
 
         Elevation = MathHelper.Clamp(Elevation, MinElevation, MaxElevation);
@@ -139,6 +174,9 @@ public sealed class OrbitCamera
         var wheelDelta = mouse.ScrollWheelValue - _previousWheel;
         if (allowDeveloperControls)
             Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f, MinDistance, MaxDistance);
+        else if (wheelDelta != 0)
+            Distance = MathHelper.Clamp(Distance - wheelDelta * 0.0125f,
+                MinPlayerZoomDistance, MaxPlayerZoomDistance);
         _previousWheel = mouse.ScrollWheelValue;
     }
 

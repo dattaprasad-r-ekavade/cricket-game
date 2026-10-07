@@ -56,7 +56,8 @@ public sealed class BallFlightSimulator
         _phase = BallMotionPhase.Settled;
     }
 
-    public BallFlightFrame Step()
+    /// <param name="enforceSimulationLimit">Use the preset's laboratory time limit; live batted balls continue physically.</param>
+    public BallFlightFrame Step(bool enforceSimulationLimit = true)
     {
         if (_phase == BallMotionPhase.Settled)
         {
@@ -75,7 +76,7 @@ public sealed class BallFlightSimulator
             StepFlight(deltaTime);
         }
 
-        if (_elapsedSeconds >= _preset.MaximumSimulationSeconds ||
+        if ((enforceSimulationLimit && _elapsedSeconds >= _preset.MaximumSimulationSeconds) ||
             _position.X * _position.X + _position.Z * _position.Z >=
             _preset.FieldBoundaryRadiusMeters * _preset.FieldBoundaryRadiusMeters)
         {

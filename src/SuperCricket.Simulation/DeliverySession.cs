@@ -16,6 +16,8 @@ public sealed class DeliverySession
     private int _completedRuns;
     private DeliveryExtra _extra;
     private DismissalKind _dismissal;
+    private DismissedEnd _dismissedEnd = DismissedEnd.Striker;
+    private bool _swapEndsOnRunOut;
     private bool _isComplete;
     private DeliveryResult? _result;
 
@@ -88,28 +90,25 @@ public sealed class DeliverySession
         return true;
     }
 
-    /// <summary>Resolves a run in progress when the ball becomes dead before it is returned.</summary>
-    public bool ResolveRunAtStoppage(bool runReachedEnd)
+    /// <summary>Credits a crossed run in progress at dead ball. Stoppage alone cannot dismiss a batter.</summary>
+    public void ResolveDeadBall(bool currentRunCrossed)
     {
         EnsureActive();
-        if (runReachedEnd)
-        {
+        if (_dismissal != DismissalKind.None)
+            throw new InvalidOperationException("Dead-ball run credit cannot follow a dismissal.");
+        if (currentRunCrossed)
             RecordCompletedRun();
-            return false;
-        }
-
-        if (IsNoBall)
-            return false;
-
-        _dismissal = DismissalKind.RunOut;
-        return true;
     }
 
     /// <summary>Applies a run-out at a broken wicket. Completed runs remain credited.</summary>
-    public void ResolveRunOut()
+    public void ResolveRunOut(DismissedEnd dismissedEnd = DismissedEnd.Striker, bool swapEnds = false)
     {
         EnsureActive();
+        if (!Enum.IsDefined(dismissedEnd))
+            throw new ArgumentOutOfRangeException(nameof(dismissedEnd));
         _dismissal = DismissalKind.RunOut;
+        _dismissedEnd = dismissedEnd;
+        _swapEndsOnRunOut = swapEnds;
     }
 
     internal DeliveryResult Complete()
@@ -124,7 +123,8 @@ public sealed class DeliverySession
             _extra is not (DeliveryExtra.Wide or DeliveryExtra.NoBall),
             _extra,
             _dismissal,
-            DismissedEnd.Striker);
+            _dismissedEnd,
+            _swapEndsOnRunOut);
         var validationError = result.Validate();
         if (validationError is not null)
             throw new InvalidOperationException($"Delivery resolution produced an invalid result: {validationError}");

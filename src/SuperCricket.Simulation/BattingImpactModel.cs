@@ -26,6 +26,7 @@ public static class BattingImpactModel
         if (!IsFinite(incomingVelocity) || !IsFinite(batPointVelocity) ||
             !float.IsFinite(normalizedSweetSpotOffset.X) || !float.IsFinite(normalizedSweetSpotOffset.Y) ||
             !float.IsFinite(shot.LaunchAngleDegrees) || !float.IsFinite(shot.HorizontalAim) ||
+            !float.IsFinite(shot.ForwardAim) ||
             !float.IsFinite(shot.SpeedTransfer))
             throw new ArgumentException("Batting impact inputs must be finite.");
 
@@ -42,7 +43,7 @@ public static class BattingImpactModel
         var horizontalAim = Math.Clamp(shot.HorizontalAim + offset.X * 0.12f, -1f, 1f);
         var launchAngle = Math.Clamp(shot.LaunchAngleDegrees + offset.Y * 10f, -5f, 70f);
         var launchRadians = launchAngle * (MathF.PI / 180f);
-        var horizontalDirection = Vector3.Normalize(new Vector3(horizontalAim, 0f, -1f));
+        var horizontalDirection = GetHorizontalShotDirection(horizontalAim, shot.ForwardAim);
         var shotDirection = new Vector3(
             horizontalDirection.X * MathF.Cos(launchRadians),
             MathF.Sin(launchRadians),
@@ -60,6 +61,21 @@ public static class BattingImpactModel
         var outgoingHorizontalSpeed = new Vector2(outgoingVelocity.X, outgoingVelocity.Z).Length();
         var actualLaunchAngle = MathF.Atan2(outgoingVelocity.Y, outgoingHorizontalSpeed) * (180f / MathF.PI);
         return new BattingImpactResult(outgoingVelocity, quality, actualLaunchAngle);
+    }
+
+    /// <summary>Returns a shot direction relative to the striker-end coordinate system.</summary>
+    public static Vector3 GetHorizontalShotDirection(float horizontalAim)
+        => GetHorizontalShotDirection(horizontalAim, 1f);
+
+    /// <summary>Returns a normalized shot direction in the striker coordinate system, including depth.</summary>
+    public static Vector3 GetHorizontalShotDirection(float horizontalAim, float forwardAim)
+    {
+        if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
+            throw new ArgumentOutOfRangeException(nameof(horizontalAim), "Shot direction must be between -1 and 1.");
+        if (!float.IsFinite(forwardAim) || forwardAim is < -1f or > 1f ||
+            (MathF.Abs(horizontalAim) < 0.001f && MathF.Abs(forwardAim) < 0.001f))
+            throw new ArgumentOutOfRangeException(nameof(forwardAim), "Shot direction must be finite and non-zero between -1 and 1.");
+        return Vector3.Normalize(new Vector3(horizontalAim, 0f, forwardAim));
     }
 
     private static Vector3 ClampMagnitude(Vector3 value, float maximum)

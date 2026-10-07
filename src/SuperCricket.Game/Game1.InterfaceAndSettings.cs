@@ -1,0 +1,237 @@
+using System;
+using System.Diagnostics;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using SuperCricket.Content;
+using SuperCricket.Game.Animation;
+using SuperCricket.Game.Rendering;
+using SuperCricket.Simulation;
+using NumericsVector3 = System.Numerics.Vector3;
+
+namespace SuperCricket.Game;
+
+public partial class Game1
+{
+    protected override void UnloadContent()
+    {
+        CancelBattingTiming();
+        _playerRenderer?.Dispose();
+        _bowlerRenderer?.Dispose();
+        _crowdVertexBuffer?.Dispose();
+        _worldEffect?.Dispose();
+        _crowdEffect?.Dispose();
+        _lineEffect?.Dispose();
+        _captureTarget?.Dispose();
+        foreach (var audioCue in _audioCues.Values)
+            audioCue.Dispose();
+        _audioCues.Clear();
+        _debugPanel?.Dispose();
+        _feedbackMapPixel?.Dispose();
+        _feedbackMapDot?.Dispose();
+        _feedbackMapRing?.Dispose();
+        _spriteBatch?.Dispose();
+        base.UnloadContent();
+    }
+
+    private string GetPrimaryControlHint()
+    {
+        var phase = MatchHudPresenter.ResolvePhase(new MatchHudConditions(
+            _match.IsMatchComplete,
+            _match.IsInningsComplete,
+            IsCpuBattingControlled,
+            _deliveryComplete,
+            _isRunning,
+            _battedBall));
+        return MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(
+            _lastInputWasGamePad,
+            phase,
+            _deliveryPresets[_nextDeliveryPresetIndex].Name));
+    }
+
+    private void DrawDebugOverlay()
+    {
+        if (_simulationPaused && _captureTarget is null)
+        {
+            DrawPauseMenu();
+            return;
+        }
+
+        if (!_showDebugOverlay)
+        {
+            DrawMatchHud();
+            return;
+        }
+
+        var ball = _ballFlight.CurrentFrame;
+        var lines = new[]
+        {
+            $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}    seed {_matchController.BowlingSeed}",
+            $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
+            $"{ScoreStatusText}    Striker {_match.StrikerPlayer.Name}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
+            $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",
+            $"Ball {(_bowlerReleased ? (_simulationPaused ? "Paused" : ball.Phase.ToString()) : "Awaiting release")}    {(_bowlerReleased ? $"speed {ball.Velocity.Length():0.0} m/s    bounces {ball.BounceCount}    position ({ball.Position.X:0.0}, {ball.Position.Y:0.0}, {ball.Position.Z:0.0}) m" : "flight simulation starts at the bowler's release")}",
+            $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
+            $"Batter footwork: {_batterFootworkOffsetX:+0.00;-0.00;0.00} m lateral",
+            $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
+            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_activeFieldingTactic}, {_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
+            $"Event: {_shotOutcome}",
+            $"Release: {(_releaseMarkerPosition is { } release ? $"t=0.000 s @ {FormatPosition(release)} m" : "not yet released")}    Contact: {(_contactMarkerPosition is { } contact ? $"t={_contactTimeSeconds:0.000} s @ {FormatPosition(contact)} m" : "waiting")}",
+            $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
+            $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
+            $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
+            "Debug: --debug enables A/S/D shots, J/L aim, Q/E steps, T animations, digits, orbit and developer overlay."
+        };
+        var debugScale = _gameSettings.LargeText ? 1.2f : 1f;
+        var debugLineSpacing = (int)MathF.Round(23 * debugScale);
+        var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32,
+            18 + (int)MathF.Ceiling(lines.Length * debugLineSpacing + 5 * debugScale));
+        _matchHudBounds = panel;
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        _spriteBatch.Draw(_debugPanel, panel,
+            _gameSettings.HighContrast ? Color.Black : new Color(255, 255, 255, 190));
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var color = index == 0
+                ? (_gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116))
+                : Color.White;
+            DrawOverlayText(lines[index], new Vector2(30, 17 + index * debugLineSpacing), color, debugScale);
+        }
+        _spriteBatch.End();
+    }
+
+    private void DrawPauseMenu()
+    {
+        var viewport = GraphicsDevice.Viewport;
+        var scoreLine = $"Innings {_match.InningsNumber}/2    {_match.BattingTeamName} {_match.Runs}/{_match.Wickets}    {_match.OversText} overs";
+        var lines = MatchHudPresenter.BuildPauseMenuLines(new MatchPauseMenuState(
+            scoreLine,
+            _cpuDifficulty,
+            _developerMode,
+            _gameSettings.HighContrast,
+            _gameSettings.LargeText,
+            _gameSettings.EffectsVolume,
+            _settingsStatusMessage,
+            _audioUnavailable));
+        var layout = MatchHudPresenter.CalculatePauseMenuLayout(
+            viewport.Width,
+            viewport.Height,
+            _gameSettings.LargeText,
+            lines.Count);
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        _spriteBatch.Draw(_debugPanel, layout.OverlayBounds, new Color(0, 0, 0, 210));
+        _spriteBatch.Draw(_debugPanel, layout.PanelBounds, Color.Black);
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var color = index == 0 ? Color.Yellow : Color.White;
+            DrawOverlayText(lines[index], new Vector2(
+                layout.PanelBounds.X + 28,
+                layout.PanelBounds.Y + 18 + index * layout.LineSpacing),
+                color,
+                layout.TextScale);
+        }
+        _spriteBatch.End();
+    }
+
+    private void DrawOverlayText(string text, Vector2 position, Color color, float scale) =>
+        _spriteBatch.DrawString(_debugFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+
+    private void LoadGameSettings()
+    {
+        if (IsReviewRun)
+        {
+            _gameSettings = new GameSettings();
+            _cpuDifficulty = _gameSettings.Difficulty;
+            _selectedOversPerInnings = _gameSettings.OversPerInnings;
+            return;
+        }
+        try
+        {
+            _gameSettings = GameSettingsStore.Load(GameSettingsStore.DefaultPath);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or
+            UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
+        {
+            _gameSettings = new GameSettings();
+            _settingsStatusMessage = exception is InvalidDataException
+                ? "Saved settings were invalid; defaults are active. Change a setting to replace them."
+                : "Settings could not be read; defaults are active for this session.";
+        }
+
+        _cpuDifficulty = _gameSettings.Difficulty;
+        _selectedOversPerInnings = _gameSettings.OversPerInnings;
+    }
+
+    private void SaveGameSettings()
+    {
+        if (IsReviewRun) return;
+        try
+        {
+            _gameSettings.Difficulty = _cpuDifficulty;
+            _gameSettings.OversPerInnings = _selectedOversPerInnings;
+            GameSettingsStore.Save(GameSettingsStore.DefaultPath, _gameSettings);
+            _settingsStatusMessage = null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+            InvalidOperationException or System.Security.SecurityException)
+        {
+            _settingsStatusMessage = "Settings could not be saved; changes last for this session.";
+        }
+    }
+
+    private void AdjustEffectsVolume(float amount)
+    {
+        var volume = Math.Clamp(MathF.Round((_gameSettings.EffectsVolume + amount) * 10f) / 10f, 0f, 1f);
+        if (MathF.Abs(volume - _gameSettings.EffectsVolume) < 0.0001f)
+            return;
+        _gameSettings.EffectsVolume = volume;
+        SaveGameSettings();
+    }
+
+    private void LoadAudioCues()
+    {
+        try
+        {
+            foreach (var cue in Enum.GetValues<CricketAudioCue>())
+                _audioCues.Add(cue, new SoundEffect(
+                    ProceduralCricketAudio.CreatePcmSamples(cue),
+                    ProceduralCricketAudio.SampleRate,
+                    AudioChannels.Mono));
+        }
+        catch (Exception exception) when (exception is NoAudioHardwareException or DllNotFoundException or
+            PlatformNotSupportedException)
+        {
+            foreach (var audioCue in _audioCues.Values)
+                audioCue.Dispose();
+            _audioCues.Clear();
+            _audioUnavailable = true;
+        }
+    }
+
+    private void PlayAudio(CricketAudioCue cue)
+    {
+        if (IsReviewRun) return;
+        if (_audioUnavailable || _gameSettings.EffectsVolume <= 0f || !_audioCues.TryGetValue(cue, out var sound))
+            return;
+        try
+        {
+            _ = sound.Play(_gameSettings.EffectsVolume, pitch: 0f, pan: 0f);
+        }
+        catch (InstancePlayLimitException)
+        {
+            // Skip a cue when the audio system is already at its instance limit.
+        }
+        catch (NoAudioHardwareException)
+        {
+            _audioUnavailable = true;
+        }
+    }
+
+
+}

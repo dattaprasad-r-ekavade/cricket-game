@@ -49,6 +49,8 @@ public sealed class OverScoreboard
         Runs += result.BatterRuns + result.ExtraRuns;
         if (result.CompletedRuns % 2 != 0)
             SwapBatterEnds();
+        if (result.SwapEndsOnRunOut)
+            SwapBatterEnds();
 
         if (result.Dismissal != DismissalKind.None)
         {

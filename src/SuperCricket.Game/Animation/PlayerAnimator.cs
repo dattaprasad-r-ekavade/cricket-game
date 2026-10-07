@@ -13,6 +13,7 @@ public sealed class PlayerAnimator
     private readonly PlayerAsset _asset;
     private readonly XnaMatrix[] _inverseBindMatrices;
     private readonly XnaMatrix[] _skinMatrices;
+    private readonly XnaMatrix[] _poseMatrices;
     private PlayerAnimationData _currentClip;
     private PlayerAnimationData? _previousClip;
     private float _currentTime;
@@ -26,6 +27,7 @@ public sealed class PlayerAnimator
     {
         _asset = asset;
         _skinMatrices = new XnaMatrix[asset.Bones.Count];
+        _poseMatrices = new XnaMatrix[asset.Bones.Count];
         _inverseBindMatrices = new XnaMatrix[asset.Bones.Count];
         for (var boneIndex = 0; boneIndex < asset.Bones.Count; boneIndex++)
         {
@@ -117,6 +119,9 @@ public sealed class PlayerAnimator
             }
 
             var poseMatrix = ToXna(currentPose.ToNumericsMatrix());
+            if (_asset.PoseSpace == "local" && _asset.Bones[boneIndex].ParentIndex >= 0)
+                poseMatrix *= _poseMatrices[_asset.Bones[boneIndex].ParentIndex];
+            _poseMatrices[boneIndex] = poseMatrix;
             _skinMatrices[boneIndex] = _inverseBindMatrices[boneIndex] * poseMatrix;
         }
 

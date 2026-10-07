@@ -30,9 +30,7 @@ public sealed class BattingTimingCalibrationAsset
     {
         var profile = DeliveryProfiles.Find(candidate =>
             string.Equals(candidate.DeliveryName, deliveryName, StringComparison.OrdinalIgnoreCase));
-        var shot = profile?.Shots.Find(candidate =>
-            string.Equals(candidate.ShotName, shotName, StringComparison.OrdinalIgnoreCase));
-        return shot?.IdealInputDelaySeconds;
+        return profile?.FindIdealInputDelaySeconds(shotName);
     }
 
     public List<string> Validate()
@@ -86,6 +84,9 @@ public sealed class BattingTimingDeliveryProfile
 {
     public string DeliveryName { get; set; } = string.Empty;
     public List<BattingShotTimingCalibration> Shots { get; set; } = [];
+
+    public float? FindIdealInputDelaySeconds(string shotName) => Shots.Find(candidate =>
+        string.Equals(candidate.ShotName, shotName, StringComparison.OrdinalIgnoreCase))?.IdealInputDelaySeconds;
 }
 
 public sealed class BattingShotTimingCalibration

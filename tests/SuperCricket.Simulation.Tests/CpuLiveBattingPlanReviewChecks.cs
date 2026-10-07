@@ -39,6 +39,11 @@ public static class CpuLiveBattingPlanReviewChecks
             .Append(wicketkeeper)
             .ToArray();
 
+        var straightProbeTarget = CpuShotPlacementModel.GetProbeTarget(standardDelivery, 0f, 6f);
+        Require(MathF.Abs(straightProbeTarget.Z - (BattingPracticeAnalyzer.BatterWicketLineZ + 6f)) < 0.001f &&
+            BattingImpactModel.GetHorizontalShotDirection(0f).Z > 0f,
+            "CPU placement did not project the straight shot forward from the striker's wicket");
+
         var cases = new[]
         {
             (Shot: CpuShotChoice.Defence, Situation: new BowlingSituation(0, 2, 0, 8, Target: null), Power: 25),
@@ -153,8 +158,9 @@ public static class CpuLiveBattingPlanReviewChecks
                             aimedTrajectory.Sample.ContactQuality.HasValue &&
                             authoredTrajectory.OutgoingVelocity is { } authoredVelocity &&
                             aimedTrajectory.OutgoingVelocity is { } aimedVelocity &&
+                            authoredVelocity.Z > 0f && aimedVelocity.Z > 0f &&
                             Vector3.Distance(authoredVelocity, aimedVelocity) > 0.01f,
-                            "an explicit batting aim did not alter the actual simulated shot trajectory");
+                            "CPU batting aim did not project forward from the striker or alter the actual shot trajectory");
 
                         striker.Timing = 0;
                         var lowSkillPlan = CpuLiveBattingPlanModel.ChooseFromSamples(

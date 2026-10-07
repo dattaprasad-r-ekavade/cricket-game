@@ -9,70 +9,89 @@ namespace SuperCricket.Game;
 
 public partial class Game1
 {
-    private const float BounceSpotFeedbackDurationSeconds = 1.15f;
-    private const float ContactFeedbackDurationSeconds = 0.82f;
+    private static readonly (int Start, int End)[] BatContactZoneEdges =
+    [
+        (0, 1), (2, 3), (4, 5), (6, 7),
+        (0, 2), (1, 3), (4, 6), (5, 7),
+        (0, 4), (1, 5), (2, 6), (3, 7)
+    ];
+
+    private const float BounceSpotFeedbackDurationSeconds = 4.5f;
+    private const float ContactFeedbackDurationSeconds = 4f;
+    private const float LiveFeedbackBannerDurationSeconds = 7f;
     private const float PitchMapLateralHalfExtentMeters = 9f;
     private const float PitchMapLengthMarginMeters = 2f;
     private float _deliverySpeedKilometersPerHour;
+    private Vector3? _predictedBouncePosition;
     private Vector3? _firstBouncePosition;
     private Vector3? _activeBowlingTargetPosition;
     private float _bounceSpotFeedbackRemainingSeconds;
     private float _contactFeedbackRemainingSeconds;
+    private float _liveFeedbackBannerRemainingSeconds;
     private float? _contactFeedbackQuality;
     private bool _contactFeedbackIsMiss;
     private float? _shotInputDelaySeconds;
     private BattingTimingCalibrationAsset _battingTimingCalibration = null!;
-    private string CalibrationDeliveryName => _deliveryPresets[_activeDeliveryPresetIndex].Name;
+    private bool IsHumanBowling => _activeBowlingTargetPosition is not null;
+    private ContactFeedbackPresentationState ContactFeedbackPresentation => new(
+        _contactFeedbackIsMiss,
+        _contactFeedbackQuality,
+        _gameSettings.HighContrast);
 
-    private static Color GetBallTrailColor(float speedMetersPerSecond)
-    {
-        if (!float.IsFinite(speedMetersPerSecond))
-            speedMetersPerSecond = 0f;
+    private string GetContactFeedbackLabel() =>
+        MatchHudPresenter.GetContactFeedbackLabel(ContactFeedbackPresentation);
 
-        var speedFraction = Math.Clamp((speedMetersPerSecond - 8f) / 28f, 0f, 1f);
-        var cool = new Color(68, 220, 255);
-        var warm = new Color(255, 226, 70);
-        var hot = new Color(255, 86, 58);
-        return speedFraction < 0.5f
-            ? Color.Lerp(cool, warm, speedFraction * 2f)
-            : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
-    }
+    private Color GetContactFeedbackColor() =>
+        MatchHudPresenter.GetContactFeedbackColor(ContactFeedbackPresentation);
 
-    private string GetContactFeedbackLabel() => _contactFeedbackIsMiss
-        ? "NO CONTACT"
-        : _contactFeedbackQuality switch
-        {
-            >= 0.88f => "MIDDLE",
-            >= 0.75f => "CLEAN CONTACT",
-            >= 0.60f => "EDGE CONTACT",
-            > 0f => "THIN CONTACT",
-            _ => string.Empty
-        };
-
-    private Color GetContactFeedbackColor()
-    {
-        if (_contactFeedbackIsMiss)
-            return _gameSettings.HighContrast ? Color.Red : new Color(255, 91, 77);
-        if (_contactFeedbackQuality is not { } quality)
-            return Color.White;
-        if (_gameSettings.HighContrast)
-            return quality >= 0.75f ? Color.Yellow : Color.Red;
-        return quality switch
-        {
-            >= 0.88f => new Color(135, 255, 159),
-            >= 0.75f => new Color(89, 232, 255),
-            >= 0.60f => new Color(255, 220, 85),
-            _ => new Color(255, 143, 75)
-        };
-    }
+    private static Color GetBallTrailColor(float speedMetersPerSecond) =>
+        MatchHudPresenter.GetBallTrailColor(speedMetersPerSecond);
 
     private void DrawWorldFeedbackMarkers()
     {
-        if (_bounceSpotFeedbackRemainingSeconds <= 0f && _contactFeedbackRemainingSeconds <= 0f)
+        var showPredictedBounce = ShouldShowPredictedBounce(
+            IsHumanBowling,
+            _deliveryComplete,
+            _firstBouncePosition is not null,
+            _predictedBouncePosition is not null);
+        var showBattingContactZone = GetBattingContactZoneAlpha() > 0 && !IsCpuBattingControlled &&
+            _bowlerReleased && !_battedBall && !_deliveryComplete;
+        if (!showPredictedBounce && !showBattingContactZone &&
+            _bounceSpotFeedbackRemainingSeconds <= 0f && _contactFeedbackRemainingSeconds <= 0f)
             return;
 
-        GraphicsDevice.DepthStencilState = DepthStencilState.None;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.BlendState = BlendState.AlphaBlend;
+
+        if (showPredictedBounce && _predictedBouncePosition is { } predictedBounce)
+        {
+            var withinPitch = MathF.Abs(predictedBounce.X) <= _deliveryPreset.PitchWidthMeters * 0.5f &&
+                MathF.Abs(predictedBounce.Z) <= _deliveryPreset.PitchLengthMeters * 0.5f;
+            var surfaceHeight = withinPitch
+                ? _deliveryPreset.PitchSurfaceHeightMeters
+                : _deliveryPreset.FieldSurfaceHeightMeters;
+            var center = new Vector3(predictedBounce.X, surfaceHeight + 0.04f, predictedBounce.Z);
+            var alpha = _gameSettings.HighContrast ? 0.98f : !_bowlerReleased ? 0.94f : _cpuDifficulty switch
+            {
+                CpuDifficulty.Rookie => 0.92f,
+                CpuDifficulty.Standard => 0.72f,
+                _ => 0.52f
+            };
+            var color = WithAlpha(_gameSettings.HighContrast ? Color.White : new Color(72, 222, 255), alpha);
+            var radius = !_bowlerReleased ? 0.68f : _cpuDifficulty switch
+            {
+                CpuDifficulty.Rookie => 0.72f,
+                CpuDifficulty.Standard => 0.58f,
+                _ => 0.44f
+            };
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, radius, color);
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.12f, WithAlpha(Color.White, alpha));
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        }
+
+        if (showBattingContactZone)
+            DrawBattingContactZone();
 
         if (_firstBouncePosition is { } bounce && _bounceSpotFeedbackRemainingSeconds > 0f)
         {
@@ -91,6 +110,7 @@ public partial class Game1
 
         if (_contactMarkerPosition is { } contact && _contactFeedbackRemainingSeconds > 0f)
         {
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
             var progress = 1f - _contactFeedbackRemainingSeconds / ContactFeedbackDurationSeconds;
             var alpha = Math.Clamp(_contactFeedbackRemainingSeconds / 0.24f, 0f, 1f);
             var quality = _contactFeedbackQuality ?? 0f;
@@ -111,6 +131,55 @@ public partial class Game1
 
         GraphicsDevice.BlendState = BlendState.Opaque;
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+    }
+
+    private static bool ShouldShowPredictedBounce(
+        bool isHumanBowling,
+        bool deliveryComplete,
+        bool hasBounced,
+        bool hasPrediction) =>
+        !isHumanBowling && !deliveryComplete && !hasBounced && hasPrediction;
+
+    private int GetBattingContactZoneAlpha() => MatchHudPresenter.GetBattingContactZoneAlpha(_cpuDifficulty);
+
+    private void DrawBattingContactZone()
+    {
+        var padding = _deliveryPreset.BallRadiusMeters + _shotSet.ContactPaddingMeters;
+        var margin = new Vector3(padding);
+        var minimum = _batBladeMinimum - margin;
+        var maximum = _batBladeMaximum + margin;
+        Span<Vector3> corners = stackalloc Vector3[8];
+        for (var index = 0; index < corners.Length; index++)
+        {
+            var local = new Vector3(
+                (index & 1) == 0 ? minimum.X : maximum.X,
+                (index & 2) == 0 ? minimum.Y : maximum.Y,
+                (index & 4) == 0 ? minimum.Z : maximum.Z);
+            corners[index] = Vector3.Transform(local, _currentBatWorld);
+        }
+
+        var alpha = GetBattingContactZoneAlpha();
+        var zoneColor = _gameSettings.HighContrast
+            ? WithAlpha(Color.Yellow, alpha / 255f)
+            : WithAlpha(_cpuDifficulty == CpuDifficulty.Rookie
+                ? new Color(120, 255, 177)
+                : new Color(111, 224, 255), alpha / 255f);
+        for (var edgeIndex = 0; edgeIndex < BatContactZoneEdges.Length; edgeIndex++)
+        {
+            var edge = BatContactZoneEdges[edgeIndex];
+            _feedbackRingVertices[edgeIndex * 2] = new VertexPositionColor(corners[edge.Start], zoneColor);
+            _feedbackRingVertices[edgeIndex * 2 + 1] = new VertexPositionColor(corners[edge.End], zoneColor);
+        }
+
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.LineList,
+                _feedbackRingVertices,
+                0,
+                BatContactZoneEdges.Length);
+        }
     }
 
     private void DrawFeedbackWorldRing(Vector3 center, Vector3 axisA, Vector3 axisB, float radius, Color color)
@@ -138,352 +207,38 @@ public partial class Game1
     private static Color WithAlpha(Color color, float alpha) =>
         new(color.R, color.G, color.B, (byte)MathF.Round(color.A * Math.Clamp(alpha, 0f, 1f)));
 
-    private void DrawContactFeedbackBanner()
+    private BattingTimingCue? GetLiveBattingTimingCue()
     {
-        if (_contactFeedbackRemainingSeconds <= 0f)
-            return;
-
-        var label = GetContactFeedbackLabel();
-        if (label.Length == 0)
-            return;
-
-        var detail = _contactFeedbackIsMiss
-            ? "The swing passed outside the contact window"
-            : $"{_contactFeedbackQuality!.Value:P0} contact quality";
-        var viewport = GraphicsDevice.Viewport;
-        var titleScale = _gameSettings.LargeText ? 1.15f : 0.95f;
-        var detailScale = _gameSettings.LargeText ? 0.82f : 0.68f;
-        var contentWidth = Math.Max(
-            _debugFont.MeasureString(label).X * titleScale,
-            _debugFont.MeasureString(detail).X * detailScale);
-        var panelWidth = Math.Min(viewport.Width - 40, (int)MathF.Ceiling(contentWidth + 58f));
-        var panelHeight = _gameSettings.LargeText ? 88 : 78;
-        var normalHudWidth = Math.Min(viewport.Width - 40,
-            _gameSettings.LargeText ? viewport.Width - 40 : 1050);
-        var upperRightX = viewport.Width - panelWidth - 20;
-        var fitsBesideHud = upperRightX >= 20 + normalHudWidth + 36;
-        var hudLineSpacing = (int)MathF.Round(25 * (_gameSettings.LargeText ? 1.25f : 1f));
-        var hudBottom = 20 + 20 + (_bowlerReleased ? 6 : 5) * hudLineSpacing +
-            30 * (_gameSettings.LargeText ? 1.25f : 1f);
-        var fallbackY = Math.Max((int)(viewport.Height * 0.28f), (int)MathF.Ceiling(hudBottom + 8f));
-        var panel = new Rectangle(fitsBesideHud ? upperRightX : (viewport.Width - panelWidth) / 2,
-            fitsBesideHud ? 20 : Math.Min(fallbackY, viewport.Height - panelHeight - 20), panelWidth, panelHeight);
-        var fade = Math.Clamp(_contactFeedbackRemainingSeconds / 0.22f, 0f, 1f);
-        var accent = WithAlpha(GetContactFeedbackColor(), fade);
-        var background = WithAlpha(_gameSettings.HighContrast ? Color.Black : new Color(8, 16, 20), 0.94f * fade);
-
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
-        _spriteBatch.Draw(_feedbackMapPixel, panel, background);
-        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 6, panel.Height), accent);
-        DrawOverlayText(label, new Vector2(panel.X + 19, panel.Y + 6), accent, titleScale);
-        DrawOverlayText(detail, new Vector2(panel.X + 19, panel.Y + 43), Color.White, detailScale);
-        _spriteBatch.End();
-    }
-
-    private void DrawDeliveryFeedbackCard()
-    {
-        if (!_deliveryComplete || CurrentDelivery.Result is not { } result)
-            return;
-
-        var lines = BuildDeliveryFeedbackLines(result);
-        var viewport = GraphicsDevice.Viewport;
-        var scale = _gameSettings.LargeText ? 1.1f : 1f;
-        var lineSpacing = (int)MathF.Round(27f * scale);
-        var hasPitchMap = _firstBouncePosition is not null || _activeBowlingTargetPosition is not null;
-        var panelWidth = Math.Min(viewport.Width - 40, hasPitchMap ? 1180 : 980);
-        const int pitchMapWidth = 176;
-        const int pitchMapHeight = 168;
-        var pitchMapX = 20 + panelWidth - pitchMapWidth - 12;
-        var textWidth = hasPitchMap ? pitchMapX - 34 - 16 : panelWidth - 28;
-        var displayLines = WrapFeedbackLines(lines, textWidth, scale);
-        var panelHeight = 20 + displayLines.Count * lineSpacing;
-        if (hasPitchMap)
-            panelHeight = Math.Max(panelHeight, pitchMapHeight + 20);
-        var panelY = Math.Max(20, viewport.Height - panelHeight - 20);
-
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_debugPanel, new Rectangle(20, panelY, panelWidth, panelHeight),
-            _gameSettings.HighContrast ? Color.Black : new Color(9, 17, 21, 238));
-        for (var index = 0; index < displayLines.Count; index++)
-        {
-            var color = index == 0
-                ? (_gameSettings.HighContrast ? Color.Yellow : new Color(255, 218, 130))
-                : Color.White;
-            DrawOverlayText(displayLines[index], new Vector2(34, panelY + 11 + index * lineSpacing), color, scale);
-        }
-        if (hasPitchMap)
-            DrawPitchMap(new Rectangle(pitchMapX, panelY + (panelHeight - pitchMapHeight) / 2, pitchMapWidth, pitchMapHeight));
-        _spriteBatch.End();
-    }
-
-    private List<string> WrapFeedbackLines(IReadOnlyList<string> lines, float availableWidth, float scale)
-    {
-        var wrapped = new List<string>(lines.Count);
-        foreach (var line in lines)
-        {
-            var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var current = string.Empty;
-            foreach (var word in words)
-            {
-                var candidate = current.Length == 0 ? word : $"{current} {word}";
-                if (current.Length > 0 && _debugFont.MeasureString(candidate).X * scale > availableWidth)
-                {
-                    wrapped.Add(current);
-                    current = $"  {word}";
-                }
-                else
-                {
-                    current = candidate;
-                }
-            }
-            if (current.Length > 0)
-                wrapped.Add(current);
-        }
-        return wrapped;
-    }
-
-    private void DrawPitchMap(Rectangle bounds)
-    {
-        DrawFeedbackRectangle(bounds, _gameSettings.HighContrast ? Color.Black : new Color(4, 12, 12, 238));
-        DrawFeedbackOutline(bounds, _gameSettings.HighContrast ? Color.White : new Color(147, 167, 154));
-        DrawOverlayText("PITCH MAP", new Vector2(bounds.X + 9, bounds.Y + 3),
-            _gameSettings.HighContrast ? Color.Yellow : new Color(255, 218, 130), 0.65f);
-
-        var plot = new Rectangle(bounds.X + 30, bounds.Y + 31, bounds.Width - 60, bounds.Height - 64);
-        DrawFeedbackRectangle(plot, new Color(31, 72, 48));
-        DrawFeedbackOutline(plot, new Color(104, 143, 104));
-
-        var pitchHalfLength = _deliveryPreset.PitchLengthMeters / 2f;
-        var bowlerWicket = MapPitchPosition(new Vector3(0f, 0f, pitchHalfLength), plot,
-            _deliveryPreset.PitchLengthMeters);
-        var batterWicket = MapPitchPosition(new Vector3(0f, 0f, -pitchHalfLength), plot,
-            _deliveryPreset.PitchLengthMeters);
-        var pitchWidth = Math.Max(18, (int)MathF.Round(plot.Width * _deliveryPreset.PitchWidthMeters /
-            (PitchMapLateralHalfExtentMeters * 2f)));
-        var pitch = new Rectangle(plot.Center.X - pitchWidth / 2, (int)MathF.Round(bowlerWicket.Y),
-            pitchWidth, Math.Max(1, (int)MathF.Round(batterWicket.Y - bowlerWicket.Y)));
-        DrawFeedbackRectangle(pitch, new Color(156, 111, 72));
-        DrawFeedbackRectangle(new Rectangle(pitch.X - 5, pitch.Y + 3, pitch.Width + 10, 2), Color.White);
-        DrawFeedbackRectangle(new Rectangle(pitch.X - 5, pitch.Bottom - 5, pitch.Width + 10, 2), Color.White);
-        DrawOverlayText("BOWLER", new Vector2(bounds.X + 9, bounds.Y + 18), Color.White, 0.52f);
-        DrawOverlayText("BATTER", new Vector2(bounds.X + 9, bounds.Bottom - 39), Color.White, 0.52f);
-
-        if (_activeBowlingTargetPosition is { } target)
-        {
-            var targetPoint = MapPitchPosition(target, plot, _deliveryPreset.PitchLengthMeters);
-            DrawFeedbackMarker(_feedbackMapRing, targetPoint, 17, Color.Cyan);
-        }
-        if (_firstBouncePosition is { } bounce)
-        {
-            var bouncePoint = MapPitchPosition(bounce, plot, _deliveryPreset.PitchLengthMeters);
-            DrawFeedbackMarker(_feedbackMapDot, bouncePoint, 9, Color.Yellow);
-        }
-
-        var legendY = bounds.Bottom - 19;
-        if (_activeBowlingTargetPosition is not null)
-        {
-            DrawFeedbackMarker(_feedbackMapRing, new Vector2(bounds.X + 15, legendY + 6), 11, Color.Cyan);
-            DrawOverlayText("AIM", new Vector2(bounds.X + 23, legendY), Color.White, 0.48f);
-            DrawFeedbackMarker(_feedbackMapDot, new Vector2(bounds.X + 78, legendY + 6), 7, Color.Yellow);
-            DrawOverlayText("BOUNCE", new Vector2(bounds.X + 85, legendY), Color.White, 0.48f);
-        }
-        else
-        {
-            DrawFeedbackMarker(_feedbackMapDot, new Vector2(bounds.X + 52, legendY + 6), 7, Color.Yellow);
-            DrawOverlayText("BOUNCE", new Vector2(bounds.X + 60, legendY), Color.White, 0.48f);
-        }
-    }
-
-    private static Vector2 MapPitchPosition(Vector3 position, Rectangle plot, float pitchLengthMeters)
-    {
-        if (plot.Width <= 0 || plot.Height <= 0)
-            throw new ArgumentOutOfRangeException(nameof(plot), "Pitch map plot bounds must have positive dimensions.");
-        if (!float.IsFinite(pitchLengthMeters) || pitchLengthMeters <= 0f)
-            throw new ArgumentOutOfRangeException(nameof(pitchLengthMeters));
-
-        var lengthRange = pitchLengthMeters + PitchMapLengthMarginMeters * 2f;
-        var topZ = lengthRange / 2f;
-        var xFraction = Math.Clamp((position.X + PitchMapLateralHalfExtentMeters) /
-            (PitchMapLateralHalfExtentMeters * 2f), 0f, 1f);
-        var zFraction = Math.Clamp((topZ - position.Z) / lengthRange, 0f, 1f);
-        return new Vector2(plot.Left + xFraction * plot.Width, plot.Top + zFraction * plot.Height);
-    }
-
-    private void DrawFeedbackMarker(Texture2D texture, Vector2 center, int diameter, Color tint)
-    {
-        var bounds = new Rectangle(
-            (int)MathF.Round(center.X - diameter / 2f),
-            (int)MathF.Round(center.Y - diameter / 2f),
-            diameter,
-            diameter);
-        _spriteBatch.Draw(texture, bounds, tint);
-    }
-
-    private void DrawFeedbackRectangle(Rectangle rectangle, Color color) =>
-        _spriteBatch.Draw(_feedbackMapPixel, rectangle, color);
-
-    private void DrawFeedbackOutline(Rectangle rectangle, Color color)
-    {
-        DrawFeedbackRectangle(new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, 1), color);
-        DrawFeedbackRectangle(new Rectangle(rectangle.X, rectangle.Bottom - 1, rectangle.Width, 1), color);
-        DrawFeedbackRectangle(new Rectangle(rectangle.X, rectangle.Y, 1, rectangle.Height), color);
-        DrawFeedbackRectangle(new Rectangle(rectangle.Right - 1, rectangle.Y, 1, rectangle.Height), color);
-    }
-
-    private static Texture2D CreateCircularMarkerTexture(GraphicsDevice graphicsDevice, int size, float innerRadiusFraction)
-    {
-        var pixels = new Color[size * size];
-        var center = (size - 1) / 2f;
-        var outerRadius = size / 2f - 1f;
-        var innerRadius = outerRadius * Math.Clamp(innerRadiusFraction, 0f, 0.95f);
-        for (var y = 0; y < size; y++)
-        for (var x = 0; x < size; x++)
-        {
-            var distance = Vector2.Distance(new Vector2(x, y), new Vector2(center));
-            var coverage = Math.Clamp(outerRadius + 0.5f - distance, 0f, 1f);
-            if (innerRadiusFraction > 0f)
-                coverage *= Math.Clamp(distance - innerRadius + 0.5f, 0f, 1f);
-            var alpha = (byte)MathF.Round(coverage * 255f);
-            pixels[y * size + x] = new Color(alpha, alpha, alpha, alpha);
-        }
-
-        var texture = new Texture2D(graphicsDevice, size, size, false, SurfaceFormat.Color);
-        texture.SetData(pixels);
-        return texture;
-    }
-
-    private List<string> BuildDeliveryFeedbackLines(DeliveryResult result)
-    {
-        var outcome = result.Dismissal != DismissalKind.None
-            ? $"WICKET - {result.Dismissal.ToString().ToUpperInvariant()}"
-            : result.Extra switch
-            {
-                DeliveryExtra.Wide => $"WIDE - {result.ExtraRuns} extra run(s)",
-                DeliveryExtra.NoBall => $"NO BALL - {result.ExtraRuns} extra run(s)",
-                _ => result.BatterRuns switch
-                {
-                    0 => "DOT BALL",
-                    1 => "1 RUN",
-                    4 => "FOUR",
-                    6 => "SIX",
-                    _ => $"{result.BatterRuns} RUNS"
-                }
-            };
-
-        var bounce = _firstBouncePosition;
-        var pitchDescription = bounce is { } position
-            ? $"{GetPitchLengthLabel(position)} - {GetPitchLineLabel(position)} ({MathF.Abs(position.Z - NearBatterZ):0.0} m from striker)"
-            : "full toss - no pitch bounce";
-        var battingDescription = _chosenShot is { } shot
-            ? _contactQuality is { } quality
-                ? $"{shot.Name}: {GetContactQualityLabel(quality)} ({quality:P0})"
-                : $"{shot.Name}: no contact - ball beat the bat"
-            : "No shot played";
-        if (GetBattingTimingText() is { } timingText)
-            battingDescription += $" | timing {timingText}";
-
-        var lines = new List<string>
-        {
-            $"LAST DELIVERY  |  {outcome}",
-            $"BALL  |  {_deliverySpeedKilometersPerHour:0} km/h  |  {pitchDescription}",
-            $"BAT  |  {battingDescription}"
-        };
-
-        if (_activeBowlingTargetPosition is { } target)
-        {
-            var targetDescription = bounce is { } landed
-                ? $"landed {GetPitchLengthLabel(landed)} / {GetPitchLineLabel(landed)}; {MathF.Sqrt(
-                    MathF.Pow(landed.X - target.X, 2f) + MathF.Pow(landed.Z - target.Z, 2f)):0.0} m from aim"
-                : $"aimed at {GetPitchLengthLabel(target)} / {GetPitchLineLabel(target)}; no bounce";
-            lines.Add($"BOWL  |  Target {GetPitchLengthLabel(target)} / {GetPitchLineLabel(target)}  |  {targetDescription}");
-        }
-
-        return lines;
-    }
-
-    private static string GetPitchLengthLabel(Vector3 position)
-    {
-        var distanceFromStriker = MathF.Abs(position.Z - NearBatterZ);
-        return distanceFromStriker switch
-        {
-            <= 1.6f => "yorker",
-            <= 3.0f => "full",
-            <= 6.3f => "good length",
-            <= 8.3f => "back of a length",
-            _ => "short"
-        };
-    }
-
-    private static string GetPitchLineLabel(Vector3 position) => MathF.Abs(position.X) switch
-    {
-        <= 0.35f => "on the stumps",
-        <= 1.525f => position.X < 0f ? "left of the stumps" : "right of the stumps",
-        _ => position.X < 0f ? "wide left" : "wide right"
-    };
-
-    private static string GetContactQualityLabel(float quality) => quality switch
-    {
-        >= 0.88f => "middled",
-        >= 0.75f => "clean contact",
-        >= 0.60f => "edged",
-        _ => "thin contact"
-    };
-
-    private string? GetBattingTimingText()
-    {
-        if (IsCpuBattingControlled || _chosenShot is not { } shot ||
-            _shotInputDelaySeconds is not { } actualInputDelay)
+        if (IsCpuBattingControlled || IsHumanBowling || !_bowlerReleased || _deliveryComplete ||
+            _battedBall || _chosenShot is not null || _shotResolved || _footworkTransitionActive ||
+            (_simulationPaused && _captureTarget is null))
             return null;
 
-        var idealInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, shot.Name);
-        if (idealInputDelay is not { } ideal)
+        var possibleShots = MathF.Abs(_humanShotAimOffset) < 0.08f
+            ? new[] { "defence", "loft" }
+            : new[] { "drive", "loft" };
+        var safeWindowStart = float.NegativeInfinity;
+        var safeWindowEnd = float.PositiveInfinity;
+        foreach (var shotName in possibleShots)
+        {
+            var idealInputDelay = FindCurrentIdealInputDelaySeconds(shotName);
+            if (idealInputDelay is not { } ideal)
+                return null;
+            safeWindowStart = MathF.Max(safeWindowStart,
+                ideal - _battingTimingCalibration.OnTimeWindowSeconds);
+            safeWindowEnd = MathF.Min(safeWindowEnd,
+                ideal + _battingTimingCalibration.OnTimeWindowSeconds);
+        }
+
+        if (safeWindowEnd <= safeWindowStart)
             return null;
-
-        var assessment = BattingTimingFeedbackModel.Assess(
-            actualInputDelay,
-            ideal,
-            _battingTimingCalibration.OnTimeWindowSeconds);
-        var offsetMilliseconds = (int)MathF.Round(MathF.Abs(assessment.OffsetFromIdealSeconds) * 1000f);
-        return assessment.Band switch
-        {
-            BattingTimingBand.Perfect => "PERFECT",
-            BattingTimingBand.Early => $"EARLY {offsetMilliseconds} ms",
-            _ => $"LATE {offsetMilliseconds} ms"
-        };
+        var safeIdealInputDelay = (safeWindowStart + safeWindowEnd) * 0.5f;
+        var safeWindowHalfWidth = (safeWindowEnd - safeWindowStart) * 0.5f;
+        return BattingTimingFeedbackModel.EvaluateCue(
+            _ballFlight.CurrentFrame.TimeSeconds,
+            safeIdealInputDelay,
+            safeWindowHalfWidth);
     }
 
-    private void PrepareFeedbackPreviewCapture()
-    {
-        _firstBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } bounce
-            ? new Vector3(bounce.Position.X, bounce.Position.Y, bounce.Position.Z)
-            : null;
-        _bounceSpotFeedbackRemainingSeconds = _firstBouncePosition is null
-            ? 0f
-            : BounceSpotFeedbackDurationSeconds * 0.68f;
-        if (IsCpuBattingControlled)
-        {
-            CurrentDelivery.RecordCompletedRun();
-            _battedBall = true;
-            _chosenShot = _shotSet.Get("drive");
-            _contactQuality = 0.81f;
-            _shotOutcome = "RUN completed: 1 batter run";
-        }
-        else
-        {
-            CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
-            _battedBall = true;
-            _chosenShot = _shotSet.Get("drive");
-            _shotInputDelaySeconds = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, _chosenShot.Name);
-            _contactQuality = 0.91f;
-            _shotOutcome = "FOUR: reached the boundary";
-        }
 
-        _contactMarkerPosition = _currentBatWorld.Translation;
-        _contactFeedbackQuality = _contactQuality;
-        _contactFeedbackIsMiss = false;
-        _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds * 0.82f;
-        _match.CompleteDelivery();
-        _shotResolved = true;
-        _simulationPaused = true;
-    }
 }

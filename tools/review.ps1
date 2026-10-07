@@ -1,6 +1,12 @@
-param([switch]$SkipCaptures, [switch]$SkipGame)
+param(
+    [switch]$RunGameChecks,
+    [switch]$CaptureVisuals,
+    [switch]$SkipCaptures,
+    [switch]$SkipGame)
 
 $ErrorActionPreference = 'Stop'
+$runGameChecks = $RunGameChecks -and !$SkipGame
+$captureVisuals = $CaptureVisuals -and !$SkipCaptures
 $repoPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Push-Location -LiteralPath $repoPath
 try {
@@ -9,10 +15,26 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "dotnet failed ($LASTEXITCODE): $($CommandArguments -join ' ')" }
     }
 
+    if (!$runGameChecks -and !$captureVisuals) {
+        Write-Output 'Mode: headless review; game checks and visual captures are opt-in.'
+    }
+    else {
+        Write-Output "Mode: headless review plus$(if ($runGameChecks) { ' game checks' })$(if ($captureVisuals) { ' visual captures' })."
+    }
+
     Invoke-CheckedDotNet @('build', 'SuperCricket.sln', '-c', 'Release')
+    Invoke-CheckedDotNet @('build', 'trials/godot/SuperCricket.GodotTrial.csproj', '-c', 'Release')
     $toolsDll = 'src/SuperCricket.Tools/bin/Release/net9.0/SuperCricket.Tools.dll'
-    $batterPath = 'assets/characters/practice-batter.scplayer.json'
-    $bowlerPath = 'assets/characters/practice-bowler.scplayer.json'
+    $batterContractPath = 'assets/characters/practice-batter.animation-contract.json'
+    $bowlerContractPath = 'assets/characters/practice-bowler.animation-contract.json'
+    $batterPath = 'assets/characters/practice-batter-humanoid.glb'
+    $bowlerPath = 'assets/characters/practice-bowler-humanoid.glb'
+    & python -m unittest discover -s 'tests/tools' -p 'test_*.py'
+    if ($LASTEXITCODE -ne 0) { throw 'Player animation-contract tests failed.' }
+    & python 'tools/blender/validate_humanoid_glb.py' $batterPath --role batter --animation-contract $batterContractPath
+    if ($LASTEXITCODE -ne 0) { throw 'The humanoid batter GLB validation failed.' }
+    & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --animation-contract $bowlerContractPath
+    if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
@@ -56,18 +78,6 @@ try {
         Remove-Item -LiteralPath $invalidRosterPath -Force -ErrorAction SilentlyContinue
     }
     Write-Output 'PASS: invalid team accent kit color rejected.'
-    $invalidScalePath = Join-Path ([System.IO.Path]::GetTempPath()) "super-cricket-invalid-scale-$PID.json"
-    try {
-        $invalidScaleAsset = Get-Content -LiteralPath $batterPath -Raw | ConvertFrom-Json
-        $invalidScaleAsset.bones[0].bindPose.scale.x = 10.0
-        $invalidScaleAsset | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $invalidScalePath -Encoding utf8
-        $null = & dotnet $toolsDll validate-player $invalidScalePath 2>&1
-        if ($LASTEXITCODE -ne 1) { throw 'Player validator accepted an invalid rig scale.' }
-    }
-    finally {
-        Remove-Item -LiteralPath $invalidScalePath -Force -ErrorAction SilentlyContinue
-    }
-    Write-Output 'PASS: invalid player rig scale rejected.'
     Invoke-CheckedDotNet @($toolsDll, 'validate-shots', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
@@ -186,11 +196,9 @@ try {
     $physicsBalanceDeliveries = ($physicsBalanceRows | Measure-Object -Property total_deliveries -Sum).Sum
     $physicsBalancePickups = ($physicsBalanceRows | Measure-Object -Property ground_pickups -Sum).Sum
     $physicsBalanceBoundaries = ($physicsBalanceRows | Measure-Object -Property boundaries -Sum).Sum
-    $physicsBalanceCatches = ($physicsBalanceRows | Measure-Object -Property catches -Sum).Sum
     $physicsBalanceRunOuts = ($physicsBalanceRows | Measure-Object -Property run_outs -Sum).Sum
     $physicsBalanceTwoRunPlans = ($physicsBalanceRows | Measure-Object -Property two_run_plans -Sum).Sum
     $physicsBalanceTwoRunScores = ($physicsBalanceRows | Measure-Object -Property two_run_scores -Sum).Sum
-    $physicsBalanceUnscoredDoublePlans = $physicsBalanceTwoRunPlans - $physicsBalanceTwoRunScores
     $physicsBalanceCombinedRuns =
         ($physicsBalanceRows | Measure-Object -Property first_runs -Sum).Sum +
         ($physicsBalanceRows | Measure-Object -Property second_runs -Sum).Sum
@@ -200,15 +208,16 @@ try {
         $physicsBalancePlans + $physicsBalanceLeaves -ne $physicsBalanceDeliveries -or
         $physicsBalanceLeaves -gt $physicsBalanceWides -or
         $physicsBalancePickups -le 0 -or $physicsBalanceBoundaries -le 0 -or
-        $physicsBalanceCatches -le 0 -or
         $physicsBalanceTwoRunPlans -le 0 -or
-        $physicsBalanceUnscoredDoublePlans -gt $physicsBalanceCatches -or $physicsBalanceRunOuts -ne 0 -or
+        $physicsBalanceTwoRunPlans -gt $physicsBalanceContacts -or
+        $physicsBalanceTwoRunScores -gt ($physicsBalanceTwoRunPlans + $physicsBalanceBoundaries) -or
+        $physicsBalanceRunOuts -ne 0 -or
         $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 120 -or
         ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 40 -or
         ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 150) {
         throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
     }
-    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, boundaries, pickups, catches, and $physicsBalanceTwoRunScores/$physicsBalanceTwoRunPlans planned doubles scored; any unscored plan was resolved by a catch, with no run-outs."
+    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, and $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans; catches and run-outs remain covered by the focused fielding checks."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')
@@ -227,7 +236,7 @@ try {
     if ($LASTEXITCODE -ne 1) { throw 'Invalid timing step did not fail with exit code 1.' }
     Write-Output "PASS: repeated batting CSV hash $firstHash; wide-ball footwork contacts; invalid input rejected."
 
-    if (!$SkipGame) {
+    if ($runGameChecks) {
         $settingsPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'SuperCricket/settings.json'
         $settingsHashBefore = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath).Hash } else { $null }
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--verify-gameplay')
@@ -237,18 +246,33 @@ try {
         if ($settingsHashBefore -ne $settingsHashAfter) { throw 'Game review modes modified saved user preferences.' }
         Write-Output 'PASS: game review modes preserve saved user preferences.'
     }
-    if (!$SkipCaptures) {
+    if ($captureVisuals) {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--', '--profile-frames', '90')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-start.png')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-behind-striker.png', '--camera', 'behind-striker')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-field-map.png', '--camera', 'behind-striker')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-bowling-target.png', '--bowling-target')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-batting-feedback.png', '--feedback-preview')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-field-pip.png', '--camera', 'behind-striker', '--live-field-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-bowling-feedback.png', '--bowling-target', '--feedback-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-wait.png', '--camera', 'behind-striker', '--ball-flight-time', '0.10')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-swing.png', '--camera', 'behind-striker', '--ball-flight-time', '0.20')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-late.png', '--camera', 'behind-striker', '--ball-flight-time', '0.40')
+        foreach ($difficulty in @('Rookie', 'Standard', 'Pro')) {
+            Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+                '--capture-frame', "artifacts/review-contact-zone-$difficulty.png", '--camera', 'behind-striker',
+                '--ball-flight-time', '0.10', '--contact-zone-preview', $difficulty)
+        }
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-debug-overlay.png', '--camera', 'bowler-end', '--show-debug-overlay')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
@@ -260,7 +284,7 @@ try {
                 '--capture-frame', "artifacts/review-fielder-$action.png", '--fielder-action', "fielder-$action", '--action-time', '0.4')
         }
     }
-    Write-Output 'Review checks passed. CSVs and optional renderer captures are in artifacts/.'
+    Write-Output 'Review checks passed. CSVs and any requested renderer captures are in artifacts/.'
 }
 finally {
     Pop-Location

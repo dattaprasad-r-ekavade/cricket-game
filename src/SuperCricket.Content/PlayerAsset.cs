@@ -1,7 +1,5 @@
 using System.IO;
 using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SuperCricket.Content;
 
@@ -13,31 +11,21 @@ public sealed class PlayerAsset
     private const float MinimumPlayerHeightMeters = 0.5f;
     private const float MaximumPlayerHeightMeters = 4f;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNameCaseInsensitive = true,
-        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
-    };
-
     public int Version { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
     public string CoordinateSystem { get; set; } = "right-handed-y-up-metres";
+    public string PoseSpace { get; set; } = "global";
     public List<PlayerBoneData> Bones { get; set; } = [];
+    public List<PlayerTextureData> Textures { get; set; } = [];
     public List<PlayerMeshData> Meshes { get; set; } = [];
     public List<PlayerAnimationData> Animations { get; set; } = [];
 
     public static PlayerAsset Load(string path)
     {
-        var json = File.ReadAllText(path);
-        var asset = JsonSerializer.Deserialize<PlayerAsset>(json, JsonOptions)
-            ?? throw new InvalidDataException($"Player asset '{path}' was empty.");
-        var errors = asset.Validate();
-        if (errors.Count > 0)
-        {
-            throw new InvalidDataException($"Invalid player asset '{path}': {string.Join(" ", errors)}");
-        }
+        if (!string.Equals(Path.GetExtension(path), ".glb", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Player asset '{path}' is not supported by the game or C# player tools. Use a humanoid GLB (.glb); legacy .scplayer.json files are parity fixtures only.");
 
-        return asset;
+        return PlayerGlbLoader.Load(path);
     }
 
     public List<string> Validate()
@@ -46,6 +34,26 @@ public sealed class PlayerAsset
         if (Version != 1) errors.Add($"Unsupported player asset version {Version}; expected 1.");
         if (string.IsNullOrWhiteSpace(Name)) errors.Add("Player name must not be empty.");
         if (CoordinateSystem != "right-handed-y-up-metres") errors.Add("Coordinate system must be right-handed-y-up-metres.");
+        if (PoseSpace is not ("global" or "local")) errors.Add("Pose space must be either global or local.");
+        var textureCount = Textures?.Count ?? 0;
+        if (Textures is null)
+        {
+            errors.Add("Player textures must not be missing.");
+        }
+        else
+        {
+            for (var textureIndex = 0; textureIndex < Textures.Count; textureIndex++)
+            {
+                var texture = Textures[textureIndex];
+                if (texture is null || texture.Content is not { Length: > 0 } ||
+                    texture.MimeType is not ("image/png" or "image/jpeg") ||
+                    texture.MinFilter is not (9728 or 9729 or 9984 or 9985 or 9986 or 9987) ||
+                    texture.MagFilter is not (9728 or 9729) ||
+                    texture.WrapU is not (10497 or 33071 or 33648) ||
+                    texture.WrapV is not (10497 or 33071 or 33648))
+                    errors.Add($"Texture {textureIndex} must contain PNG or JPEG image data and supported sampler settings.");
+            }
+        }
         if (Bones is null || Bones.Count is < 1 or > 72)
         {
             errors.Add("Player must contain between 1 and 72 bones.");
@@ -89,7 +97,7 @@ public sealed class PlayerAsset
         else
         {
             for (var meshIndex = 0; meshIndex < Meshes.Count; meshIndex++)
-                ValidateMesh(Meshes[meshIndex], meshIndex, Bones.Count, errors);
+                ValidateMesh(Meshes[meshIndex], meshIndex, Bones.Count, textureCount, errors);
             ValidatePlayerHeight(Meshes, errors);
         }
 
@@ -196,7 +204,7 @@ public sealed class PlayerAsset
             errors.Add($"Player mesh height {heightMeters:0.###} m must be between {MinimumPlayerHeightMeters:0.0} and {MaximumPlayerHeightMeters:0.0} m; verify Blender units and applied object scale.");
     }
 
-    private static void ValidateMesh(PlayerMeshData? mesh, int meshIndex, int boneCount, List<string> errors)
+    private static void ValidateMesh(PlayerMeshData? mesh, int meshIndex, int boneCount, int textureCount, List<string> errors)
     {
         if (mesh is null)
         {
@@ -204,6 +212,8 @@ public sealed class PlayerAsset
             return;
         }
         var name = string.IsNullOrWhiteSpace(mesh.Name) ? meshIndex.ToString() : mesh.Name;
+        if (mesh.BaseColorTextureIndex < -1 || mesh.BaseColorTextureIndex >= textureCount)
+            errors.Add($"Mesh '{name}' has an invalid base-color texture index.");
         if (mesh.DiffuseColor is null || !mesh.DiffuseColor.IsFinite() ||
             mesh.DiffuseColor.X is < 0f or > 1f || mesh.DiffuseColor.Y is < 0f or > 1f || mesh.DiffuseColor.Z is < 0f or > 1f)
             errors.Add($"Mesh '{name}' diffuse color must contain RGB values from 0 to 1.");
@@ -262,12 +272,23 @@ public sealed class PlayerMeshData
 {
     public string Name { get; set; } = string.Empty;
     public Vector3Data DiffuseColor { get; set; } = new() { X = 1f, Y = 1f, Z = 1f };
+    public int BaseColorTextureIndex { get; set; } = -1;
     public float[] Positions { get; set; } = [];
     public float[] Normals { get; set; } = [];
     public float[] TextureCoordinates { get; set; } = [];
     public int[] BoneIndices { get; set; } = [];
     public float[] BoneWeights { get; set; } = [];
     public int[] Indices { get; set; } = [];
+}
+
+public sealed class PlayerTextureData
+{
+    public string MimeType { get; set; } = string.Empty;
+    public byte[] Content { get; set; } = [];
+    public int MinFilter { get; set; } = 9987;
+    public int MagFilter { get; set; } = 9729;
+    public int WrapU { get; set; } = 10497;
+    public int WrapV { get; set; } = 10497;
 }
 
 public sealed class PlayerAnimationData

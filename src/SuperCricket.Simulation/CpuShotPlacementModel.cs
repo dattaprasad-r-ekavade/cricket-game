@@ -44,16 +44,14 @@ public static class CpuShotPlacementModel
         if (!float.IsFinite(horizontalAim) || horizontalAim is < -1f or > 1f)
             throw new ArgumentOutOfRangeException(nameof(horizontalAim), "Shot direction must be between -1 and 1.");
 
-        var direction = Vector3.Normalize(new Vector3(horizontalAim, 0f, -1f));
         var speed = MathF.Max(
             5f,
             delivery.StartVelocity.Length() * shot.SpeedTransfer * (0.8f + batterPower * 0.004f));
-        var contact = new Vector3(-0.48f, delivery.FieldSurfaceHeightMeters, -BattingPracticeAnalyzer.BatterWicketLineZ);
         var minimumArrivalMargin = float.PositiveInfinity;
         for (var probeIndex = 0; probeIndex < ProbeDistancesMeters.Length; probeIndex++)
         {
             var distance = ProbeDistancesMeters[probeIndex];
-            var target = contact + direction * distance;
+            var target = GetProbeTarget(delivery, horizontalAim, distance);
             var earliestReachTime = float.PositiveInfinity;
             for (var fielderIndex = 0; fielderIndex < fielderPositions.Count; fielderIndex++)
             {
@@ -71,6 +69,16 @@ public static class CpuShotPlacementModel
 
         // A small preference keeps the authored direction when two lanes offer similar space.
         return minimumArrivalMargin - MathF.Abs(horizontalAim - shot.HorizontalAim) * 0.05f;
+    }
+
+    internal static Vector3 GetProbeTarget(DeliveryPreset delivery, float horizontalAim, float distanceMeters)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (!float.IsFinite(distanceMeters) || distanceMeters <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(distanceMeters), "Shot probe distance must be finite and positive.");
+
+        var contact = new Vector3(-0.48f, delivery.FieldSurfaceHeightMeters, BattingPracticeAnalyzer.BatterWicketLineZ);
+        return contact + BattingImpactModel.GetHorizontalShotDirection(horizontalAim) * distanceMeters;
     }
 
     public static float ApplyExecutionError(

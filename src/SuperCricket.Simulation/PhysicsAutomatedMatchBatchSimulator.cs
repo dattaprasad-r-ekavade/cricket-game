@@ -199,6 +199,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
         var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
+        var catchDuration = GetAnimationDuration(bowlerAsset, "fielder-catch");
         var runDecision = CpuLiveRunningDecisionModel.Choose(
             decision.AttemptRun,
             delivery,
@@ -208,7 +209,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             fieldingRatings,
             CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
             pickupDuration,
-            throwDuration);
+            throwDuration,
+            catchAnimationDurationSeconds: catchDuration);
         telemetry.Contacts++;
         if (runDecision.PlannedRuns > 1)
             telemetry.TwoRunPlans++;
@@ -222,7 +224,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             runDecision.PlannedRuns,
             pickupDuration,
             throwDuration,
-            telemetry);
+            telemetry,
+            catchDuration);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
         if (session.Extra == DeliveryExtra.NoBall)
@@ -251,28 +254,21 @@ public static class PhysicsAutomatedMatchBatchSimulator
             random.Next()).Delivery;
     }
 
-    private static void ResolveMissedDelivery(DeliverySession session, DeliveryPreset delivery)
+    internal static void ResolveMissedDelivery(DeliverySession session, DeliveryPreset delivery)
     {
         var ball = new BallFlightSimulator(delivery);
         var previous = ball.CurrentFrame;
-        var wicketLineZ = BattingPracticeAnalyzer.BatterWicketLineZ;
         var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             var current = ball.Step();
-            if (TryCrossPlane(previous.Position, current.Position, wicketLineZ, out var crossing))
-            {
-                var isWide = CricketDeliveryRuleModel.IsWide(crossing.X, delivery.PitchWidthMeters);
-                var hitsWickets = MathF.Abs(crossing.X) <= 0.12f + delivery.BallRadiusMeters &&
-                    crossing.Y >= 0f && crossing.Y <= 0.71f + delivery.BallRadiusMeters;
-                session.ResolveIncoming(isWide, hitsWickets);
+            if (IncomingDeliveryModel.TryResolve(session, previous.Position, current.Position, delivery, out _, out _))
                 return;
-            }
             previous = current;
         }
     }
 
-    private static void SimulateBattedBall(
+    internal static void SimulateBattedBall(
         LimitedOversMatch match,
         DeliverySession session,
         DeliveryPreset delivery,
@@ -281,21 +277,21 @@ public static class PhysicsAutomatedMatchBatchSimulator
         int plannedRuns,
         float pickupDuration,
         float throwDuration,
-        PhysicsMatchTelemetry telemetry)
+        PhysicsMatchTelemetry telemetry,
+        float? catchDuration = null)
     {
         var frames = trajectory.OutgoingFrames;
         var contactTime = trajectory.Sample.ContactTimeSeconds
             ?? throw new InvalidOperationException("A hit must include a contact time.");
         var completedRuns = 0;
         var previous = frames[0];
-        for (var index = 1; index < frames.Count; index++)
+        fielding.ConfigureBoundaryRadius(delivery.FieldBoundaryRadiusMeters);
+        foreach (var current in BattedBallFieldingModel.FramesThroughCollection(frames, delivery.FixedTimeStepSeconds).Skip(1))
         {
-            var current = frames[index];
             var deltaTime = current.TimeSeconds - previous.TimeSeconds;
             if (!float.IsFinite(deltaTime) || deltaTime <= 0f)
                 throw new InvalidOperationException("Physics match trajectory frames are not in strictly increasing time order.");
 
-            fielding.Step(deltaTime, previous.Position);
             var elapsedSinceContact = current.TimeSeconds - contactTime;
             while (completedRuns < plannedRuns &&
                 elapsedSinceContact >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
@@ -304,17 +300,19 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 telemetry.CompletedRuns++;
                 completedRuns++;
             }
-            if (fielding.TryFindContact(previous, current, out var fieldingContact))
+            if (BattedBallFieldingModel.TryAdvance(fielding, previous, current, deltaTime, out var fieldingContact))
             {
+                var collectionAction = BattedBallFieldingModel.ResolveCollection(
+                    session, fieldingContact.Kind, completedRuns < plannedRuns);
                 if (fieldingContact.Kind == FieldingContactKind.Catch)
-                {
                     telemetry.Catches++;
-                    session.ResolveCatch();
-                }
                 else
-                {
                     telemetry.GroundPickups++;
-                    var throwArrivalTime = current.TimeSeconds + pickupDuration + throwDuration;
+                if (collectionAction != FieldingCollectionAction.CaughtDismissal)
+                {
+                    var collectionDuration = fieldingContact.Kind == FieldingContactKind.Catch
+                        ? catchDuration ?? pickupDuration : pickupDuration;
+                    var throwArrivalTime = elapsedSinceContact + collectionDuration + throwDuration;
                     while (completedRuns < plannedRuns &&
                         throwArrivalTime >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
                     {
@@ -324,8 +322,17 @@ public static class PhysicsAutomatedMatchBatchSimulator
                     }
                     if (completedRuns < plannedRuns)
                     {
-                        session.ResolveRunOut();
-                        telemetry.RunOuts++;
+                        var runners = new BetweenWicketsState();
+                        for (var run = 0; run < completedRuns; run++)
+                            runners.CompleteRun();
+                        runners.StartRun();
+                        runners.Advance(throwArrivalTime - completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
+                            CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
+                        if (runners.TryResolveRunOut(WicketEnd.Near, wicketBroken: true, out var runOut))
+                        {
+                            session.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
+                            telemetry.RunOuts++;
+                        }
                     }
                 }
                 if (session.CompletedRuns >= 2)
@@ -355,52 +362,17 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 return;
             }
 
-            if (current.Phase == BallMotionPhase.Settled)
-            {
-                if (completedRuns < plannedRuns)
-                {
-                    var elapsedInCurrentRun = elapsedSinceContact -
-                        completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds;
-                    var runReachedEnd = elapsedInCurrentRun /
-                        CpuLiveRunningDecisionModel.DefaultRunDurationSeconds >= 0.72f;
-                    session.ResolveRunAtStoppage(runReachedEnd);
-                    if (runReachedEnd)
-                    {
-                        telemetry.CompletedRuns++;
-                        completedRuns++;
-                    }
-                }
-                if (session.CompletedRuns >= 2)
-                    telemetry.TwoRunScores++;
-                match.CompleteDelivery();
-                if (session.Dismissal == DismissalKind.RunOut)
-                    telemetry.RunOuts++;
-                return;
-            }
             previous = current;
         }
 
-        throw new InvalidOperationException("Physics match batted-ball simulation ended without a boundary, fielder contact, or settled ball.");
-    }
-
-    private static bool TryCrossPlane(Vector3 previous, Vector3 current, float planeZ, out Vector3 crossing)
-    {
-        if (previous.Z <= planeZ || current.Z > planeZ || MathF.Abs(current.Z - previous.Z) < 0.000001f)
-        {
-            crossing = default;
-            return false;
-        }
-
-        var amount = (planeZ - previous.Z) / (current.Z - previous.Z);
-        crossing = Vector3.Lerp(previous, current, Math.Clamp(amount, 0f, 1f));
-        return true;
+        throw new InvalidOperationException("Physics match batted-ball simulation ended without a boundary or fielder contact.");
     }
 
     private static float GetAnimationDuration(PlayerAsset asset, string clipName) =>
         asset.Animations.Find(clip => string.Equals(clip.Name, clipName, StringComparison.OrdinalIgnoreCase))?.DurationSeconds
         ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing animation clip '{clipName}'.");
 
-    private sealed class PhysicsMatchTelemetry
+    internal sealed class PhysicsMatchTelemetry
     {
         public int ShotPlans { get; set; }
         public int Contacts { get; set; }

@@ -24,7 +24,7 @@ public readonly record struct BattingPracticeTrajectory(
     IReadOnlyList<BallFlightFrame> OutgoingFrames);
 
 /// <summary>Replays actual exported swing clips against a delivery while sweeping the shot input time.</summary>
-public static class BattingPracticeAnalyzer
+public static partial class BattingPracticeAnalyzer
 {
     public const float MinimumInputDelaySeconds = -0.5f;
     public const float BatterWicketLineZ = -8.72f;
@@ -68,6 +68,7 @@ public static class BattingPracticeAnalyzer
                  inputDelay <= incomingDuration + inputDelayStepSeconds * 0.25f;
                  inputDelay += inputDelayStepSeconds)
             {
+                batterSampler.ClearPoseCache();
                 var candidates = BatterFootwork.PracticeOffsets.Select(footworkOffset => SimulateOne(
                     batterSampler,
                     stance,
@@ -257,7 +258,8 @@ public static class BattingPracticeAnalyzer
         float inputDelaySeconds,
         float footworkOffsetMeters,
         TeamPlayerData? battingRatings,
-        bool captureOutgoingFrames)
+        bool captureOutgoingFrames,
+        bool resolveOutgoingOutcome = true)
     {
         var ball = new BallFlightSimulator(delivery);
         var previousFrame = ball.CurrentFrame;
@@ -267,6 +269,13 @@ public static class BattingPracticeAnalyzer
         for (var step = 0; step < maximumSteps && previousFrame.Phase != BallMotionPhase.Settled; step++)
         {
             var currentFrame = ball.Step();
+            if (currentFrame.TimeSeconds <= inputDelaySeconds)
+            {
+                if (currentFrame.Position.Z <= BatterZ - MissPlaneOffsetMeters)
+                    return MissTrajectory(shot, delivery, inputDelaySeconds, "MissedBat", footworkOffsetMeters);
+                previousFrame = currentFrame;
+                continue;
+            }
             // Input can land between fixed ticks. Only sweep the portion after it.
             var contactStartTime = MathF.Max(previousFrame.TimeSeconds, inputDelaySeconds);
             var contactDeltaSeconds = currentFrame.TimeSeconds - contactStartTime;
@@ -303,9 +312,14 @@ public static class BattingPracticeAnalyzer
                     contact.NormalizedSweetSpotOffset,
                     shot,
                     battingRatings);
-                ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
-                var outgoingFrames = captureOutgoingFrames ? new List<BallFlightFrame> { ball.CurrentFrame } : null;
-                var outcome = SimulateOutgoingBall(ball, delivery, outgoingFrames);
+                List<BallFlightFrame>? outgoingFrames = null;
+                var outcome = "Contact";
+                if (resolveOutgoingOutcome)
+                {
+                    ball.ApplyBatContact(contact.Position, impact.OutgoingVelocity);
+                    outgoingFrames = captureOutgoingFrames ? new List<BallFlightFrame> { ball.CurrentFrame } : null;
+                    outcome = SimulateOutgoingBall(ball, delivery, outgoingFrames);
+                }
                 var contactTime = contactStartTime + contactDeltaSeconds * contact.HitFraction;
                 var sample = new BattingPracticeSample(
                     shot.Name,
@@ -352,11 +366,11 @@ public static class BattingPracticeAnalyzer
         DeliveryPreset delivery,
         List<BallFlightFrame>? trajectory = null)
     {
-        var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
+        var maximumSteps = (int)MathF.Ceiling(BattedBallFieldingModel.MaximumCollectionWaitSeconds / delivery.FixedTimeStepSeconds) + 1;
         var previousFrame = ball.CurrentFrame;
         for (var step = 0; step < maximumSteps && ball.CurrentFrame.Phase != BallMotionPhase.Settled; step++)
         {
-            var frame = ball.Step();
+            var frame = ball.Step(enforceSimulationLimit: false);
             trajectory?.Add(frame);
             if (BoundaryResolver.TryFindCrossing(
                 previousFrame,
@@ -369,6 +383,8 @@ public static class BattingPracticeAnalyzer
             previousFrame = frame;
         }
 
+        if (ball.CurrentFrame.Phase != BallMotionPhase.Settled)
+            throw new InvalidOperationException("The outgoing ball exhausted its analysis budget before physical rest or a boundary.");
         return "InPlay";
     }
 
@@ -417,10 +433,17 @@ public static class BattingPracticeAnalyzer
 
     private sealed class BatSampler
     {
+        private readonly PlayerAsset _asset;
         private readonly int _batBoneIndex;
         private readonly Matrix4x4[] _inverseBindMatrices;
+        private readonly int[] _batBoneChain;
+        private readonly Matrix4x4[] _poseMatrices;
+        private readonly Dictionary<PoseTimeKey, Matrix4x4> _poseMatrixCache = [];
+        private readonly bool _usesLocalPoses;
         public BatSampler(PlayerAsset asset)
         {
+            _asset = asset;
+            _usesLocalPoses = asset.PoseSpace == "local";
             _batBoneIndex = asset.Bones.FindIndex(bone =>
                 string.Equals(bone.Name, "forearm.R", StringComparison.OrdinalIgnoreCase));
             if (_batBoneIndex < 0)
@@ -430,6 +453,16 @@ public static class BattingPracticeAnalyzer
                 ?? throw new InvalidDataException($"Player asset '{asset.Name}' is missing its Bat Blade mesh.");
             (BladeMinimum, BladeMaximum) = FindBounds(blade.Positions);
             _inverseBindMatrices = new Matrix4x4[asset.Bones.Count];
+            var batBoneChain = new List<int>();
+            for (var boneIndex = _batBoneIndex; boneIndex >= 0; boneIndex = asset.Bones[boneIndex].ParentIndex)
+            {
+                if (batBoneChain.Count >= asset.Bones.Count)
+                    throw new InvalidDataException($"Player asset '{asset.Name}' contains a cycle in the bat-bone hierarchy.");
+                batBoneChain.Add(boneIndex);
+            }
+            batBoneChain.Reverse();
+            _batBoneChain = batBoneChain.ToArray();
+            _poseMatrices = new Matrix4x4[_batBoneChain.Length];
             for (var index = 0; index < asset.Bones.Count; index++)
             {
                 if (!Matrix4x4.Invert(asset.Bones[index].BindPose.ToNumericsMatrix(), out _inverseBindMatrices[index]))
@@ -448,28 +481,71 @@ public static class BattingPracticeAnalyzer
             float shotAgeSeconds,
             float footworkOffsetMeters)
         {
-            TransformData pose;
-            if (shotAgeSeconds < 0f)
-            {
-                pose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
-            }
-            else
-            {
-                var shotPose = SamplePose(shot, shotAgeSeconds, _batBoneIndex);
-                if (shotAgeSeconds < ShotTransitionSeconds)
-                {
-                    var stancePose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
-                    pose = TransformData.Interpolate(stancePose, shotPose, shotAgeSeconds / ShotTransitionSeconds);
-                }
-                else
-                {
-                    pose = shotPose;
-                }
-            }
+            var batPose = _usesLocalPoses
+                ? SampleLocalPoseMatrix(stance, shot, stanceTimeSeconds, shotAgeSeconds)
+                : SampleGlobalPoseMatrix(stance, shot, stanceTimeSeconds, shotAgeSeconds);
 
             var batterWorld = Matrix4x4.CreateTranslation(BatterX + footworkOffsetMeters, BatterGroundOffset, BatterZ);
-            return _inverseBindMatrices[_batBoneIndex] * pose.ToNumericsMatrix() * batterWorld;
+            return _inverseBindMatrices[_batBoneIndex] * batPose * batterWorld;
         }
+
+        private Matrix4x4 SampleGlobalPoseMatrix(
+            PlayerAnimationData stance,
+            PlayerAnimationData shot,
+            float stanceTimeSeconds,
+            float shotAgeSeconds)
+        {
+            var pose = SamplePose(stance, stanceTimeSeconds, _batBoneIndex);
+            if (shotAgeSeconds >= 0f)
+            {
+                var shotPose = SamplePose(shot, shotAgeSeconds, _batBoneIndex);
+                pose = shotAgeSeconds < ShotTransitionSeconds
+                    ? TransformData.Interpolate(pose, shotPose, shotAgeSeconds / ShotTransitionSeconds)
+                    : shotPose;
+            }
+            return pose.ToNumericsMatrix();
+        }
+
+        private Matrix4x4 SampleLocalPoseMatrix(
+            PlayerAnimationData stance,
+            PlayerAnimationData shot,
+            float stanceTimeSeconds,
+            float shotAgeSeconds)
+        {
+            var cacheKey = new PoseTimeKey(
+                BitConverter.SingleToInt32Bits(stanceTimeSeconds),
+                BitConverter.SingleToInt32Bits(shotAgeSeconds));
+            if (_poseMatrixCache.TryGetValue(cacheKey, out var cachedPoseMatrix))
+                return cachedPoseMatrix;
+
+            var transition = shotAgeSeconds >= 0f && shotAgeSeconds < ShotTransitionSeconds
+                ? shotAgeSeconds / ShotTransitionSeconds
+                : 1f;
+            for (var chainIndex = 0; chainIndex < _batBoneChain.Length; chainIndex++)
+            {
+                var boneIndex = _batBoneChain[chainIndex];
+                var localPose = SamplePose(stance, stanceTimeSeconds, boneIndex);
+                if (shotAgeSeconds >= 0f)
+                {
+                    var shotPose = SamplePose(shot, shotAgeSeconds, boneIndex);
+                    localPose = shotAgeSeconds < ShotTransitionSeconds
+                        ? TransformData.Interpolate(localPose, shotPose, transition)
+                        : shotPose;
+                }
+
+                var localMatrix = localPose.ToNumericsMatrix();
+                var parentIndex = _asset.Bones[boneIndex].ParentIndex;
+                _poseMatrices[chainIndex] = parentIndex >= 0
+                    ? localMatrix * _poseMatrices[chainIndex - 1]
+                    : localMatrix;
+            }
+
+            var poseMatrix = _poseMatrices[^1];
+            _poseMatrixCache.Add(cacheKey, poseMatrix);
+            return poseMatrix;
+        }
+
+        public void ClearPoseCache() => _poseMatrixCache.Clear();
 
         private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)
         {
@@ -507,5 +583,7 @@ public static class BattingPracticeAnalyzer
             }
             return (minimum, maximum);
         }
+
+        private readonly record struct PoseTimeKey(int StanceTimeBits, int ShotAgeBits);
     }
 }

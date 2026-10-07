@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -60,7 +61,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "analyze-batting-practice")
         {
             if (arguments.Length is < 5 or > 7)
-                throw new ArgumentException("Usage: analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+                throw new ArgumentException("Usage: analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
             var outputPath = arguments.Length > 5
                 ? arguments[5]
                 : Path.Combine("artifacts", "batting-practice.csv");
@@ -75,7 +76,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "verify-batting-practice")
         {
             if (arguments.Length != 5)
-                throw new ArgumentException("Usage: verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
+                throw new ArgumentException("Usage: verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");
             VerifyBattingPractice(arguments[1], arguments[2], arguments[3], arguments[4]);
             return 0;
         }
@@ -120,9 +121,10 @@ static int Run(string[] arguments)
         if (arguments[0] == "verify-cpu-batting")
         {
             if (arguments.Length != 9)
-                throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
-            VerifyCpuBatting(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7], arguments[8]);
-            return 0;
+                throw new ArgumentException("Usage: verify-cpu-batting <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
+            return RunSimulationTests(
+                "FullyQualifiedName~CpuLiveBattingPlanReviewCheckTests",
+                arguments.Skip(1).ToArray());
         }
 
         if (arguments[0] == "validate-team")
@@ -138,25 +140,14 @@ static int Run(string[] arguments)
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match");
-            MatchStateReviewChecks.Run();
-            LimitedOversMatchReviewChecks.Run();
-            TeamRosterReviewChecks.Run();
-            BowlingDecisionReviewChecks.Run();
-            FieldPlacementReviewChecks.Run();
-            CpuBattingOutcomeReviewChecks.Run();
-            MatchControllerInputReviewChecks.Run();
-            GameSettingsReviewChecks.Run();
-            CricketDeliveryRuleReviewChecks.Run();
-            ProceduralCricketAudioReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~CoreMatchReviewCheckTests");
         }
 
         if (arguments[0] == "verify-match-batch")
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match-batch");
-            AutomatedMatchBatchReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~AutomatedMatchBatchReviewCheckTests");
         }
 
         if (arguments[0] == "simulate-match-batch")
@@ -177,7 +168,7 @@ static int Run(string[] arguments)
         if (arguments[0] == "simulate-physics-match-batch")
         {
             if (arguments.Length is < 13 or > 14)
-                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
             if (!int.TryParse(arguments[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out var matchCount) ||
                 !int.TryParse(arguments[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out var oversPerInnings) ||
                 !int.TryParse(arguments[12], NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed))
@@ -204,14 +195,13 @@ static int Run(string[] arguments)
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-fielding");
-            FieldingReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~FieldingReviewCheckTests");
         }
 
         if (arguments[0] == "verify-footwork")
         {
             if (arguments.Length != 5)
-                throw new ArgumentException("Usage: verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
+                throw new ArgumentException("Usage: verify-footwork <batter-asset> <bowler-asset> <shots.json> <wide-delivery.json>");
             VerifyFootwork(arguments[1], arguments[2], arguments[3], arguments[4]);
             return 0;
         }
@@ -242,6 +232,41 @@ static int Run(string[] arguments)
         Console.Error.WriteLine(exception.Message);
         return 1;
     }
+}
+
+static int RunSimulationTests(string testFilter, string[]? cpuBattingInputs = null)
+{
+    var repositoryRoot = FindRepositoryRoot();
+    var projectPath = Path.Combine(repositoryRoot, "tests", "SuperCricket.Simulation.Tests", "SuperCricket.Simulation.Tests.csproj");
+    var startInfo = new ProcessStartInfo("dotnet")
+    {
+        UseShellExecute = false,
+        WorkingDirectory = repositoryRoot
+    };
+    startInfo.ArgumentList.Add("test");
+    startInfo.ArgumentList.Add(projectPath);
+    startInfo.ArgumentList.Add("-c");
+    startInfo.ArgumentList.Add("Release");
+    startInfo.ArgumentList.Add("--filter");
+    startInfo.ArgumentList.Add(testFilter);
+    if (cpuBattingInputs is not null)
+        startInfo.Environment["SUPERCRICKET_CPU_BATTING_INPUTS"] = JsonSerializer.Serialize(cpuBattingInputs);
+
+    using var process = Process.Start(startInfo)
+        ?? throw new InvalidOperationException("Could not start the xUnit test runner.");
+    process.WaitForExit();
+    return process.ExitCode;
+}
+
+static string FindRepositoryRoot()
+{
+    for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+    {
+        if (File.Exists(Path.Combine(directory.FullName, "SuperCricket.sln")))
+            return directory.FullName;
+    }
+
+    throw new DirectoryNotFoundException("Could not locate SuperCricket.sln for the simulation test runner.");
 }
 
 static void SimulateOver(string scenarioPath)
@@ -432,6 +457,9 @@ static void VerifyBatting(string shotSetPath)
     var incomingVelocity = new Vector3(0f, 0f, -30f);
     var bladeMinimum = new Vector3(-0.2f, -0.5f, -0.05f);
     var bladeMaximum = new Vector3(0.2f, 0.5f, 0.05f);
+    var straightDirection = BattingImpactModel.GetHorizontalShotDirection(0f);
+    if (MathF.Abs(straightDirection.X) > 0.0001f || MathF.Abs(straightDirection.Z - 1f) > 0.0001f)
+        throw new InvalidDataException("A straight drive did not point from the striker's wicket toward the bowler's end.");
     if (!SweptBattingContactResolver.TryResolve(
             new Vector3(0f, 0f, -1f), new Vector3(0f, 0f, 1f),
             Matrix4x4.Identity, Matrix4x4.Identity,
@@ -460,7 +488,7 @@ static void VerifyBatting(string shotSetPath)
         var edge = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, Vector2.One, shot);
         var highContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, 1f), shot);
         var lowContact = BattingImpactModel.Calculate(incomingVelocity, Vector3.Zero, new Vector2(0f, -1f), shot);
-        var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, -8f), Vector2.Zero, shot);
+        var forwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 0f, 8f), Vector2.Zero, shot);
         var upwardSwing = BattingImpactModel.Calculate(incomingVelocity, new Vector3(0f, 8f, 0f), Vector2.Zero, shot);
         var actualAngle = MathF.Atan2(upwardSwing.OutgoingVelocity.Y,
             new Vector2(upwardSwing.OutgoingVelocity.X, upwardSwing.OutgoingVelocity.Z).Length()) * 180f / MathF.PI;
@@ -468,9 +496,10 @@ static void VerifyBatting(string shotSetPath)
             throw new InvalidDataException($"Reported launch angle differs from outgoing velocity for '{shot.Name}'.");
 
         if (center.ContactQuality <= edge.ContactQuality ||
+            center.OutgoingVelocity.Z <= 0f ||
             highContact.LaunchAngleDegrees <= lowContact.LaunchAngleDegrees ||
             forwardSwing.OutgoingVelocity.Length() <= center.OutgoingVelocity.Length())
-            throw new InvalidDataException($"Batting impact response failed a sweet-spot, vertical-offset, or swing-speed check for '{shot.Name}'.");
+            throw new InvalidDataException($"Batting impact response failed a forward-axis, sweet-spot, vertical-offset, or swing-speed check for '{shot.Name}'.");
 
         Console.WriteLine($"{shot.Name}: sweet spot {center.ContactQuality:0.00}, edge {edge.ContactQuality:0.00}, swing gain {forwardSwing.OutgoingVelocity.Length() - center.OutgoingVelocity.Length():0.00} m/s");
     }
@@ -538,6 +567,24 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     var shotSet = BattingShotSet.Load(shotSetPath);
     var delivery = DeliveryPreset.Load(deliveryPath);
     var results = BattingPracticeAnalyzer.Analyze(batter, bowler, shotSet, delivery);
+    var bestDrive = results
+        .Where(sample => string.Equals(sample.ShotName, "drive", StringComparison.OrdinalIgnoreCase) && sample.ContactQuality.HasValue)
+        .OrderByDescending(sample => sample.ContactQuality)
+        .FirstOrDefault();
+    var driveTrajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
+        batter,
+        bowler,
+        shotSet,
+        "drive",
+        delivery,
+        bestDrive.InputDelaySeconds,
+        bestDrive.FootworkOffsetMeters);
+    if (driveTrajectory.ContactPosition is not { } driveContact ||
+        driveTrajectory.OutgoingVelocity is not { } driveVelocity ||
+        MathF.Abs(driveContact.Z - BattingPracticeAnalyzer.BatterWicketLineZ) > 0.5f ||
+        driveVelocity.Z <= 0f)
+        throw new InvalidDataException("The real-asset front-foot drive did not travel from the striker's wicket toward the bowler's end.");
+    Console.WriteLine($"PASS: real-asset straight drive travels toward positive Z from contact at {driveContact.Z:0.00} m.");
 
     // A broad blade guarantees overlap at release, including while still in stance.
     // It exposes collisions incorrectly accepted before a positive input delay.
@@ -574,27 +621,6 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     }
 
     Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
-}
-
-static void VerifyCpuBatting(
-    string batterPath,
-    string bowlerPath,
-    string shotSetPath,
-    string standardDeliveryPath,
-    string wideDeliveryPath,
-    string battingTeamPath,
-    string fieldingTeamPath,
-    string fieldPath)
-{
-    CpuLiveBattingPlanReviewChecks.Run(
-        PlayerAsset.Load(batterPath),
-        PlayerAsset.Load(bowlerPath),
-        BattingShotSet.Load(shotSetPath),
-        DeliveryPreset.Load(standardDeliveryPath),
-        DeliveryPreset.Load(wideDeliveryPath),
-        TeamRosterAsset.Load(battingTeamPath),
-        TeamRosterAsset.Load(fieldingTeamPath),
-        FieldPreset.Load(fieldPath));
 }
 
 static void SimulateMatchBatch(
@@ -747,13 +773,13 @@ static string Optional(float? value) => value is { } number ? F(number) : string
 static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
-    Console.WriteLine("  validate-player <player.scplayer.json>");
+    Console.WriteLine("  validate-player <player-asset>");
     Console.WriteLine("  validate-team <team.json>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
-    Console.WriteLine("  analyze-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
-    Console.WriteLine("  verify-batting-practice <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <delivery.json>");
-    Console.WriteLine("  verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
+    Console.WriteLine("  analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
+    Console.WriteLine("  verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");
+    Console.WriteLine("  verify-cpu-batting <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
@@ -761,11 +787,11 @@ static void PrintUsage()
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
-    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-match-batch");
     Console.WriteLine("  verify-fielding");
-    Console.WriteLine("  verify-footwork <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <wide-delivery.json>");
+    Console.WriteLine("  verify-footwork <batter-asset> <bowler-asset> <shots.json> <wide-delivery.json>");
 }
 
 internal sealed class OverScenarioDocument

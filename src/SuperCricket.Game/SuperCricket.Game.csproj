@@ -18,6 +18,9 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.5.1" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="SuperCricket.Game.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\SuperCricket.Simulation\SuperCricket.Simulation.csproj" />
     <ProjectReference Include="..\SuperCricket.Content\SuperCricket.Content.csproj" />
   </ItemGroup>
@@ -29,8 +32,8 @@
     <None Include="..\..\assets\fields\practice-attack.json" Link="Assets\Fields\practice-attack.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\teams\coastal-xi.json" Link="Assets\Teams\coastal-xi.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\teams\highland-xi.json" Link="Assets\Teams\highland-xi.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\assets\characters\practice-batter.scplayer.json" Link="Assets\Characters\practice-batter.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\assets\characters\practice-bowler.scplayer.json" Link="Assets\Characters\practice-bowler.scplayer.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\characters\practice-batter-humanoid.glb" Link="Assets\Characters\practice-batter-humanoid.glb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\characters\practice-bowler-humanoid.glb" Link="Assets\Characters\practice-bowler-humanoid.glb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\timing-calibration.json" Link="Assets\Batting\timing-calibration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\outfield-grass.png" Link="Assets\Textures\outfield-grass.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

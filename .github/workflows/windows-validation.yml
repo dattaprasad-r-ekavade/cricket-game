@@ -1,0 +1,36 @@
+name: Windows validation
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  headless-review:
+    name: Build and headless review
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up the repository .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Set up Python for GLB validation
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run xUnit tests
+        shell: pwsh
+        run: dotnet test SuperCricket.sln -c Release
+
+      - name: Build, validate content, and run headless checks
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures

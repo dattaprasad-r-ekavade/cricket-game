@@ -20,7 +20,7 @@ public partial class Game1
         }
         void Reset(int deliveryPresetIndex = 0)
         {
-            _previousKeyboard = default;
+            _inputRouter.ResetKeyboardHistory();
             _nextDeliveryPresetIndex = deliveryPresetIndex;
             _selectedOversPerInnings = 1;
             _match.Reset(_selectedOversPerInnings);
@@ -41,33 +41,83 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Broadcast" && MathF.Abs(_camera.Distance - 22f) < 0.001f,
-            "the batting delivery did not start with the closer broadcast camera");
-        Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
+        var expectedBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
+            ?? throw new InvalidOperationException("The review delivery has no predicted bounce.");
+        Require(_predictedBouncePosition is { } predictedBounce &&
+            Vector3.Distance(predictedBounce, ToXna(expectedBounce.Position)) < 0.001f,
+            "the projected pitch-point marker did not use the current delivery's simulated bounce");
+        Require(ShouldShowPredictedBounce(isHumanBowling: false, deliveryComplete: false,
+                hasBounced: false, hasPrediction: true) &&
+            !ShouldShowPredictedBounce(isHumanBowling: true, deliveryComplete: false,
+                hasBounced: false, hasPrediction: true) &&
+            !ShouldShowPredictedBounce(isHumanBowling: false, deliveryComplete: false,
+                hasBounced: true, hasPrediction: true),
+            "the batter's projected landing marker was hidden before release or shown for the wrong role/phase");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 8f) < 0.001f &&
+            MathF.Abs(_camera.Target.Z - NearBatterZ) < 0.001f &&
+            MathF.Abs(_camera.Position.X - _camera.Target.X) < 0.001f &&
+            _camera.Position.Z < _camera.Target.Z,
+            "the batting delivery did not start with the focused behind-striker view");
+        Require(GetPrimaryControlHint().Contains("Arrows: aim", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("S+D: front drive", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("W+D: back drive", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Shift adds loft", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("PgDn: zoom in / PgUp: out", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
             "the normal batting HUD did not show compact shot controls and the camera shortcut");
+        var keyboardActions = MatchHudPresenter.BuildActionHints(new MatchHudState(false, MatchHudPhase.Batting, "Standard pace"));
+        Require(keyboardActions.Count == 7 && keyboardActions[1].Input == "S" &&
+            keyboardActions[2].Input == "S + D" && keyboardActions[3].Input == "W + D" &&
+            keyboardActions[4].Input == "SHIFT + S" && keyboardActions[5].Input == "SHIFT + W + D",
+            "the keyboard control panel did not map the recorded Cricket 07 batting chords");
         _lastInputWasGamePad = true;
         Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
             "the normal GamePad HUD did not show the camera shortcut");
         _lastInputWasGamePad = false;
-        Tick(0f, Keys.Space);
-        Require(_chosenShot?.Name == "defence", "a neutral ground shot did not use the defensive clip");
+        Tick(0f, Keys.S);
+        Require(_chosenShot?.Name == "defence" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
+            _playerAnimator.CurrentClipName == "defensive-block" &&
+            _shotControlLabel == "DOWNFIELD | S",
+            "S did not immediately select and animate a straight defensive block");
 
         Reset();
-        Tick(0f, Keys.Left);
-        Tick(0f);
-        Tick(0f, Keys.Space);
-        Require(_chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f,
-            "left direction plus the ground button did not select a left-directed drive");
+        Tick(0.04f, Keys.S);
+        Tick(0.04f, Keys.S, Keys.D);
+        Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
+            _playerAnimator.CurrentClipName == "front-foot-drive" &&
+            _shotControlLabel == "DOWNFIELD | S > D",
+            "staggered S then D did not update the immediate block into the matching front-foot drive");
         Reset();
         Tick(0f, Keys.LeftShift);
-        Require(_chosenShot?.Name == "loft", "the loft button did not select the lofted shot");
+        Tick(0.04f, Keys.LeftShift, Keys.S);
+        Require(_chosenShot?.Name == "loft" && _playerAnimator.CurrentClipName == "lofted-drive" &&
+            _shotControlLabel == "DOWNFIELD | SHIFT > S",
+            "Shift+S did not select and animate the matching lofted shot");
+        Reset();
+        Tick(0f, Keys.W);
+        Require(_chosenShot is null, "W alone unexpectedly started a batting shot");
+        Tick(0.04f, Keys.W, Keys.D);
+        Require(_chosenShot?.Name == "drive" && _chosenShot.AnimationClip == "back-foot-drive" &&
+            _chosenShot.ForwardAim == -1f && _playerAnimator.CurrentClipName == "back-foot-drive" &&
+            _shotControlLabel == "BEHIND | W > D",
+            "staggered W then D did not select the matching back-foot animation");
+        Reset();
+        Tick(0f, Keys.W);
+        Tick(0.04f, Keys.W, Keys.D);
+        Tick(0.03f, Keys.W, Keys.D, Keys.LeftShift);
+        Require(_chosenShot?.AnimationClip == "back-foot-loft" &&
+            _playerAnimator.CurrentClipName == "back-foot-loft" && _chosenShot.ForwardAim == -1f,
+            "Shift+W+D did not select the extra lofted back-foot action with its matching animation");
+        Reset();
+        Tick(0f, Keys.Down);
+        Tick(0f);
+        Tick(0f, Keys.S, Keys.D);
+        Require(_chosenShot?.ForwardAim == -1f && _shotControlLabel == "BEHIND | S + D",
+            $"the down arrow did not select the behind-batter stroke direction (forward {_chosenShot?.ForwardAim}, label '{_shotControlLabel}')");
         Reset();
         Tick(0f, Keys.A);
-        Require(_chosenShot is null, "legacy A/S/D keyboard controls remained active outside developer mode");
+        Require(_chosenShot is null, "A used for run turn-back unexpectedly selected a batting shot");
 
         Reset();
         UpdateMatch(
@@ -76,14 +126,16 @@ public partial class Game1
             MatchControllerActions.Defend,
             controllerAimAxis: -1f);
         Require(_lastInputWasGamePad && _chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f &&
-            GetPrimaryControlHint().Contains("Left stick: aim", StringComparison.Ordinal),
+            GetPrimaryControlHint().Contains("Left stick: choose direction", StringComparison.Ordinal),
             "GamePad direction and shot buttons did not drive the compact, device-specific batting controls");
 
         Reset();
         _battedBall = true;
         StartRun();
         StartRun();
-        Require(_isRunning && _runRequestedPending,
+        Require(_isRunning && _runRequestedPending &&
+            _playerAnimator.CurrentClipName == "between-wickets" &&
+            _batterAnimations.NonStriker.CurrentClipName == "between-wickets",
             "pressing the run button during a run did not queue another run");
         CompleteRun();
         Require(_isRunning && !_runRequestedPending && _match.CurrentDelivery?.CompletedRuns == 1,
@@ -97,7 +149,8 @@ public partial class Game1
         StartRun();
         StartRun();
         CompleteRun();
-        Require(!_isRunning && !_runRequestedPending && _shotOutcome.Contains("unsafe", StringComparison.Ordinal),
+        Require(!_isRunning && !_runRequestedPending && _shotOutcome.Contains("unsafe", StringComparison.Ordinal) &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
             "Rookie did not cancel a queued follow-up run when the ball was unsafe");
 
         Reset();
@@ -112,11 +165,11 @@ public partial class Game1
 
         Reset();
         _battedBall = true;
-        Tick(0.1f, Keys.Enter);
-        Require(_isRunning, "the Enter button did not start a manual run");
-        Tick(0.5f, Keys.Enter);
-        Require(!_isRunning,
-            $"holding the run button did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
+        Tick(0.1f, Keys.D);
+        Require(_isRunning, "D did not start a manual run after contact");
+        Tick(0.1f, Keys.A);
+        Require(!_isRunning || _runners.IsReturning,
+            $"tapping A did not turn the batter back (held {_runHoldElapsed:0.00}s; delivery complete: {_deliveryComplete})");
 
         Reset();
         _battedBall = true;
@@ -125,13 +178,32 @@ public partial class Game1
         Require(_isRunning, "the GamePad B button did not start a manual run");
         UpdateMatch(new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5)), new KeyboardState(),
             MatchControllerActions.None, controllerRunHeld: true);
-        Require(!_isRunning, "holding GamePad B did not turn the batter back");
+        Require(!_isRunning || _runners.IsReturning, "holding GamePad B did not turn the batter back");
+        Reset();
+        _battedBall = true;
+        StartRun();
+        UpdateRun(_runDurationSeconds * 0.6f);
+        StartRun();
+        var beforeTurn = GetBatterWorlds();
+        CancelRun();
+        var afterTurn = GetBatterWorlds();
+        Require(_isRunning && _runners.IsReturning && !_runRequestedPending &&
+            beforeTurn.Striker.Translation == afterTurn.Striker.Translation &&
+            beforeTurn.NonStriker.Translation == afterTurn.NonStriker.Translation,
+            "turn-back teleported a runner or preserved a queued run");
+        UpdateRun(_runDurationSeconds * 0.2f);
+        Require(_isRunning && _runners.Progress < 0.6f, "turn-back did not move towards home continuously");
+        UpdateRun(_runDurationSeconds);
+        Require(!_isRunning && _match.CurrentDelivery?.CompletedRuns == 0 &&
+            _playerAnimator.CurrentClipName == "practice-stance" &&
+            _batterAnimations.NonStriker.CurrentClipName == "practice-stance",
+            "returning home credited an uncompleted run");
         _developerMode = developerModeWasEnabled;
-        Console.WriteLine("PASS: directional ground/loft controls, compact prompts, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
+        Console.WriteLine("PASS: recorded Cricket 07 batting chords, matching front/back-foot and loft animations, depth aim, repeat runs, safe Rookie cancels, and keyboard/GamePad switching work outside developer mode.");
 
-        var ballCamera = new OrbitCamera();
+        var ballCamera = new CameraDirector();
         Require(ballCamera.SelectPreset("ball-follow") && ballCamera.FollowsBall && ballCamera.PresetName == "Ball follow" &&
-            MathF.Abs(ballCamera.Distance - 9f) < 0.001f,
+            MathF.Abs(ballCamera.Distance - 8f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 43f) < 0.001f,
             "ball-follow camera preset was not selectable at its readable tracking distance");
         ballCamera.FollowBall(new Vector3(2f, 1f, -4f), 0f);
         Require(ballCamera.Target == new Vector3(2f, 1f, -4f),
@@ -140,14 +212,53 @@ public partial class Game1
         Require(ballCamera.Target.X is > 2f and < 6f && ballCamera.Target.Z is < -4f and > -12f,
             "ball-follow camera did not ease toward the moving ball");
         ballCamera.SelectPreset("broadcast");
-        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 22f) < 0.001f &&
+        Require(!ballCamera.FollowsBall && MathF.Abs(ballCamera.Distance - 20f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 16f) < 0.001f &&
-            ballCamera.Yaw > 3f && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 18f) < 0.001f && ballCamera.Yaw == 0f &&
-            MathF.Abs(ballCamera.Target.Z - 2.5f) < 0.001f,
-            "close batting and bowling camera angles were not available at readable distances");
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 8f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f && MathF.Abs(ballCamera.Target.Z - NearBatterZ) < 0.001f &&
+            MathF.Abs(ballCamera.Target.Y - 0.9f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - MathHelper.Pi) < 0.001f &&
+            MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f && ballCamera.SelectPreset("bowler-end") &&
+            MathF.Abs(ballCamera.Distance - 8f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - 0.22f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f &&
+            MathF.Abs(ballCamera.Target.Z - FarBatterZ) < 0.001f && MathF.Abs(ballCamera.Target.Y - 0.9f) < 0.001f,
+            "batting and bowling cameras did not focus the active player at each crease");
+        var bowlerCamera = new CameraDirector();
+        bowlerCamera.SelectPreset("bowler-end");
+        bowlerCamera.SetTarget(new Vector3(0f, 0.9f, 23f));
+        bowlerCamera.TrackTarget(new Vector3(0.5f, 0.9f, 18f), 0.1f);
+        Require(bowlerCamera.PresetName == "Bowler end" && MathF.Abs(bowlerCamera.Distance - 8f) < 0.001f &&
+            bowlerCamera.Target.Z < 23f && bowlerCamera.Target.Z > 18f,
+            "the bowler-end view did not follow the bowler through the run-up while preserving close zoom");
+        var readableFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 760, 96);
+        Require(readableFeedback.X == 20 && readableFeedback.Y == 170 && readableFeedback.Width == 760,
+            "live feedback banner was not placed below the score panel, away from the pitch center");
+        var longHudFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1440, 900, 158, 448, 116);
+        Require(longHudFeedback.X == 20 && longHudFeedback.Y == 170 && longHudFeedback.Right == 468,
+            "live bowling feedback did not remain left-aligned below the score panel");
+        var narrowFeedback = MatchHudPresenter.CalculateFeedbackBannerBounds(1280, 720, 158, 720, 96);
+        Require(narrowFeedback.X == 20 && narrowFeedback.Y == 170 && narrowFeedback.Bottom <= 696,
+            "live feedback banner was not left-aligned below the score panel at a narrower resolution");
+        var keyboardZoomDistance = ballCamera.Distance;
+        var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
+        ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));
+        Require(ballCamera.Distance < keyboardZoomDistance,
+            "Page Down did not zoom the gameplay camera closer");
+        ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageUp));
+        Require(MathF.Abs(ballCamera.Distance - keyboardZoomDistance) < 0.001f,
+            "Page Up did not zoom the gameplay camera back out");
+        var defaultBowlingDistance = ballCamera.Distance;
+        ballCamera.ZoomBy(-2f);
+        Require(MathF.Abs(ballCamera.Distance - (defaultBowlingDistance - 2f)) < 0.001f,
+            "manual camera zoom did not move closer by the requested distance");
+        ballCamera.ZoomBy(-100f);
+        Require(MathF.Abs(ballCamera.Distance - 4.5f) < 0.001f,
+            "manual camera zoom did not respect its minimum distance");
+        Require(CameraDirector.GetRolePresetName(isHumanBowling: false) == "behind-striker" &&
+            CameraDirector.GetRolePresetName(isHumanBowling: true) == "bowler-end",
+            "delivery camera selection did not put each human role in its view of the pitch");
         var mapPlot = new Rectangle(100, 200, 120, 100);
         var mapCenter = MapPitchPosition(Vector3.Zero, mapPlot, PracticeGround.PitchLength);
         var bowlerMapPoint = MapPitchPosition(new Vector3(0f, 0f, PracticeGround.WicketOffset),
@@ -159,6 +270,29 @@ public partial class Game1
             bowlerMapPoint.Y < mapCenter.Y && batterMapPoint.Y > mapCenter.Y &&
             MathF.Abs(wideMapPoint.X - mapPlot.Right) < 0.001f,
             "pitch map coordinates did not preserve the bowler-to-batter axis or clamp a wide ball into view");
+        var fieldPlot = new Rectangle(320, 240, 240, 240);
+        var fieldMapCenter = MapFieldPosition(Vector3.Zero, fieldPlot, 42f);
+        var fieldMapNorth = MapFieldPosition(new Vector3(0f, 0f, 42f), fieldPlot, 42f);
+        var fieldMapEast = MapFieldPosition(new Vector3(42f, 0f, 0f), fieldPlot, 42f);
+        var fieldMapNearWicket = MapFieldPosition(new Vector3(0f, 0f, NearBatterZ), fieldPlot, 42f);
+        var rightAimBoundaryPoint = GetShotAimBoundaryPoint(
+            new Vector3(0f, 0f, NearBatterZ), 1f, 0f, 42f);
+        Require(MathF.Abs(fieldMapCenter.X - fieldPlot.Center.X) < 0.001f &&
+            MathF.Abs(fieldMapCenter.Y - fieldPlot.Center.Y) < 0.001f &&
+            fieldMapNorth.Y == fieldPlot.Top && fieldMapEast.X == fieldPlot.Right &&
+            fieldMapNearWicket.Y > fieldMapCenter.Y &&
+            MathF.Abs(MathF.Sqrt(rightAimBoundaryPoint.X * rightAimBoundaryPoint.X +
+                rightAimBoundaryPoint.Z * rightAimBoundaryPoint.Z) - 42f) < 0.01f &&
+            rightAimBoundaryPoint.X > 0f,
+            "the batting field inset did not keep field, batter, or shot-aim positions oriented on the ground");
+        var accurateBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(0.3f, 0f, -4.5f), NearBatterZ);
+        var missedBowlingFeedback = MatchHudPresenter.GetBowlingFeedbackSummary(
+            new Vector3(0f, 0f, -4f), new Vector3(1.3f, 0f, -4.5f), NearBatterZ);
+        Require(accurateBowlingFeedback.Title == "ON TARGET" &&
+            accurateBowlingFeedback.Detail.Contains("good length", StringComparison.Ordinal) &&
+            missedBowlingFeedback.Title.EndsWith("M FROM AIM", StringComparison.Ordinal),
+            "live bowling feedback did not explain aim accuracy and the landing length");
         var slowTrail = GetBallTrailColor(8f);
         var mediumTrail = GetBallTrailColor(22f);
         var fastTrail = GetBallTrailColor(36f);
@@ -173,352 +307,8 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: tighter cameras, pitch-map projection, contact labels, and speed-colour mapping are readable.");
+        Console.WriteLine("PASS: role cameras focus the active player, the projected landing appears before release, the batting field map tracks aim/ball/runners, and live feedback stays below the HUD.");
 
-        Reset();
-        for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
-        Require(_firstBouncePosition is not null && _bounceSpotFeedbackRemainingSeconds > 0f,
-            "the first ball bounce did not start a brief in-world pitch marker");
-        var bounceMarkerRemaining = _bounceSpotFeedbackRemainingSeconds;
-        Tick(0.1f);
-        Require(_bounceSpotFeedbackRemainingSeconds < bounceMarkerRemaining && _bounceSpotFeedbackRemainingSeconds > 0f,
-            "the in-world pitch marker did not fade with elapsed game time");
-        Tick(BounceSpotFeedbackDurationSeconds);
-        Require(_bounceSpotFeedbackRemainingSeconds == 0f,
-            "the in-world pitch marker persisted past its short visibility window");
-        Console.WriteLine("PASS: actual bounce feedback appears at impact and fades after its short display window.");
-
-        Reset();
-        var feedbackBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
-            ?? throw new InvalidOperationException("The standard delivery has no pitch bounce for the feedback review.");
-        _firstBouncePosition = new Vector3(feedbackBounce.Position.X, feedbackBounce.Position.Y, feedbackBounce.Position.Z);
-        _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
-        _activeBowlingTargetPosition = _firstBouncePosition.Value + new Vector3(0.5f, 0f, 0f);
-        _chosenShot = _shotSet.Get("drive");
-        _contactQuality = 0.91f;
-        var idealDriveInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(_deliveryPreset.Name, _chosenShot.Name);
-        Require(idealDriveInputDelay is { } idealDelay && MathF.Abs(idealDelay - 0.25f) < 0.001f &&
-            _battingTimingCalibration.FindIdealInputDelaySeconds("Uncalibrated delivery", "drive") is null,
-            "batting timing calibration did not load the analyzer-derived drive target or reject unknown deliveries");
-        _shotInputDelaySeconds = idealDriveInputDelay;
-        var originalDelivery = _deliveryPreset;
-        _deliveryPreset = _deliveryPreset.DeepCopy();
-        _deliveryPreset.Name = $"{_deliveryPresets[_activeDeliveryPresetIndex].Name} - outswing";
-        var timingWithBowlingVariation = GetBattingTimingText();
-        var variationTestShotName = _chosenShot?.Name ?? "<none>";
-        var variationTestIdeal = _battingTimingCalibration.FindIdealInputDelaySeconds(
-            _deliveryPresets[_activeDeliveryPresetIndex].Name, variationTestShotName);
-        _deliveryPreset = originalDelivery;
-        Require(timingWithBowlingVariation == "PERFECT",
-            $"batting timing feedback lost its calibration when the CPU bowler added a delivery variation (" +
-            $"text '{timingWithBowlingVariation ?? "<none>"}', preset '{_deliveryPresets[_activeDeliveryPresetIndex].Name}', " +
-            $"shot '{variationTestShotName}', target {variationTestIdeal}, delay {_shotInputDelaySeconds}, " +
-            $"CPU batting {IsCpuBattingControlled})");
-        CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
-        _match.CompleteDelivery();
-        var feedbackLines = BuildDeliveryFeedbackLines(CurrentDelivery.Result!.Value);
-        Require(feedbackLines.Count == 4 && feedbackLines[0].Contains("FOUR", StringComparison.Ordinal) &&
-            feedbackLines[1].Contains("km/h", StringComparison.Ordinal) &&
-            feedbackLines[1].Contains("good length", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("drive", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("middled", StringComparison.Ordinal) &&
-            feedbackLines[2].Contains("timing PERFECT", StringComparison.Ordinal) &&
-            feedbackLines[3].Contains("0.5 m from aim", StringComparison.Ordinal),
-            "the delivery result card did not explain pace, pitch, contact, timing, runs, and bowling accuracy");
-        var early = BattingTimingFeedbackModel.Assess(0.12f, 0.25f, 0.075f);
-        var perfect = BattingTimingFeedbackModel.Assess(0.30f, 0.25f, 0.075f);
-        var late = BattingTimingFeedbackModel.Assess(0.42f, 0.25f, 0.075f);
-        Require(early.Band == BattingTimingBand.Early && perfect.Band == BattingTimingBand.Perfect &&
-            late.Band == BattingTimingBand.Late && MathF.Abs(late.OffsetFromIdealSeconds - 0.17f) < 0.001f,
-            "calibrated batting timing did not distinguish early, perfect, and late inputs");
-        Console.WriteLine("PASS: completed-ball feedback reports pace, pitch line/length, contact, calibrated timing, score, and bowling target error.");
-
-        Reset();
-        Tick(0f, Keys.J);
-        Tick(0f);
-        Tick(0f, Keys.J);
-        Tick(0f);
-        StartShot("drive");
-        Require(_chosenShot is { } leftAim && MathF.Abs(leftAim.HorizontalAim - -0.09f) < 0.001f,
-            "keyboard aim adjustments did not shift the authored drive lane to the left");
-        var leftAimImpact = BattingImpactModel.Calculate(
-            new NumericsVector3(0f, 0f, -20f),
-            NumericsVector3.Zero,
-            System.Numerics.Vector2.Zero,
-            _chosenShot!);
-        Require(leftAimImpact.OutgoingVelocity.X < 0f,
-            "left shot aim did not direct the outgoing ball toward negative X");
-        Tick(0f, Keys.L);
-        Require(_chosenShot is { } adjustedShot && MathF.Abs(adjustedShot.HorizontalAim - 0.03f) < 0.001f,
-            "keyboard aim could not adjust a selected shot before contact");
-
-        Reset();
-        UpdateMatch(
-            new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.4)),
-            new KeyboardState(),
-            MatchControllerActions.None,
-            controllerAimAxis: 1f);
-        Require(MathF.Abs(_humanShotAimOffset - 0.5f) < 0.001f,
-            "GamePad right-stick aim did not scale continuously with elapsed time");
-        StartShot("drive");
-        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 0.65f) < 0.001f,
-            "GamePad right-stick aim was not applied to the next authored shot");
-        Reset();
-        Require(MathF.Abs(_humanShotAimOffset) < 0.001f,
-            "shot aim adjustment was not cleared for the next delivery");
-        Console.WriteLine("PASS: keyboard and GamePad shot aiming shift human lanes and preserve the authored shot defaults.");
-
-        Reset();
-        Tick(0.1f);
-        Tick(0f, Keys.P);
-        var batterTime = _playerAnimator.CurrentTimeSeconds;
-        var bowlerTime = _bowlerRunUpElapsed;
-        var fielderTime = _fielderAnimators[0].CurrentTimeSeconds;
-        var ballFrame = _ballFlight.CurrentFrame;
-        Tick(1f);
-        Require(_playerAnimator.CurrentTimeSeconds == batterTime && _bowlerRunUpElapsed == bowlerTime &&
-            _fielderAnimators[0].CurrentTimeSeconds == fielderTime && _ballFlight.CurrentFrame == ballFrame,
-            "pause advanced an animation, ball, or run-up");
-        Tick(0.1f, Keys.S, Keys.Enter);
-        Require(_chosenShot is null && !_runRequestedPending, "pause accepted shot/run input");
-        Tick(0f);
-        Tick(0.01f, Keys.P);
-        Require(_bowlerRunUpElapsed > bowlerTime, "resume did not advance run-up");
-        Console.WriteLine("PASS: pause/resume freezes match clocks and ignores gameplay input.");
-
-        Reset();
-        _battedBall = true;
-        StartRun();
-        ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.GroundPickup));
-        Tick(0f, Keys.P);
-        var pickupTime = _fielderAnimators[0].CurrentTimeSeconds;
-        Tick(0.75f);
-        Require(_runElapsed == 0f && _fielderAnimators[0].CurrentTimeSeconds == pickupTime &&
-            _fielderSequencePhase == FielderSequencePhase.Pickup && !_deliveryComplete,
-            "pause advanced running or pickup/throw sequence");
-        Tick(0f, Keys.P);
-        for (var step = 0; step < 70 && _fielderSequencePhase != FielderSequencePhase.Throw; step++) Tick(1f / 120f);
-        Require(_fielderSequencePhase == FielderSequencePhase.Throw, "pickup did not start the throw action");
-        Tick(0f, Keys.P);
-        var throwTime = _fielderAnimators[0].CurrentTimeSeconds;
-        var runTime = _runElapsed;
-        Tick(0.75f);
-        Require(_fielderAnimators[0].CurrentTimeSeconds == throwTime && _runElapsed == runTime && !_deliveryComplete,
-            "paused throw advanced or resolved delivery");
-        Tick(0f, Keys.P);
-        for (var step = 0; step < 150 && !_deliveryComplete; step++) Tick(1f / 120f);
-        Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _match.Wickets == 1,
-            "resumed pickup/throw did not finish as a run-out");
-        Console.WriteLine("PASS: pickup/throw pause and authored throw completion.");
-
-        Reset();
-        _battedBall = true;
-        CurrentDelivery.RecordCompletedRun();
-        _isRunning = true;
-        _runElapsed = 0.15f;
-        ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.GroundPickup));
-        for (var step = 0; step < 180 && !_deliveryComplete; step++) Tick(1f / 120f);
-        Require(_deliveryComplete && _dismissal == DismissalKind.RunOut && _match.Runs == 1 &&
-            _match.Wickets == 1 && _match.LegalBalls == 1,
-            "the authored throw failed to run out a batter still short of the far crease after the turn");
-        Console.WriteLine("PASS: pickup and return throw resolve a run-out while the batter is turning.");
-
-        Reset();
-        for (var delivery = 0; delivery < 6; delivery++)
-        {
-            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-            Require(_deliveryComplete && _dismissal == DismissalKind.Bowled, "unplayed delivery failed to resolve bowled");
-            if (delivery < 5) BeginDelivery();
-        }
-        Require(_match.IsOverComplete && _match.LegalBalls == 6 && _match.Wickets == 6,
-            "six legal deliveries did not complete the over");
-        Console.WriteLine("PASS: six bowled deliveries complete an over.");
-
-        Reset();
-        for (var ball = 0; ball < 6; ball++)
-        {
-            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-            Require(_deliveryComplete, "the live first innings did not resolve its delivery");
-            if (ball < 5)
-            {
-                Tick(0f, Keys.N);
-                Tick(0f);
-            }
-        }
-        Require(_match.IsInningsComplete && !_match.IsMatchComplete && _match.FirstInnings is { Runs: 0, LegalBalls: 6 },
-            "the first live innings did not stop at its over limit");
-        Tick(0f, Keys.N);
-        Require(_match.InningsNumber == 2 && _match.BattingTeamName == "Highland XI" && _match.Target == 1 && !_deliveryComplete,
-            "N did not start the target chase as the second innings");
-        Tick(0f);
-        for (var ball = 0; ball < 6; ball++)
-        {
-            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-            Require(_deliveryComplete, "the live second innings did not resolve its delivery");
-            if (ball < 5)
-            {
-                Tick(0f, Keys.N);
-                Tick(0f);
-            }
-        }
-        Require(_match.IsMatchComplete && _match.ResultText == "Match tied",
-            "the second live innings did not show a tied result after its over");
-        Tick(0f, Keys.O);
-        Require(!_match.IsMatchComplete && _match.OversPerInnings == 2 && _match.InningsNumber == 1 && _match.Runs == 0,
-            "O did not restart the match with the next overs selection");
-        Console.WriteLine("PASS: N starts the second innings, the chase resolves, and O changes overs after the result.");
-
-        foreach (var presetIndex in new[] { 1, 2 })
-        {
-            Reset(presetIndex);
-            for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-            Require(_deliveryComplete && _match.Runs == 1 && _match.LegalBalls == 0 && _match.Wickets == 0,
-                "wide/no-ball did not award one extra without a legal ball or bowled wicket");
-        }
-        Console.WriteLine("PASS: wide and no-ball gameplay scoring.");
-
-        Reset();
-        for (var step = 0; step < 600 && !_deliveryComplete; step++) Tick(1f / 120f);
-        Require(_deliveryComplete, "standard delivery did not complete before yorker selection");
-        Tick(0f, Keys.D4);
-        Require(_nextDeliveryPresetIndex == 3, "D4 did not select the yorker for the next delivery");
-        Tick(0f, Keys.N);
-        Require(_activeDeliveryPresetIndex == 3 && _deliveryPreset.Name == "Yorker pace",
-            "the selected yorker preset was not loaded for the next ball");
-        var yorkerFlight = new BallFlightSimulator(_deliveryPreset);
-        var previousYorkerFrame = yorkerFlight.CurrentFrame;
-        BallFlightFrame? yorkerBounce = null;
-        BallFlightFrame? yorkerWicketCrossing = null;
-        var wicketLineZ = -_deliveryPreset.ReleasePosition.Z;
-        for (var step = 0; step < 600 && yorkerWicketCrossing is null; step++)
-        {
-            var frame = yorkerFlight.Step();
-            if (yorkerBounce is null && frame.BounceCount == 1)
-                yorkerBounce = frame;
-            if (previousYorkerFrame.Position.Z > wicketLineZ && frame.Position.Z <= wicketLineZ)
-                yorkerWicketCrossing = frame;
-            previousYorkerFrame = frame;
-        }
-        var pitchEndZ = -_deliveryPreset.PitchLengthMeters / 2f;
-        Require(yorkerBounce is { } bounce && bounce.Position.Z > pitchEndZ && bounce.Position.Z <= -9f &&
-            MathF.Abs(bounce.Position.Y - (_deliveryPreset.PitchSurfaceHeightMeters + _deliveryPreset.BallRadiusMeters)) < 0.01f,
-            "yorker did not bounce on the pitch near the striker's crease");
-        Require(yorkerWicketCrossing is { } crossing && crossing.Position.Y < 0.3f,
-            "yorker did not stay low as it crossed the wicket line");
-        Console.WriteLine($"PASS: D4 selects a low yorker that pitches at z={yorkerBounce!.Value.Position.Z:0.00} m and reaches the wicket line at y={yorkerWicketCrossing!.Value.Position.Y:0.00} m.");
-
-        foreach (var frameRate in new[] { 30, 60, 120 })
-        {
-            foreach (var (key, delay) in new[] { (Keys.A, 0.2f), (Keys.S, 0.25f), (Keys.D, 0.25f) })
-            {
-                Reset();
-                var elapsed = 1f / frameRate;
-                for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
-                for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < delay; step++) Tick(elapsed);
-                Tick(elapsed, key);
-                for (var step = 0; step < frameRate * 2 && !_battedBall && !_deliveryComplete; step++) Tick(elapsed);
-                Require(_battedBall && _contactFeedbackRemainingSeconds > 0f && !_contactFeedbackIsMiss,
-                    $"shot {key} did not show a brief quality flash after contact at {frameRate} fps");
-                var contactFlashRemaining = _contactFeedbackRemainingSeconds;
-                Tick(elapsed);
-                Require(_contactFeedbackRemainingSeconds < contactFlashRemaining && _contactFeedbackRemainingSeconds > 0f,
-                    $"shot {key} contact flash did not fade at {frameRate} fps");
-                for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
-                Require(_battedBall && _deliveryComplete, $"shot {key} failed contact/resolution at {frameRate} fps");
-                Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
-                    _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
-                    _contactQuality is >= 0f and <= 1f && _contactSweetSpotOffset is not null,
-                    $"shot {key} failed to record release/contact/sweet-spot marker data at {frameRate} fps");
-            }
-        }
-        Console.WriteLine("PASS: defence, drive, and loft contact and resolve at 30/60/120 fps.");
-
-        Reset(1);
-        Tick(0f, Keys.Q);
-        Require(_playerAnimator.CurrentClipName == "batting-step-offside" && !_playerAnimator.IsOneShotComplete,
-            "off-side footwork did not play its authored step clip");
-        Tick(0.6f);
-        Require(MathF.Abs(_batterFootworkOffsetX - BatterFootwork.StepDistanceMeters) < 0.001f &&
-            _playerAnimator.CurrentClipName == "practice-stance",
-            "off-side footwork did not finish its move and recover to stance");
-
-        Reset(1);
-        Tick(0f, Keys.E);
-        Require(_playerAnimator.CurrentClipName == "batting-step-legside" && !_playerAnimator.IsOneShotComplete,
-            "leg-side footwork did not play its authored step clip");
-        Tick(0.6f);
-        Require(MathF.Abs(_batterFootworkOffsetX + BatterFootwork.StepDistanceMeters) < 0.001f &&
-            _playerAnimator.CurrentClipName == "practice-stance",
-            "leg-side footwork did not finish its move and recover to stance");
-        Console.WriteLine("PASS: authored off-side and leg-side steps play once and recover to stance.");
-
-        foreach (var frameRate in new[] { 30, 60, 120 })
-        {
-            Reset(1);
-            for (var step = 0; step < BatterFootwork.MaximumSteps; step++)
-            {
-                Tick(0f, Keys.Q);
-                Tick(0f);
-            }
-            Tick(0.6f);
-            var elapsed = 1f / frameRate;
-            for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
-            for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < 0.35f; step++) Tick(elapsed);
-            Tick(elapsed, Keys.S);
-            for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
-            Require(_battedBall && _deliveryComplete &&
-                MathF.Abs(_batterFootworkOffsetX - BatterFootwork.MaximumOffsetMeters) < 0.001f,
-                $"off-side footwork failed to reach the wide delivery at {frameRate} fps");
-            Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
-                _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
-                _contactQuality is >= 0f and <= 1f && _contactSweetSpotOffset is not null,
-                $"wide shot failed to record release/contact/sweet-spot markers at {frameRate} fps");
-        }
-        Console.WriteLine("PASS: Q steps into the wide line and the drive makes contact at 30/60/120 fps.");
-
-        foreach (var boundaryRuns in new[] { 4, 6 })
-        {
-            Reset();
-            _battedBall = true;
-            CurrentDelivery.RecordCompletedRun();
-            ResolveBoundaryCrossing(new BoundaryCrossing(
-                1f,
-                new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 3f, 0f),
-                boundaryRuns == 6));
-            Require(_match.Runs == boundaryRuns && _match.Striker == 1 && _match.NonStriker == 2,
-                "boundary incorrectly added an earlier run or changed strike");
-        }
-        Console.WriteLine("PASS: four/six scoring replaces earlier completed runs and restores ends.");
-
-        Reset();
-        _battedBall = true;
-        for (var run = 0; run < 4; run++)
-            CurrentDelivery.RecordCompletedRun();
-        _isRunning = true;
-        _runElapsed = _runDurationSeconds * 0.6f;
-        ResolveBoundaryCrossing(new BoundaryCrossing(
-            1f,
-            new NumericsVector3(_deliveryPreset.FieldBoundaryRadiusMeters, 0.1f, 0f),
-            false));
-        Require(_match.Runs == 5 && _match.Striker == 2,
-            "boundary failed to preserve the greater running allowance including a crossed run");
-        Console.WriteLine("PASS: running allowance greater than the boundary allowance.");
-
-        Reset();
-        _battedBall = true;
-        CurrentDelivery.RecordCompletedRun();
-        ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.Catch));
-        Require(_match.Runs == 0 && _match.Wickets == 1 && _match.Striker == 3 && _match.NonStriker == 2,
-            "catch retained completed runs or replaced the wrong batter");
-        Console.WriteLine("PASS: a legal catch voids completed runs and replaces the striker.");
-
-        Reset(2);
-        _battedBall = true;
-        CurrentDelivery.RecordCompletedRun();
-        ResolveFieldingContact(new FieldingContact(0, _fieldingSide.Positions[0], FieldingContactKind.Catch));
-        Require(_match.Runs == 2 && _match.Wickets == 0 && _match.LegalBalls == 0 && _match.Striker == 2,
-            "no-ball catch incorrectly voided runs or dismissed the striker");
-        Console.WriteLine("PASS: no-ball catch retains completed runs plus the penalty.");
-        Console.WriteLine("Gameplay review checks passed.");
+        RunAdvancedGameplayReviewChecks(Tick, Reset, Require);
     }
 }
