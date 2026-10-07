@@ -4,7 +4,7 @@ This guide contains the full CLI, content-authoring, validation, capture, and pr
 
 ## Automated tests
 
-Run the isolated xUnit tests with `dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release`. They do not launch the game. The Windows validation workflow runs this suite before the asset and simulation review.
+Run all isolated xUnit tests with `dotnet test SuperCricket.sln -c Release`. They cover the game input/camera helpers and graphics-free simulation checks; they do not launch the game. The `verify-*` CLI commands and `tools/review.ps1` invoke filtered simulation test groups. The Windows validation workflow runs both test projects before the asset and headless review.
 
 ## Developer controls
 

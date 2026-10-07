@@ -29,7 +29,7 @@ jobs:
 
       - name: Run xUnit tests
         shell: pwsh
-        run: dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release
+        run: dotnet test SuperCricket.sln -c Release
 
       - name: Build, validate content, and run headless checks
         shell: pwsh

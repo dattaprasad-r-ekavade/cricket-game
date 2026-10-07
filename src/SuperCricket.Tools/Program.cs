@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -121,8 +122,9 @@ static int Run(string[] arguments)
         {
             if (arguments.Length != 9)
                 throw new ArgumentException("Usage: verify-cpu-batting <batter.scplayer.json> <bowler.scplayer.json> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
-            VerifyCpuBatting(arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7], arguments[8]);
-            return 0;
+            return RunSimulationTests(
+                "FullyQualifiedName~CpuLiveBattingPlanReviewCheckTests",
+                arguments.Skip(1).ToArray());
         }
 
         if (arguments[0] == "validate-team")
@@ -138,25 +140,14 @@ static int Run(string[] arguments)
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match");
-            MatchStateReviewChecks.Run();
-            LimitedOversMatchReviewChecks.Run();
-            TeamRosterReviewChecks.Run();
-            BowlingDecisionReviewChecks.Run();
-            FieldPlacementReviewChecks.Run();
-            CpuBattingOutcomeReviewChecks.Run();
-            MatchControllerInputReviewChecks.Run();
-            GameSettingsReviewChecks.Run();
-            CricketDeliveryRuleReviewChecks.Run();
-            ProceduralCricketAudioReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~CoreMatchReviewCheckTests");
         }
 
         if (arguments[0] == "verify-match-batch")
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match-batch");
-            AutomatedMatchBatchReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~AutomatedMatchBatchReviewCheckTests");
         }
 
         if (arguments[0] == "simulate-match-batch")
@@ -204,8 +195,7 @@ static int Run(string[] arguments)
         {
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-fielding");
-            FieldingReviewChecks.Run();
-            return 0;
+            return RunSimulationTests("FullyQualifiedName~FieldingReviewCheckTests");
         }
 
         if (arguments[0] == "verify-footwork")
@@ -242,6 +232,41 @@ static int Run(string[] arguments)
         Console.Error.WriteLine(exception.Message);
         return 1;
     }
+}
+
+static int RunSimulationTests(string testFilter, string[]? cpuBattingInputs = null)
+{
+    var repositoryRoot = FindRepositoryRoot();
+    var projectPath = Path.Combine(repositoryRoot, "tests", "SuperCricket.Simulation.Tests", "SuperCricket.Simulation.Tests.csproj");
+    var startInfo = new ProcessStartInfo("dotnet")
+    {
+        UseShellExecute = false,
+        WorkingDirectory = repositoryRoot
+    };
+    startInfo.ArgumentList.Add("test");
+    startInfo.ArgumentList.Add(projectPath);
+    startInfo.ArgumentList.Add("-c");
+    startInfo.ArgumentList.Add("Release");
+    startInfo.ArgumentList.Add("--filter");
+    startInfo.ArgumentList.Add(testFilter);
+    if (cpuBattingInputs is not null)
+        startInfo.Environment["SUPERCRICKET_CPU_BATTING_INPUTS"] = JsonSerializer.Serialize(cpuBattingInputs);
+
+    using var process = Process.Start(startInfo)
+        ?? throw new InvalidOperationException("Could not start the xUnit test runner.");
+    process.WaitForExit();
+    return process.ExitCode;
+}
+
+static string FindRepositoryRoot()
+{
+    for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+    {
+        if (File.Exists(Path.Combine(directory.FullName, "SuperCricket.sln")))
+            return directory.FullName;
+    }
+
+    throw new DirectoryNotFoundException("Could not locate SuperCricket.sln for the simulation test runner.");
 }
 
 static void SimulateOver(string scenarioPath)
@@ -596,27 +621,6 @@ static void VerifyBattingPractice(string batterPath, string bowlerPath, string s
     }
 
     Console.WriteLine($"Real-asset batting practice passed for {delivery.Name}.");
-}
-
-static void VerifyCpuBatting(
-    string batterPath,
-    string bowlerPath,
-    string shotSetPath,
-    string standardDeliveryPath,
-    string wideDeliveryPath,
-    string battingTeamPath,
-    string fieldingTeamPath,
-    string fieldPath)
-{
-    CpuLiveBattingPlanReviewChecks.Run(
-        PlayerAsset.Load(batterPath),
-        PlayerAsset.Load(bowlerPath),
-        BattingShotSet.Load(shotSetPath),
-        DeliveryPreset.Load(standardDeliveryPath),
-        DeliveryPreset.Load(wideDeliveryPath),
-        TeamRosterAsset.Load(battingTeamPath),
-        TeamRosterAsset.Load(fieldingTeamPath),
-        FieldPreset.Load(fieldPath));
 }
 
 static void SimulateMatchBatch(
