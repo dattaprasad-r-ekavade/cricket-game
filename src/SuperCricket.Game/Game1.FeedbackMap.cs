@@ -148,13 +148,7 @@ public partial class Game1
             actualInputDelay,
             ideal,
             _battingTimingCalibration.OnTimeWindowSeconds);
-        var offsetMilliseconds = (int)MathF.Round(MathF.Abs(assessment.OffsetFromIdealSeconds) * 1000f);
-        return assessment.Band switch
-        {
-            BattingTimingBand.Perfect => "PERFECT",
-            BattingTimingBand.Early => $"EARLY {offsetMilliseconds} ms",
-            _ => $"LATE {offsetMilliseconds} ms"
-        };
+        return MatchHudPresenter.FormatBattingTimingText(assessment);
     }
 
     private void PrepareFeedbackPreviewCapture()

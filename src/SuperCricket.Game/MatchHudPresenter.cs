@@ -99,6 +99,17 @@ internal readonly record struct LiveFeedbackBannerContent(
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static string FormatBattingTimingText(BattingTimingAssessment assessment)
+    {
+        var offsetMilliseconds = (int)MathF.Round(MathF.Abs(assessment.OffsetFromIdealSeconds) * 1000f);
+        return assessment.Band switch
+        {
+            BattingTimingBand.Perfect => "PERFECT",
+            BattingTimingBand.Early => $"EARLY {offsetMilliseconds} ms",
+            _ => $"LATE {offsetMilliseconds} ms"
+        };
+    }
+
     public static LiveFeedbackBannerContent? BuildLiveFeedbackBanner(LiveFeedbackBannerState state)
     {
         if (state.IsHumanBowling && state.ActiveBowlingTargetPosition is { } target &&

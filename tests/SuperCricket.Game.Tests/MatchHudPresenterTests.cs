@@ -6,6 +6,19 @@ namespace SuperCricket.Game.Tests;
 
 public sealed class MatchHudPresenterTests
 {
+    [Theory]
+    [InlineData("Perfect", 0f, "PERFECT")]
+    [InlineData("Early", -0.042f, "EARLY 42 ms")]
+    [InlineData("Late", 0.038f, "LATE 38 ms")]
+    public void BattingTimingAssessmentFormatsBandAndAbsoluteOffset(
+        string band,
+        float offsetSeconds,
+        string expected)
+    {
+        Assert.Equal(expected, MatchHudPresenter.FormatBattingTimingText(
+            new BattingTimingAssessment(Enum.Parse<BattingTimingBand>(band), offsetSeconds)));
+    }
+
     [Fact]
     public void LiveFeedbackPrefersBowlingAccuracyWhenOtherFeedbackIsPresent()
     {

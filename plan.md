@@ -152,6 +152,7 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 86: move contact-result labels and high-contrast colors into `MatchHudPresenter`; test quality thresholds and missing/miss states without starting the host. Hosted Windows validation passed in [run 37581972044](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37581972044).
   - [x] Step 87: move ball-trail colors and difficulty-scaled contact-zone opacity into `MatchHudPresenter`; test speed fallbacks and difficulty levels headlessly. Hosted Windows validation passed in [run 37582250675](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37582250675).
   - [ ] Step 88: move live-feedback banner text and priority selection into `MatchHudPresenter`; test bowling, contact, timing, and bounce states without starting the host.
+  - [ ] Step 89: move calibrated batting-timing band formatting into `MatchHudPresenter`; verify perfect, early, and late labels and offsets headlessly.
 - [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
   - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.
