@@ -2,7 +2,7 @@
 
 ## Change
 
-Moved the review workflow, CPU-batting regression inputs, analyzer examples, and physics-match batches to the humanoid batter and bowler GLBs. The legacy `.scplayer.json` files remain Blender authoring sources and migration-comparison fixtures. Updated CLI usage text and the player asset contract to describe the supported GLB pose, root-motion, material, and texture profile.
+Moved the review workflow, CPU-batting regression inputs, Godot-trial simulation, analyzer examples, and physics-match batches to the humanoid batter and bowler GLBs. The legacy `.scplayer.json` files remain Blender authoring sources and migration-comparison fixtures. Updated CLI usage text and the player asset contract to describe the supported GLB pose, root-motion, material, and texture profile.
 
 Recalibrated `idealInputDelaySeconds` from the GLB analyzer's highest-quality samples:
 
@@ -18,8 +18,8 @@ The analyzer now composes only the forearm's ancestor chain and reuses sampled m
 ## Verification
 
 - `dotnet test SuperCricket.sln -c Release --no-restore`: 22 Simulation, 98 Game, and 7 Content tests passed; 0 failed (127 total).
-- `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with GLB analyzer inputs, calibration checks, repeated outputs, CPU batting, footwork, and the six-match 10-over physics review.
-- Hosted Windows validation passed: [run 37593272452](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37593272452).
+- `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with GLB analyzer inputs, calibration checks, repeated outputs, CPU batting, footwork, the Godot trial build, and the six-match 10-over physics review.
+- Hosted Windows validation passed: [run 37594628184](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37594628184).
 - No game host, window, or renderer capture was started.
 
 ## Remaining
