@@ -6,13 +6,13 @@ Build an original 3D cricket game with the presentation ambition of Cricket 07: 
 
 ## Where we are (7 October 2026)
 
-MonoGame remains the shipping host. Steps 69–71 complete GLB player loading, headless Windows CI, and the compact README/tool guide. Steps 72–73 extract the input router and clarify/test the camera director. Step 74 splits the `Game1` source into focused partial files, each under 500 lines; the class is still coupled. Step 75 moves graphics-free Simulation review checks to xUnit; the two Game-side review suites remain to migrate. The human keyboard retest after Step 67 remains open; GamePad play, contact replay, and guided practice also remain open. C1 still needs a dedicated fielder rig, broader material/texture support, and legacy-format retirement. Keep gameplay additions behind the human retest and require human review of visual captures. See [Step 67](docs/steps/step-67-player-focused-camera-feedback.md), [Step 69](docs/steps/step-69-monogame-glb-player-runtime.md), [Step 70](docs/steps/step-70-windows-validation-workflow.md), [Step 71](docs/steps/step-71-readme-tool-reference.md), [Step 72](docs/steps/step-72-input-router.md), [Step 73](docs/steps/step-73-camera-director.md), [Step 74](docs/steps/step-74-game1-source-split.md), [Step 75](docs/steps/step-75-simulation-xunit-migration.md), and earlier implementation notes in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
+MonoGame remains the shipping host. Steps 69–71 complete GLB player loading, headless Windows CI, and the compact README/tool guide. Steps 72–73 extract the input router and clarify/test the camera director. Step 74 splits the `Game1` source into focused partial files, each under 500 lines; the class is still coupled. Step 75 moves graphics-free Simulation review checks to xUnit; the two Game-host review suites remain in the Game review path. The human keyboard retest after Step 67 remains open; GamePad play, contact replay, and guided practice also remain open. C1 still needs a dedicated fielder rig, broader material/texture support, and legacy-format retirement. Keep gameplay additions behind the human retest and require human review of visual captures. See [Step 67](docs/steps/step-67-player-focused-camera-feedback.md), [Step 69](docs/steps/step-69-monogame-glb-player-runtime.md), [Step 70](docs/steps/step-70-windows-validation-workflow.md), [Step 71](docs/steps/step-71-readme-tool-reference.md), [Step 72](docs/steps/step-72-input-router.md), [Step 73](docs/steps/step-73-camera-director.md), [Step 74](docs/steps/step-74-game1-source-split.md), [Step 75](docs/steps/step-75-simulation-xunit-migration.md), and earlier implementation notes in [docs/steps/step-notes-01-50.md](docs/steps/step-notes-01-50.md).
 
 | Area | Rating | State |
 | --- | --- | --- |
 | Simulation and rules | 7/10 | 120 Hz ball flight, swept bat contact, sweet-spot impact, two-innings match, CPU batting/bowling/running/field placement, seeded physics match batches |
 | Tooling | 8/10 | Validators, analyzers, deterministic capture and profiling, `tools/review.ps1` |
-| Architecture | 6/10 | `Simulation`/`Content` are graphics-free; `Game1` is now divided into focused partial files but still shares one stateful class; graphics-free Simulation review checks are isolated in xUnit, while two Game-side review suites remain |
+| Architecture | 6/10 | `Simulation`/`Content` are graphics-free; `Game1` is now divided into focused partial files but still shares one stateful class; graphics-free review checks are isolated in xUnit, while host-dependent checks stay in the Game review path |
 | Visual fidelity vs Cricket 07 | 2/10 | MonoGame remains a flat-colour prototype; the Godot B2 trial now proves a low-detail GLB player, procedural stadium, shadows, and post-processing, but does not yet raise the game's fidelity |
 | Animation | 2/10 | 13-bone rig, script-keyed clips, no hands/fingers, no IK |
 | Audio | 1/10 | Procedural placeholder cues only |
@@ -140,9 +140,9 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 72: extract keyboard/controller state and edge tracking to `MatchInputRouter`; the match, presentation, and camera split remains open.
   - [x] Step 73: make the existing camera component's director role explicit and test its isolated behavior.
   - [x] Step 74: split `Game1` into focused partial files under 500 lines; class-level component extraction remains open.
-- [ ] Move `*ReviewChecks` into an xUnit test project; keep `review.ps1` for asset, capture, and game-host checks.
+- [x] Move graphics-free review checks into xUnit; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
-  - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; the two Game-side review suites remain.
+  - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; host-dependent Game checks remain in the full review path.
 - [x] Add GitHub Actions on Windows: build, tests, validators. Step 70's hosted run passes.
 - [x] Shorten the README: build/run, controls table, links to tool docs. See Step 71.
 
