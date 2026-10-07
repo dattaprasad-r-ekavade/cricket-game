@@ -142,7 +142,7 @@ The match loop, rosters, CPU opponent, difficulty, settings, controller mapping,
   - [x] Step 74: split `Game1` into focused partial files under 500 lines; class-level component extraction remains open.
 - [ ] Move `*ReviewChecks` into an xUnit test project; keep `review.ps1` for asset, capture, and game-host checks.
   - [x] Step 72: add the xUnit project and its first three input tests; migrating the existing checks remains open.
-  - [ ] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; the two Game-side review suites remain.
+  - [x] Step 75: migrate all graphics-free Simulation review checks and route the existing `verify-*` commands through filtered xUnit tests; the two Game-side review suites remain.
 - [x] Add GitHub Actions on Windows: build, tests, validators. Step 70's hosted run passes.
 - [x] Shorten the README: build/run, controls table, links to tool docs. See Step 71.
 

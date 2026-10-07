@@ -10,5 +10,5 @@ The two Game-side review suites remain in the game project for a later host-boun
 
 - `dotnet test SuperCricket.sln -c Release`: 14 Simulation tests and 6 Game helper tests passed; 0 failed.
 - `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with a zero-warning Release build, asset validation, filtered xUnit simulation checks, and deterministic match batches.
+- Hosted Windows validation passed: [run 37573820936](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37573820936).
 - No game host, window, or renderer capture was started.
-- Hosted Windows validation will be recorded after the push.
