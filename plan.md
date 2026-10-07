@@ -73,7 +73,7 @@ Ordered by dependency. Milestones A and B run first because their outcomes chang
 - [x] Immediate in-world feedback: a bat-contact flash scaled by quality, ball-trail colour by speed, and the actual pitch spot marked briefly.
 
 **A4d — Gameplay cameras**
-- [ ] Frame the full delivery in the role views. Step 61 sets behind-striker to 21 m / 44° and bowler-end to 20 m / 44°, centered on the pitch while preserving the shoulder offsets; Page Up/Down and V retain zoom and alternate views.
+- [x] Frame the full delivery in the role views. Step 61 sets behind-striker to 21 m / 44° and bowler-end to 20 m / 44°, centered on the pitch while preserving the shoulder offsets; Page Up/Down and V retain zoom and alternate views.
 - [x] Let keyboard users adjust camera distance with Page Up/Down and mouse-wheel zoom during normal play.
 - [x] Select batting/bowling camera by player role for each delivery and follow the ball after bat contact.
 - [x] Show the camera shortcut in phase prompts; V cycles views on keyboard and left-stick click cycles views on GamePad.
