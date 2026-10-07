@@ -56,13 +56,8 @@ public partial class Game1
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         var selectedPreset = _deliveryPresets[_activeDeliveryPresetIndex];
-        var situation = new BowlingSituation(
-            _match.LegalBalls,
-            _match.OversPerInnings,
-            _match.Runs,
-            _match.Wickets,
-            _match.Target);
-        var fieldPlacement = FieldPlacementModel.Choose(_fieldPreset, situation, _match.StrikerPlayer.Power);
+        var situation = _matchController.CurrentBowlingSituation;
+        var fieldPlacement = _matchController.ChooseFieldPlacement(_fieldPreset);
         _activeFieldingTactic = fieldPlacement.Tactic;
         _fieldingSide.ConfigureStartingPositions(fieldPlacement.StartingPositions);
         if (IsCpuBattingControlled && !_developerMode)

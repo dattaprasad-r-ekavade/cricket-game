@@ -18,6 +18,12 @@ internal sealed class MatchController
     public LimitedOversMatch Match { get; }
     public int BowlingSeed { get; private set; }
     public bool IsFirstMatch => !_hasCompletedFirstMatch;
+    public BowlingSituation CurrentBowlingSituation => new(
+        Match.LegalBalls,
+        Match.OversPerInnings,
+        Match.Runs,
+        Match.Wickets,
+        Match.Target);
 
     public void StartNewMatch(int oversPerInnings, int? seed = null)
     {
@@ -46,19 +52,19 @@ internal sealed class MatchController
     public DeliveryPreset ChooseCpuBowlingDelivery(DeliveryPreset stockDelivery, CpuDifficulty difficulty)
     {
         ArgumentNullException.ThrowIfNull(stockDelivery);
-        var situation = new BowlingSituation(
-            Match.LegalBalls,
-            Match.OversPerInnings,
-            Match.Runs,
-            Match.Wickets,
-            Match.Target);
         return BowlingDecisionModel.ChooseDelivery(
             stockDelivery,
             Match.CurrentBowler.Bowling,
             Match.StrikerPlayer.Power,
-            situation,
+            CurrentBowlingSituation,
             CreateBowlingDecisionSeed(),
             difficulty).Delivery;
+    }
+
+    public FieldPlacementDecision ChooseFieldPlacement(FieldPreset fieldPreset)
+    {
+        ArgumentNullException.ThrowIfNull(fieldPreset);
+        return FieldPlacementModel.Choose(fieldPreset, CurrentBowlingSituation, Match.StrikerPlayer.Power);
     }
 
     public DeliveryResult CompleteDelivery()

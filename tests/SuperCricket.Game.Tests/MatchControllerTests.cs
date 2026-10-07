@@ -143,11 +143,45 @@ public sealed class MatchControllerTests
         Assert.Equal(0f, stock.LateralAccelerationMetersPerSecondSquared);
     }
 
+    [Fact]
+    public void BowlingSituationAndFieldPlacementFollowCurrentMatchState()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        CompleteBoundary(controller, clearedInTheAir: true);
+
+        var situation = controller.CurrentBowlingSituation;
+        var expectedSituation = new BowlingSituation(1, 1, 6, 0, null);
+        var fieldPreset = CreateFieldPreset();
+        var expectedPlacement = FieldPlacementModel.Choose(
+            fieldPreset,
+            expectedSituation,
+            controller.Match.StrikerPlayer.Power);
+        var placement = controller.ChooseFieldPlacement(fieldPreset);
+
+        Assert.Equal(expectedSituation, situation);
+        Assert.Equal(expectedPlacement.Tactic, placement.Tactic);
+        Assert.Equal(expectedPlacement.StartingPositions, placement.StartingPositions);
+    }
+
     private static DeliveryPreset CreateDelivery() => new()
     {
         Name = "Controller pace test",
         ReleasePosition = new Vector3Data { X = 0f, Y = 1f, Z = 20f },
         ReleaseVelocity = new Vector3Data { X = 0f, Y = 0f, Z = -34f }
+    };
+
+    private static FieldPreset CreateFieldPreset() => new()
+    {
+        Name = "Controller placement test",
+        Players = Enumerable.Range(0, 10)
+            .Select(index => new FieldPositionData
+            {
+                Name = $"Fielder {index + 1}",
+                IsWicketkeeper = index == 0,
+                Position = new Vector3Data { X = index, Y = -0.08f, Z = index + 1 }
+            })
+            .ToList()
     };
 
     private static void CompleteBoundary(MatchController controller, bool clearedInTheAir)
