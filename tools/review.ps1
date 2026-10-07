@@ -249,6 +249,12 @@ try {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-bowling-feedback.png', '--bowling-target', '--feedback-preview')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-wait.png', '--camera', 'behind-striker', '--ball-flight-time', '0.10')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-swing.png', '--camera', 'behind-striker', '--ball-flight-time', '0.20')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-batting-timing-late.png', '--camera', 'behind-striker', '--ball-flight-time', '0.40')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-debug-overlay.png', '--camera', 'bowler-end', '--show-debug-overlay')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-ball-follow.png', '--camera', 'ball-follow', '--ball-flight-time', '0.45')

@@ -151,12 +151,46 @@ public partial class Game1
         return (title, detail);
     }
 
+    private BattingTimingCue? GetLiveBattingTimingCue()
+    {
+        if (IsCpuBattingControlled || IsHumanBowling || !_bowlerReleased || _deliveryComplete ||
+            _battedBall || _chosenShot is not null || _shotResolved ||
+            (_simulationPaused && _captureTarget is null))
+            return null;
+
+        var possibleShots = MathF.Abs(_humanShotAimOffset) < 0.08f
+            ? new[] { "defence", "loft" }
+            : new[] { "drive", "loft" };
+        var safeWindowStart = float.NegativeInfinity;
+        var safeWindowEnd = float.PositiveInfinity;
+        foreach (var shotName in possibleShots)
+        {
+            var idealInputDelay = _battingTimingCalibration.FindIdealInputDelaySeconds(CalibrationDeliveryName, shotName);
+            if (idealInputDelay is not { } ideal)
+                return null;
+            safeWindowStart = MathF.Max(safeWindowStart,
+                ideal - _battingTimingCalibration.OnTimeWindowSeconds);
+            safeWindowEnd = MathF.Min(safeWindowEnd,
+                ideal + _battingTimingCalibration.OnTimeWindowSeconds);
+        }
+
+        if (safeWindowEnd <= safeWindowStart)
+            return null;
+        var safeIdealInputDelay = (safeWindowStart + safeWindowEnd) * 0.5f;
+        var safeWindowHalfWidth = (safeWindowEnd - safeWindowStart) * 0.5f;
+        return BattingTimingFeedbackModel.EvaluateCue(
+            _ballFlight.CurrentFrame.TimeSeconds,
+            safeIdealInputDelay,
+            safeWindowHalfWidth);
+    }
+
     private void DrawLiveFeedbackBanner()
     {
         string title;
         string detail;
         Color accent;
         float remaining;
+        var timingCue = GetLiveBattingTimingCue();
 
         if (IsHumanBowling && _activeBowlingTargetPosition is { } target &&
             _firstBouncePosition is { } landing && _liveFeedbackBannerRemainingSeconds > 0f)
@@ -193,6 +227,29 @@ public partial class Game1
                     : $"{shotLabel} | {timingDetail} | {qualityLabel}";
             accent = GetContactFeedbackColor();
             remaining = _liveFeedbackBannerRemainingSeconds;
+        }
+        else if (timingCue is { } cue)
+        {
+            title = cue.State switch
+            {
+                BattingTimingCueState.Waiting => "WATCH THE MARKER",
+                BattingTimingCueState.SwingNow => "SWING NOW",
+                _ => "LATE SHOT POSSIBLE"
+            };
+            var shotButtons = _lastInputWasGamePad ? "A / Y" : "Space / Shift";
+            detail = cue.State switch
+            {
+                BattingTimingCueState.Waiting => $"Press {shotButtons} as the marker enters green",
+                BattingTimingCueState.SwingNow => $"Press {shotButtons} now for on-time contact",
+                _ => $"Window passed; press {shotButtons} for late contact"
+            };
+            accent = cue.State switch
+            {
+                BattingTimingCueState.Waiting => _gameSettings.HighContrast ? Color.Yellow : new Color(255, 220, 74),
+                BattingTimingCueState.SwingNow => _gameSettings.HighContrast ? Color.Yellow : new Color(135, 255, 159),
+                _ => _gameSettings.HighContrast ? Color.White : new Color(255, 164, 77)
+            };
+            remaining = 1f;
         }
         else if (!IsHumanBowling && _firstBouncePosition is { } bounce &&
             _liveFeedbackBannerRemainingSeconds > 0f)
@@ -235,7 +292,24 @@ public partial class Game1
         for (var index = 0; index < detailLines.Count; index++)
             DrawOverlayText(detailLines[index], new Vector2(panel.X + 17, panel.Y + 39 + index * lineSpacing),
                 Color.White, detailScale);
+        if (timingCue is { } gauge)
+            DrawBattingTimingGauge(new Rectangle(panel.X + 17, panel.Bottom - 13, panel.Width - 34, 7), gauge);
         _spriteBatch.End();
+    }
+
+    private void DrawBattingTimingGauge(Rectangle bounds, BattingTimingCue cue)
+    {
+        _spriteBatch.Draw(_feedbackMapPixel, bounds, _gameSettings.HighContrast
+            ? new Color(72, 72, 72)
+            : new Color(60, 74, 80));
+        var targetStart = bounds.X + (int)MathF.Round(cue.WindowStart * bounds.Width);
+        var targetEnd = bounds.X + (int)MathF.Round(cue.WindowEnd * bounds.Width);
+        _spriteBatch.Draw(_feedbackMapPixel,
+            new Rectangle(targetStart, bounds.Y, Math.Max(2, targetEnd - targetStart), bounds.Height),
+            _gameSettings.HighContrast ? Color.Yellow : new Color(85, 208, 126));
+        var markerX = bounds.X + (int)MathF.Round(cue.Progress * (bounds.Width - 3));
+        _spriteBatch.Draw(_feedbackMapPixel,
+            new Rectangle(markerX, bounds.Y - 3, 3, bounds.Height + 6), Color.White);
     }
 
     private void DrawDeliveryFeedbackCard()

@@ -266,6 +266,47 @@ public partial class Game1
         Require(early.Band == BattingTimingBand.Early && perfect.Band == BattingTimingBand.Perfect &&
             late.Band == BattingTimingBand.Late && MathF.Abs(late.OffsetFromIdealSeconds - 0.17f) < 0.001f,
             "calibrated batting timing did not distinguish early, perfect, and late inputs");
+        var waitingCue = BattingTimingFeedbackModel.EvaluateCue(0.10f, 0.25f, 0.075f);
+        var onTimeCue = BattingTimingFeedbackModel.EvaluateCue(0.25f, 0.25f, 0.075f);
+        var lateCue = BattingTimingFeedbackModel.EvaluateCue(0.40f, 0.25f, 0.075f);
+        Require(waitingCue.State == BattingTimingCueState.Waiting &&
+            MathF.Abs(waitingCue.SecondsUntilWindow - 0.075f) < 0.001f &&
+            onTimeCue.State == BattingTimingCueState.SwingNow &&
+            lateCue.State == BattingTimingCueState.WindowPassed &&
+            waitingCue.Progress < waitingCue.WindowStart &&
+            onTimeCue.Progress is > 0.49f and < 0.51f &&
+            lateCue.Progress > lateCue.WindowEnd,
+            "the live timing gauge did not place its calibrated window and moving marker correctly");
+        var rejectedCueTime = false;
+        try
+        {
+            BattingTimingFeedbackModel.EvaluateCue(float.NaN, 0.25f, 0.075f);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            rejectedCueTime = true;
+        }
+        Require(rejectedCueTime, "the live timing gauge accepted a non-finite ball-flight time");
+        foreach (var profile in _battingTimingCalibration.DeliveryProfiles)
+        foreach (var shots in new[] { new[] { "defence", "loft" }, new[] { "drive", "loft" } })
+        {
+            var first = _battingTimingCalibration.FindIdealInputDelaySeconds(profile.DeliveryName, shots[0])
+                ?? throw new InvalidOperationException($"The timing cue was missing '{shots[0]}' for '{profile.DeliveryName}'.");
+            var second = _battingTimingCalibration.FindIdealInputDelaySeconds(profile.DeliveryName, shots[1])
+                ?? throw new InvalidOperationException($"The timing cue was missing '{shots[1]}' for '{profile.DeliveryName}'.");
+            var safeStart = MathF.Max(first - _battingTimingCalibration.OnTimeWindowSeconds,
+                second - _battingTimingCalibration.OnTimeWindowSeconds);
+            var safeEnd = MathF.Min(first + _battingTimingCalibration.OnTimeWindowSeconds,
+                second + _battingTimingCalibration.OnTimeWindowSeconds);
+            var safeCenter = (safeStart + safeEnd) * 0.5f;
+            var safeHalfWidth = (safeEnd - safeStart) * 0.5f;
+            Require(safeEnd > safeStart &&
+                BattingTimingFeedbackModel.Assess(safeCenter, first, _battingTimingCalibration.OnTimeWindowSeconds).Band == BattingTimingBand.Perfect &&
+                BattingTimingFeedbackModel.Assess(safeCenter, second, _battingTimingCalibration.OnTimeWindowSeconds).Band == BattingTimingBand.Perfect &&
+                safeHalfWidth > 0f,
+                $"the shared timing-cue window was not on-time for both {shots[0]} and {shots[1]} on '{profile.DeliveryName}'");
+        }
+        Console.WriteLine("PASS: the batting timing cue shows calibrated waiting, on-time, and passed-window states with a moving gauge marker.");
         Reset();
         PrepareBowlingTargetCapture();
         var bowlingBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
