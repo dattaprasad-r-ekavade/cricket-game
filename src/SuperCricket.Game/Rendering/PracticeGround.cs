@@ -2,17 +2,18 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SuperCricket.Simulation;
 
 namespace SuperCricket.Game.Rendering;
 
 /// <summary>Measured pitch, outfield, and first procedural stadium presentation, authored in metres.</summary>
 public static class PracticeGround
 {
-    public const float PitchLength = 20.12f;
-    public const float PitchWidth = 3.05f;
-    public const float WicketHeight = 0.71f;
+    public const float PitchLength = CricketPitchGeometry.PitchLengthMeters;
+    public const float PitchWidth = CricketPitchGeometry.PitchWidthMeters;
+    public const float WicketHeight = CricketPitchGeometry.WicketHeightMeters;
     public const float BallRadius = 0.036f;
-    public const float WicketOffset = PitchLength / 2f;
+    public const float WicketOffset = CricketPitchGeometry.WicketOffsetMeters;
     public const int CrowdRows = 15;
     public const int CrowdSpectatorsPerRow = 320;
     public const int CrowdSpectatorCount = CrowdRows * CrowdSpectatorsPerRow;

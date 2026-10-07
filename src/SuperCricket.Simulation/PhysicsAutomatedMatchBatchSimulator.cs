@@ -254,23 +254,16 @@ public static class PhysicsAutomatedMatchBatchSimulator
             random.Next()).Delivery;
     }
 
-    private static void ResolveMissedDelivery(DeliverySession session, DeliveryPreset delivery)
+    internal static void ResolveMissedDelivery(DeliverySession session, DeliveryPreset delivery)
     {
         var ball = new BallFlightSimulator(delivery);
         var previous = ball.CurrentFrame;
-        var wicketLineZ = BattingPracticeAnalyzer.BatterWicketLineZ;
         var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             var current = ball.Step();
-            if (TryCrossPlane(previous.Position, current.Position, wicketLineZ, out var crossing))
-            {
-                var isWide = CricketDeliveryRuleModel.IsWide(crossing.X, delivery.PitchWidthMeters);
-                var hitsWickets = MathF.Abs(crossing.X) <= 0.12f + delivery.BallRadiusMeters &&
-                    crossing.Y >= 0f && crossing.Y <= 0.71f + delivery.BallRadiusMeters;
-                session.ResolveIncoming(isWide, hitsWickets);
+            if (IncomingDeliveryModel.TryResolve(session, previous.Position, current.Position, delivery, out _, out _))
                 return;
-            }
             previous = current;
         }
     }
@@ -373,19 +366,6 @@ public static class PhysicsAutomatedMatchBatchSimulator
         }
 
         throw new InvalidOperationException("Physics match batted-ball simulation ended without a boundary or fielder contact.");
-    }
-
-    private static bool TryCrossPlane(Vector3 previous, Vector3 current, float planeZ, out Vector3 crossing)
-    {
-        if (previous.Z <= planeZ || current.Z > planeZ || MathF.Abs(current.Z - previous.Z) < 0.000001f)
-        {
-            crossing = default;
-            return false;
-        }
-
-        var amount = (planeZ - previous.Z) / (current.Z - previous.Z);
-        crossing = Vector3.Lerp(previous, current, Math.Clamp(amount, 0f, 1f));
-        return true;
     }
 
     private static float GetAnimationDuration(PlayerAsset asset, string clipName) =>

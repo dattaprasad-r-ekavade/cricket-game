@@ -335,13 +335,8 @@ public partial class Game1
         _batterAnimations.SetRunning(_isRunning);
     }
 
-    private void ResolveIncomingDelivery(NumericsVector3 wicketLinePosition)
+    private void ResolveIncomingDelivery(IncomingDeliveryResolution resolution, NumericsVector3 wicketLinePosition)
     {
-        var contact = ToXna(wicketLinePosition);
-        var resolution = CurrentDelivery.ResolveIncoming(
-            isWide: CricketDeliveryRuleModel.IsWide(contact.X, _deliveryPreset.PitchWidthMeters),
-            hitsWickets: MathF.Abs(contact.X) <= 0.12f + _deliveryPreset.BallRadiusMeters &&
-                contact.Y >= 0f && contact.Y <= PracticeGround.WicketHeight + _deliveryPreset.BallRadiusMeters);
         switch (resolution)
         {
             case IncomingDeliveryResolution.NoBall:
@@ -472,19 +467,6 @@ public partial class Game1
                 _groundVertices = PracticeGround.CreateField(nearWicketBroken: true);
             _playerAnimator.Play("practice-stance", 0.12f);
         }
-    }
-
-    private static bool TryCrossPlane(NumericsVector3 previous, NumericsVector3 current, float planeZ, out NumericsVector3 crossing)
-    {
-        if (previous.Z < planeZ || current.Z > planeZ || MathF.Abs(current.Z - previous.Z) < 0.000001f)
-        {
-            crossing = default;
-            return false;
-        }
-
-        var amount = (planeZ - previous.Z) / (current.Z - previous.Z);
-        crossing = NumericsVector3.Lerp(previous, current, Math.Clamp(amount, 0f, 1f));
-        return true;
     }
 
 

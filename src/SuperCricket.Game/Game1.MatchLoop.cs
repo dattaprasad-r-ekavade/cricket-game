@@ -320,9 +320,11 @@ public partial class Game1
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
                 }
 
-                if (!_deliveryComplete && !_battedBall && TryCrossPlane(previousFrame.Position, frame.Position, -PracticeGround.WicketOffset, out var wicketLinePosition))
+                if (!_deliveryComplete && !_battedBall && IncomingDeliveryModel.TryResolve(
+                    CurrentDelivery, previousFrame.Position, frame.Position, _deliveryPreset,
+                    out var wicketLinePosition, out var incomingResolution))
                 {
-                    ResolveIncomingDelivery(wicketLinePosition);
+                    ResolveIncomingDelivery(incomingResolution, wicketLinePosition);
                     frame = _ballFlight.CurrentFrame;
                 }
 

@@ -21,7 +21,7 @@ Correct the non-striker copying the striker's shot and footwork pose. Use the cu
 - Added 22 headless tests against the actual 61-bone batter GLB, covering independent palettes and clocks; defence, drive, loft, both footwork clips, and debug clip isolation; running, turn-back, queued-run continuity, delivery reset, and freeze/resume; 30/60/120 Hz updates; finite matrices and unchanged shared bind poses; invalid input.
 - `dotnet test SuperCricket.sln -c Release --no-restore`: all 324 tests passed (Content 9, Simulation 186, Game 129).
 - Default headless review: passed, including both builds, content validation, seeded physics batch repeatability, and batting calibration.
-- Hosted validation: pending.
+- Hosted Windows validation passed for code commit `efe271f4f948206801ddb5263478743c94048d4a` in [run 37617125193](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37617125193).
 - No game window, host check, capture, or runtime profile was started.
 
 ## Remaining
