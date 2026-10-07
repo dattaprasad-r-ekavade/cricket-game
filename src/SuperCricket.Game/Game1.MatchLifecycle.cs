@@ -59,27 +59,15 @@ public partial class Game1
         var situation = _matchController.CurrentBowlingSituation;
         var fieldPlacement = _matchController.ConfigureFieldingSide(_fieldingSide, _fieldPreset);
         _activeFieldingTactic = fieldPlacement.Tactic;
-        if (IsCpuBattingControlled && !_developerMode)
-        {
-            _deliveryPreset = BowlingAimModel.AimForPitchTarget(
-                selectedPreset,
-                _bowlingAimOffsetX,
-                _bowlingAimOffsetZ);
-        }
-        else if (_activeDeliveryPresetIndex == 0 && !_verifyGameplay)
-        {
-            _deliveryPreset = _matchController.ChooseCpuBowlingDelivery(selectedPreset, _cpuDifficulty);
-        }
-        else
-        {
-            _deliveryPreset = selectedPreset;
-        }
-        _deliveryPreset = _matchController.PrepareHumanBattingDelivery(
-            _deliveryPreset,
-            _cpuDifficulty,
-            humanBattingControlled: !IsCpuBattingControlled,
+        _deliveryPreset = _matchController.PrepareDeliveryForCurrentMatch(
+            selectedPreset,
+            _activeDeliveryPresetIndex,
+            cpuBattingControlled: IsCpuBattingControlled,
+            bowlingAimOffsetX: _bowlingAimOffsetX,
+            bowlingAimOffsetZ: _bowlingAimOffsetZ,
             developerMode: _developerMode,
-            verificationRun: _verifyGameplay);
+            verificationRun: _verifyGameplay,
+            difficulty: _cpuDifficulty);
         _matchController.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } predictedBounce

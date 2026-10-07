@@ -186,6 +186,82 @@ public sealed class MatchControllerTests
         Assert.Equal(expectedChaserIndex, fieldingSide.ActiveChaserIndex);
     }
 
+    [Fact]
+    public void PreparingDeliveryKeepsCpuAimAheadOfVerificationBypass()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        var selected = CreateDelivery();
+        var expected = BowlingAimModel.AimForPitchTarget(selected, 0.35f, -0.2f);
+
+        var actual = controller.PrepareDeliveryForCurrentMatch(
+            selected,
+            activePresetIndex: 0,
+            cpuBattingControlled: true,
+            bowlingAimOffsetX: 0.35f,
+            bowlingAimOffsetZ: -0.2f,
+            developerMode: false,
+            verificationRun: true,
+            difficulty: CpuDifficulty.Standard);
+
+        Assert.Equal(expected.ReleaseVelocity.X, actual.ReleaseVelocity.X);
+        Assert.Equal(expected.ReleaseVelocity.Y, actual.ReleaseVelocity.Y);
+        Assert.Equal(expected.ReleaseVelocity.Z, actual.ReleaseVelocity.Z);
+        Assert.Equal(34f, selected.ReleaseVelocity.ToVector3().Length());
+    }
+
+    [Fact]
+    public void PreparingFirstHumanDeliveryUsesSeededBowlingAndFirstMatchPace()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        var selected = CreateDelivery();
+        var expectedCpuDelivery = controller.ChooseCpuBowlingDelivery(selected, CpuDifficulty.Standard);
+        var expected = controller.PrepareHumanBattingDelivery(
+            expectedCpuDelivery,
+            CpuDifficulty.Standard,
+            humanBattingControlled: true,
+            developerMode: false,
+            verificationRun: false);
+
+        var actual = controller.PrepareDeliveryForCurrentMatch(
+            selected,
+            activePresetIndex: 0,
+            cpuBattingControlled: false,
+            bowlingAimOffsetX: 0f,
+            bowlingAimOffsetZ: 0f,
+            developerMode: false,
+            verificationRun: false,
+            difficulty: CpuDifficulty.Standard);
+
+        Assert.Equal(expected.Name, actual.Name);
+        Assert.Equal(expected.ReleaseVelocity.X, actual.ReleaseVelocity.X);
+        Assert.Equal(expected.ReleaseVelocity.Y, actual.ReleaseVelocity.Y);
+        Assert.Equal(expected.ReleaseVelocity.Z, actual.ReleaseVelocity.Z);
+        Assert.Equal(34f, selected.ReleaseVelocity.ToVector3().Length());
+    }
+
+    [Fact]
+    public void PreparingHumanDeliveryDuringVerificationLeavesPresetUnchanged()
+    {
+        var controller = new MatchController(new LimitedOversMatch());
+        controller.StartNewMatch(oversPerInnings: 1, seed: 1729);
+        var selected = CreateDelivery();
+
+        var actual = controller.PrepareDeliveryForCurrentMatch(
+            selected,
+            activePresetIndex: 0,
+            cpuBattingControlled: false,
+            bowlingAimOffsetX: 0f,
+            bowlingAimOffsetZ: 0f,
+            developerMode: false,
+            verificationRun: true,
+            difficulty: CpuDifficulty.Standard);
+
+        Assert.Same(selected, actual);
+        Assert.Equal(34f, actual.ReleaseVelocity.ToVector3().Length());
+    }
+
     private static DeliveryPreset CreateDelivery() => new()
     {
         Name = "Controller pace test",

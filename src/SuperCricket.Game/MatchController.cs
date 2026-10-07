@@ -81,6 +81,31 @@ internal sealed class MatchController
         return placement;
     }
 
+    public DeliveryPreset PrepareDeliveryForCurrentMatch(
+        DeliveryPreset selectedPreset,
+        int activePresetIndex,
+        bool cpuBattingControlled,
+        float bowlingAimOffsetX,
+        float bowlingAimOffsetZ,
+        bool developerMode,
+        bool verificationRun,
+        CpuDifficulty difficulty)
+    {
+        ArgumentNullException.ThrowIfNull(selectedPreset);
+        var delivery = cpuBattingControlled && !developerMode
+            ? BowlingAimModel.AimForPitchTarget(selectedPreset, bowlingAimOffsetX, bowlingAimOffsetZ)
+            : activePresetIndex == 0 && !verificationRun
+                ? ChooseCpuBowlingDelivery(selectedPreset, difficulty)
+                : selectedPreset;
+
+        return PrepareHumanBattingDelivery(
+            delivery,
+            difficulty,
+            humanBattingControlled: !cpuBattingControlled,
+            developerMode,
+            verificationRun);
+    }
+
     public DeliveryResult CompleteDelivery()
     {
         var result = Match.CompleteDelivery();
