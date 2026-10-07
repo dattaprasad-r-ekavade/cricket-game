@@ -23,7 +23,7 @@ Correct the existing live batting guide and result timing after Rookie/first-mat
 - Slowed standard pace measures defence at 0.550 s and drive/loft at 0.525 s. The previous stock drive target of 0.225 s misses this slowed ball.
 - Rookie CPU seed 491 cannot be contacted from centered feet, but becomes reachable at +0.45 m. The new test explicitly checks both cases instead of assuming every variation can be hit at the center.
 - `pwsh -NoProfile -File tools/review.ps1`: passed in default headless mode, including both builds, content validation, match batches, analyzer calibration, and repeatability checks.
-- Hosted Windows validation: pending.
+- Code committed as `f93cc38c77d23ca4b30019593cc8477e17d5c208`; hosted Windows validation passed in [run 37608721560](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37608721560).
 - No game window or visual capture was started.
 
 ## Remaining
