@@ -9,12 +9,20 @@ namespace SuperCricket.Game;
 
 public partial class Game1
 {
+    private static readonly (int Start, int End)[] BatContactZoneEdges =
+    [
+        (0, 1), (2, 3), (4, 5), (6, 7),
+        (0, 2), (1, 3), (4, 6), (5, 7),
+        (0, 4), (1, 5), (2, 6), (3, 7)
+    ];
+
     private const float BounceSpotFeedbackDurationSeconds = 4.5f;
     private const float ContactFeedbackDurationSeconds = 4f;
     private const float LiveFeedbackBannerDurationSeconds = 7f;
     private const float PitchMapLateralHalfExtentMeters = 9f;
     private const float PitchMapLengthMarginMeters = 2f;
     private float _deliverySpeedKilometersPerHour;
+    private Vector3? _predictedBouncePosition;
     private Vector3? _firstBouncePosition;
     private Vector3? _activeBowlingTargetPosition;
     private float _bounceSpotFeedbackRemainingSeconds;
@@ -71,11 +79,44 @@ public partial class Game1
 
     private void DrawWorldFeedbackMarkers()
     {
-        if (_bounceSpotFeedbackRemainingSeconds <= 0f && _contactFeedbackRemainingSeconds <= 0f)
+        var showPredictedBounce = !IsHumanBowling && _bowlerReleased && !_deliveryComplete &&
+            _firstBouncePosition is null && _predictedBouncePosition is not null;
+        var showBattingContactZone = GetBattingContactZoneAlpha() > 0 && !IsCpuBattingControlled &&
+            _bowlerReleased && !_battedBall && !_deliveryComplete;
+        if (!showPredictedBounce && !showBattingContactZone &&
+            _bounceSpotFeedbackRemainingSeconds <= 0f && _contactFeedbackRemainingSeconds <= 0f)
             return;
 
-        GraphicsDevice.DepthStencilState = DepthStencilState.None;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.BlendState = BlendState.AlphaBlend;
+
+        if (showPredictedBounce && _predictedBouncePosition is { } predictedBounce)
+        {
+            var withinPitch = MathF.Abs(predictedBounce.X) <= _deliveryPreset.PitchWidthMeters * 0.5f &&
+                MathF.Abs(predictedBounce.Z) <= _deliveryPreset.PitchLengthMeters * 0.5f;
+            var surfaceHeight = withinPitch
+                ? _deliveryPreset.PitchSurfaceHeightMeters
+                : _deliveryPreset.FieldSurfaceHeightMeters;
+            var center = new Vector3(predictedBounce.X, surfaceHeight + 0.04f, predictedBounce.Z);
+            var alpha = _gameSettings.HighContrast ? 0.95f : _cpuDifficulty switch
+            {
+                CpuDifficulty.Rookie => 0.92f,
+                CpuDifficulty.Standard => 0.72f,
+                _ => 0.52f
+            };
+            var color = WithAlpha(_gameSettings.HighContrast ? Color.White : new Color(72, 222, 255), alpha);
+            var radius = _cpuDifficulty switch
+            {
+                CpuDifficulty.Rookie => 0.72f,
+                CpuDifficulty.Standard => 0.58f,
+                _ => 0.44f
+            };
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, radius, color);
+            DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.12f, WithAlpha(Color.White, alpha));
+        }
+
+        if (showBattingContactZone)
+            DrawBattingContactZone();
 
         if (_firstBouncePosition is { } bounce && _bounceSpotFeedbackRemainingSeconds > 0f)
         {
@@ -94,6 +135,7 @@ public partial class Game1
 
         if (_contactMarkerPosition is { } contact && _contactFeedbackRemainingSeconds > 0f)
         {
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
             var progress = 1f - _contactFeedbackRemainingSeconds / ContactFeedbackDurationSeconds;
             var alpha = Math.Clamp(_contactFeedbackRemainingSeconds / 0.24f, 0f, 1f);
             var quality = _contactFeedbackQuality ?? 0f;
@@ -114,6 +156,53 @@ public partial class Game1
 
         GraphicsDevice.BlendState = BlendState.Opaque;
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+    }
+
+    private int GetBattingContactZoneAlpha() => _cpuDifficulty switch
+    {
+        CpuDifficulty.Rookie => 220,
+        CpuDifficulty.Standard => 120,
+        _ => 0
+    };
+
+    private void DrawBattingContactZone()
+    {
+        var padding = _deliveryPreset.BallRadiusMeters + _shotSet.ContactPaddingMeters;
+        var margin = new Vector3(padding);
+        var minimum = _batBladeMinimum - margin;
+        var maximum = _batBladeMaximum + margin;
+        Span<Vector3> corners = stackalloc Vector3[8];
+        for (var index = 0; index < corners.Length; index++)
+        {
+            var local = new Vector3(
+                (index & 1) == 0 ? minimum.X : maximum.X,
+                (index & 2) == 0 ? minimum.Y : maximum.Y,
+                (index & 4) == 0 ? minimum.Z : maximum.Z);
+            corners[index] = Vector3.Transform(local, _currentBatWorld);
+        }
+
+        var alpha = GetBattingContactZoneAlpha();
+        var zoneColor = _gameSettings.HighContrast
+            ? WithAlpha(Color.Yellow, alpha / 255f)
+            : WithAlpha(_cpuDifficulty == CpuDifficulty.Rookie
+                ? new Color(120, 255, 177)
+                : new Color(111, 224, 255), alpha / 255f);
+        for (var edgeIndex = 0; edgeIndex < BatContactZoneEdges.Length; edgeIndex++)
+        {
+            var edge = BatContactZoneEdges[edgeIndex];
+            _feedbackRingVertices[edgeIndex * 2] = new VertexPositionColor(corners[edge.Start], zoneColor);
+            _feedbackRingVertices[edgeIndex * 2 + 1] = new VertexPositionColor(corners[edge.End], zoneColor);
+        }
+
+        foreach (var pass in _lineEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserPrimitives(
+                PrimitiveType.LineList,
+                _feedbackRingVertices,
+                0,
+                BatContactZoneEdges.Length);
+        }
     }
 
     private void DrawFeedbackWorldRing(Vector3 center, Vector3 axisA, Vector3 axisB, float radius, Color color)
@@ -200,13 +289,13 @@ public partial class Game1
             var aimDistance = Vector2.Distance(new Vector2(target.X, target.Z), new Vector2(landing.X, landing.Z));
             detail = $"{summary.Detail} | {aimDistance:0.0} m from your aim";
             accent = _gameSettings.HighContrast ? Color.Yellow : new Color(74, 224, 255);
-            title = $"YOUR BOWLING | {title}";
+            title = $"BOWLING | {title}";
             remaining = _liveFeedbackBannerRemainingSeconds;
         }
         else if (!IsHumanBowling && _liveFeedbackBannerRemainingSeconds > 0f &&
             (_contactFeedbackQuality is not null || _contactFeedbackIsMiss) && _chosenShot is not null)
         {
-            title = $"YOUR BATTING | {GetContactFeedbackLabel()}";
+            title = $"BATTING | {GetContactFeedbackLabel()}";
             if (title.Length == 0)
                 return;
             var timing = GetBattingTimingText();
@@ -249,6 +338,10 @@ public partial class Game1
                 BattingTimingCueState.SwingNow => _gameSettings.HighContrast ? Color.Yellow : new Color(135, 255, 159),
                 _ => _gameSettings.HighContrast ? Color.White : new Color(255, 164, 77)
             };
+            if (_predictedBouncePosition is not null)
+                detail += _cpuDifficulty == CpuDifficulty.Pro
+                    ? " | ring = projected bounce"
+                    : " | ring = bounce point; bat outline = contact zone";
             remaining = 1f;
         }
         else if (!IsHumanBowling && _firstBouncePosition is { } bounce &&
@@ -265,36 +358,61 @@ public partial class Game1
         }
 
         var viewport = GraphicsDevice.Viewport;
-        var titleScale = _gameSettings.LargeText ? 1.32f : 1.22f;
-        var detailScale = _gameSettings.LargeText ? 1.02f : 0.94f;
-        var panelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 470 : 430);
-        var textWidth = panelWidth - 42;
+        var titleScale = _gameSettings.LargeText ? 1.50f : 1.40f;
+        var detailScale = _gameSettings.LargeText ? 1.20f : 1.10f;
+        var preferredPanelWidth = Math.Min(viewport.Width - 40, _gameSettings.LargeText ? 640 : 560);
+        var hudRight = _matchHudBounds.Right > 20 ? _matchHudBounds.Right : 20;
+        var safeRightWidth = viewport.Width - hudRight - 32;
+        var panelWidth = safeRightWidth >= 360
+            ? Math.Min(preferredPanelWidth, safeRightWidth)
+            : preferredPanelWidth;
+        var textWidth = panelWidth - 52;
         var detailLines = WrapFeedbackLines(new[] { detail }, textWidth, detailScale);
-        var lineSpacing = (int)MathF.Round(23 * detailScale);
-        var panelHeight = Math.Max(_gameSettings.LargeText ? 92 : 84,
-            22 + 32 + detailLines.Count * lineSpacing);
+        var lineSpacing = (int)MathF.Round(25 * detailScale);
+        var timingGaugeHeight = timingCue is null ? 8 : 18;
+        var panelHeight = Math.Max(90, 18 + 36 + detailLines.Count * lineSpacing + timingGaugeHeight);
         var hudLineSpacing = (int)MathF.Round(22 * (_gameSettings.LargeText ? 1.25f : 1f));
         var hudBottom = (int)MathF.Ceiling(20 + 14 + 5 * hudLineSpacing + 14 * (_gameSettings.LargeText ? 1.25f : 1f));
-        var panelX = Math.Max(20, viewport.Width - panelWidth - 20);
-        var panelY = panelX > viewport.Width * 0.67f
-            ? 20
-            : Math.Min((int)MathF.Ceiling(hudBottom + 12f), viewport.Height - panelHeight - 20);
-        panelY = Math.Max(20, panelY);
-        var panel = new Rectangle(panelX, panelY, panelWidth, panelHeight);
+        var panel = CalculateLiveFeedbackBannerBounds(
+            viewport.Width,
+            viewport.Height,
+            hudRight,
+            hudBottom,
+            panelWidth,
+            panelHeight);
         var fade = Math.Clamp(remaining / 0.32f, 0f, 1f);
         accent = WithAlpha(accent, fade);
         var background = WithAlpha(_gameSettings.HighContrast ? Color.Black : new Color(5, 12, 16), 0.98f * fade);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
         _spriteBatch.Draw(_feedbackMapPixel, panel, background);
-        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 7, panel.Height), accent);
-        DrawOverlayText(title, new Vector2(panel.X + 17, panel.Y + 7), accent, titleScale);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(panel.X, panel.Y, 9, panel.Height), accent);
+        DrawOverlayText(title, new Vector2(panel.X + 22, panel.Y + 8), accent, titleScale);
         for (var index = 0; index < detailLines.Count; index++)
-            DrawOverlayText(detailLines[index], new Vector2(panel.X + 17, panel.Y + 39 + index * lineSpacing),
+            DrawOverlayText(detailLines[index], new Vector2(panel.X + 22, panel.Y + 46 + index * lineSpacing),
                 Color.White, detailScale);
         if (timingCue is { } gauge)
-            DrawBattingTimingGauge(new Rectangle(panel.X + 17, panel.Bottom - 13, panel.Width - 34, 7), gauge);
+            DrawBattingTimingGauge(new Rectangle(panel.X + 22, panel.Bottom - 13, panel.Width - 44, 7), gauge);
         _spriteBatch.End();
+    }
+
+    internal static Rectangle CalculateLiveFeedbackBannerBounds(
+        int viewportWidth,
+        int viewportHeight,
+        int hudRight,
+        int hudBottom,
+        int panelWidth,
+        int panelHeight)
+    {
+        var width = Math.Min(viewportWidth - 40, panelWidth);
+        var height = Math.Min(viewportHeight - 24, panelHeight);
+        var rightX = hudRight + 12;
+        var canUseUpperRight = rightX + width <= viewportWidth - 20;
+        var x = canUseUpperRight ? rightX : Math.Max(20, (viewportWidth - width) / 2);
+        var y = canUseUpperRight
+            ? 20
+            : Math.Max(20, Math.Min(hudBottom + 12, viewportHeight - height - 12));
+        return new Rectangle(x, y, width, height);
     }
 
     private void DrawBattingTimingGauge(Rectangle bounds, BattingTimingCue cue)

@@ -41,7 +41,12 @@ public partial class Game1
             "bowling aim did not move the real delivery bounce to its selected line and length");
         Console.WriteLine("PASS: the bowling pitch target changes the real ball-flight bounce without mutating its source preset.");
         Reset();
-        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 16f) < 0.001f,
+        var expectedBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset)
+            ?? throw new InvalidOperationException("The review delivery has no predicted bounce.");
+        Require(_predictedBouncePosition is { } predictedBounce &&
+            Vector3.Distance(predictedBounce, ToXna(expectedBounce.Position)) < 0.001f,
+            "the projected pitch-point marker did not use the current delivery's simulated bounce");
+        Require(_camera.PresetName == "Behind striker" && MathF.Abs(_camera.Distance - 12.5f) < 0.001f,
             "the batting delivery did not start with the closer behind-striker view");
         Require(GetPrimaryControlHint().Contains("Left / Right: aim", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("Space: ground / defend", StringComparison.Ordinal) &&
@@ -145,14 +150,23 @@ public partial class Game1
             MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
-        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 16f) < 0.001f &&
-            MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 2f) < 0.001f &&
-            MathF.Abs(ballCamera.Yaw - (MathHelper.Pi + 0.12f)) < 0.001f &&
-            MathF.Abs(ballCamera.Elevation - 0.24f) < 0.001f && ballCamera.SelectPreset("bowler-end") &&
-            MathF.Abs(ballCamera.Distance - 16f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 38f) < 0.001f &&
-            MathF.Abs(ballCamera.Yaw - 0.12f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.24f) < 0.001f &&
+        Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 12.5f) < 0.001f &&
+            MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f && MathF.Abs(ballCamera.Target.Z + 2f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - (MathHelper.Pi + 0.22f)) < 0.001f &&
+            MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f && ballCamera.SelectPreset("bowler-end") &&
+            MathF.Abs(ballCamera.Distance - 12.5f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f &&
+            MathF.Abs(ballCamera.Yaw - 0.22f) < 0.001f && MathF.Abs(ballCamera.Elevation - 0.30f) < 0.001f &&
             MathF.Abs(ballCamera.Target.Z - 2f) < 0.001f,
-            "batting and bowling cameras did not use the closer, player-focused role framing");
+            "batting and bowling cameras did not use the closer, slightly offset role framing");
+        var readableFeedback = CalculateLiveFeedbackBannerBounds(1440, 900, 844, 158, 560, 96);
+        Require(readableFeedback.X == 856 && readableFeedback.Y == 20 && readableFeedback.Width == 560,
+            "live feedback banner did not move into the unobstructed upper-right display area");
+        var longHudFeedback = CalculateLiveFeedbackBannerBounds(1440, 900, 960, 158, 448, 116);
+        Require(longHudFeedback.X == 972 && longHudFeedback.Y == 20 && longHudFeedback.Right == 1420,
+            "live bowling feedback did not fit beside the wider keyboard scoreboard");
+        var narrowFeedback = CalculateLiveFeedbackBannerBounds(1280, 720, 960, 158, 560, 96);
+        Require(narrowFeedback.X == 360 && narrowFeedback.Y > 158,
+            "live feedback banner overlapped the scoreboard at a narrower resolution");
         var keyboardZoomDistance = ballCamera.Distance;
         var cameraZoomFrame = new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.5));
         ballCamera.Update(cameraZoomFrame, allowDeveloperControls: false, new KeyboardState(Keys.PageDown));
@@ -204,7 +218,20 @@ public partial class Game1
         _contactFeedbackIsMiss = true;
         Require(GetContactFeedbackLabel() == "NO CONTACT", "a missed shot did not have a clear immediate label");
         _contactFeedbackIsMiss = false;
-        Console.WriteLine("PASS: human role cameras use closer, player-focused framing with keyboard zoom; live feedback is role-labelled.");
+        Console.WriteLine("PASS: human role cameras use close, offset framing with keyboard zoom; live feedback is prominent and role-labelled.");
+
+        var difficultyBeforeContactZoneReview = _cpuDifficulty;
+        _cpuDifficulty = CpuDifficulty.Rookie;
+        var rookieContactZoneAlpha = GetBattingContactZoneAlpha();
+        _cpuDifficulty = CpuDifficulty.Standard;
+        var standardContactZoneAlpha = GetBattingContactZoneAlpha();
+        _cpuDifficulty = CpuDifficulty.Pro;
+        var proContactZoneAlpha = GetBattingContactZoneAlpha();
+        _cpuDifficulty = difficultyBeforeContactZoneReview;
+        Require(rookieContactZoneAlpha > standardContactZoneAlpha && standardContactZoneAlpha > proContactZoneAlpha &&
+            rookieContactZoneAlpha > 0 && proContactZoneAlpha == 0,
+            "batting contact-zone assistance did not scale from a strong Rookie outline to a hidden Pro outline");
+        Console.WriteLine("PASS: the projected bounce matches the flight simulation; contact-zone prominence descends from Rookie to Standard to hidden on Pro.");
 
         Reset();
         for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);

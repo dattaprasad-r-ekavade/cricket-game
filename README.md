@@ -58,6 +58,8 @@ Run the full review checks on Windows with `pwsh -File tools/review.ps1`. This b
 
 To capture a scene with the debug overlay and its release marker, pass `--show-debug-overlay` to the game's `--capture-frame` command; `tools/review.ps1` saves one under `artifacts/review-debug-overlay.png`.
 
+To compare the projected pitch point and batting contact-zone guide across difficulty tiers, capture a released ball with `--contact-zone-preview Rookie`, `Standard`, or `Pro`; Rookie has the strongest bat outline, Standard a lighter outline, and Pro hides it. For example: `dotnet run --project src/SuperCricket.Game -- --capture-frame artifacts/contact-zone-rookie.png --camera behind-striker --ball-flight-time 0.10 --contact-zone-preview Rookie`.
+
 Use `dotnet run --project src/SuperCricket.Game -- --profile-frames 300` for a live renderer profile. It warms up for up to 60 frames, then reports frame-interval and CPU update/draw-submission distributions; GPU execution timing requires a GPU profiler.
 
 ```powershell

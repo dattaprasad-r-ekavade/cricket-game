@@ -51,6 +51,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly float? _captureBatterFootworkActionTimeSeconds;
     private readonly bool _captureBowlingTarget;
     private readonly bool _captureFeedbackPreview;
+    private readonly CpuDifficulty? _captureDifficultyOverride;
     private readonly bool _captureCameraPresetSpecified;
     private bool _developerMode;
     private SpriteBatch _spriteBatch = null!;
@@ -69,6 +70,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private VertexBuffer? _crowdVertexBuffer;
     private RenderTarget2D? _captureTarget;
     private readonly OrbitCamera _camera = new();
+    private Rectangle _matchHudBounds;
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
     private readonly List<VertexPositionColor> _shadowVertices = [];
     private readonly VertexPositionColor[] _debugMarkerVertices = new VertexPositionColor[18];
@@ -203,7 +205,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         float? captureBallFlightTimeSeconds = null,
         bool developerMode = false,
         bool captureBowlingTarget = false,
-        bool captureFeedbackPreview = false)
+        bool captureFeedbackPreview = false,
+        CpuDifficulty? captureDifficultyOverride = null)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -222,6 +225,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             captureFeedbackPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
+            captureDifficultyOverride is not null && capturePath is null ||
             profileFrameCount is < 0 or > 36000)
             throw new ArgumentException("Choose one bowler preview time, fielder action, or batter-footwork action and its preview time.");
         _capturePath = capturePath;
@@ -237,6 +241,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureBallFlightTimeSeconds = captureBallFlightTimeSeconds;
         _captureBowlingTarget = captureBowlingTarget;
         _captureFeedbackPreview = captureFeedbackPreview;
+        _captureDifficultyOverride = captureDifficultyOverride;
         _captureCameraPresetSpecified = captureCameraPreset is not null;
         _captureFielderActionClip = captureFielderActionClip;
         _captureFielderActionTimeSeconds = captureFielderActionTimeSeconds;
@@ -391,6 +396,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _currentBatWorld = GetBatWorldTransform();
         _previousBatWorld = _currentBatWorld;
         LoadGameSettings();
+        if (_captureDifficultyOverride is { } captureDifficulty)
+            _cpuDifficulty = captureDifficulty;
         LoadAudioCues();
         StartNewMatch();
         if (_captureTarget is not null)
@@ -1165,8 +1172,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             var panelWidth = Math.Min(GraphicsDevice.Viewport.Width - 40,
                 (int)MathF.Ceiling(contentWidth + 28 * scale));
             var panelHeight = 14 + (int)MathF.Ceiling(matchLines.Count * lineSpacing + 14 * scale);
+            _matchHudBounds = new Rectangle(20, 20, panelWidth, panelHeight);
             _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-            _spriteBatch.Draw(_debugPanel, new Rectangle(20, 20, panelWidth, panelHeight),
+            _spriteBatch.Draw(_debugPanel, _matchHudBounds,
                 _gameSettings.HighContrast ? Color.Black : Color.White);
             for (var index = 0; index < matchLines.Count; index++)
             {
@@ -1202,6 +1210,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         var debugLineSpacing = (int)MathF.Round(23 * debugScale);
         var panel = new Rectangle(16, 16, GraphicsDevice.Viewport.Width - 32,
             18 + (int)MathF.Ceiling(lines.Length * debugLineSpacing + 5 * debugScale));
+        _matchHudBounds = panel;
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.Draw(_debugPanel, panel,
@@ -1442,6 +1451,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         ConfigureFieldingRatingsForCurrentSide();
         _match.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
+        _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } predictedBounce
+            ? ToXna(predictedBounce.Position)
+            : null;
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;

@@ -256,6 +256,11 @@ try {
             '--capture-frame', 'artifacts/review-batting-timing-swing.png', '--camera', 'behind-striker', '--ball-flight-time', '0.20')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-batting-timing-late.png', '--camera', 'behind-striker', '--ball-flight-time', '0.40')
+        foreach ($difficulty in @('Rookie', 'Standard', 'Pro')) {
+            Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+                '--capture-frame', "artifacts/review-contact-zone-$difficulty.png", '--camera', 'behind-striker',
+                '--ball-flight-time', '0.10', '--contact-zone-preview', $difficulty)
+        }
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-debug-overlay.png', '--camera', 'bowler-end', '--show-debug-overlay')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',

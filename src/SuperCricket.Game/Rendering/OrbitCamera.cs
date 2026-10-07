@@ -16,10 +16,10 @@ public sealed class OrbitCamera
     private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
-        // Move the role camera toward its active wicket and use a tighter lens so
-        // the batter/bowler reads clearly while the pitch and incoming delivery remain visible.
-        ("Behind striker", MathHelper.Pi + 0.12f, 0.24f, 16f, 38f, new Vector3(0f, 0f, -2f), false),
-        ("Bowler end", 0.12f, 0.24f, 16f, 38f, new Vector3(0f, 0f, 2f), false),
+        // Keep the action larger on screen and offset the camera slightly so the
+        // bat, ball, and wicket do not collapse into a single straight-on silhouette.
+        ("Behind striker", MathHelper.Pi + 0.22f, 0.30f, 12.5f, 45f, new Vector3(0f, 0f, -2f), false),
+        ("Bowler end", 0.22f, 0.30f, 12.5f, 45f, new Vector3(0f, 0f, 2f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
