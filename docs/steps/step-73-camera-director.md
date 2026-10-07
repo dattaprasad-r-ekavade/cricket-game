@@ -8,4 +8,5 @@ Renamed the existing camera controller to `CameraDirector` to reflect its match 
 
 - `dotnet test tests/SuperCricket.Game.Tests/SuperCricket.Game.Tests.csproj -c Release`: 6 passed, 0 failed (the three Step 72 tests plus three camera tests).
 - `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures`: passed with a zero-warning Release build, asset validation, and deterministic simulation checks.
+- Hosted Windows validation passed: [run 37571415965](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37571415965).
 - No game host, window, or renderer capture was started.
