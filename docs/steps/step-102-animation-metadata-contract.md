@@ -14,6 +14,7 @@ Added an extractor for refreshing contracts from legacy exports, validation for 
 - `pwsh -NoProfile -File tools/review.ps1`: passed in the default headless mode, including the new Python tests, contract-based GLB validation, both Release builds, timing calibration, and deterministic physics batches.
 - No game window or renderer capture was started.
 - Blender is not installed on this host, so the `.blend` scene export itself was not run; contract re-embedding and validation were exercised on temporary copies of both checked-in GLBs.
+- Hosted Windows validation passed in [run 37598850235](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37598850235).
 
 ## Remaining
 
