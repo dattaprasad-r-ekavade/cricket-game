@@ -22,7 +22,7 @@ Remove `.scplayer.json` loading from the shipping C# runtime and player CLI now 
 - `dotnet test tests/SuperCricket.Simulation.Tests/SuperCricket.Simulation.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~PlayerAssetParityTests`: the legacy-versus-GLB parity test passed.
 - `dotnet test SuperCricket.sln -c Release --no-restore`: all 129 tests passed across Content (9), Simulation (22), and Game (98).
 - `pwsh -NoProfile -File tools/review.ps1`: passed in default headless mode after moving the rig-scale rejection check to xUnit.
-- Hosted Windows validation is pending.
+- Hosted Windows validation passed in [run 37603348527](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37603348527).
 - No game window or renderer capture was started.
 
 ## Remaining
