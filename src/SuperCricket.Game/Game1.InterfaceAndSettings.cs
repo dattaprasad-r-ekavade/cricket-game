@@ -104,7 +104,7 @@ public partial class Game1
         var ball = _ballFlight.CurrentFrame;
         var lines = new[]
         {
-            $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}    seed {_matchBowlingSeed}",
+            $"SUPER CRICKET  /  SHORT MATCH    CPU {_cpuDifficulty}    seed {_matchController.BowlingSeed}",
             $"Pitch {PracticeGround.PitchLength:0.00} m x {PracticeGround.PitchWidth:0.00} m    Stumps {PracticeGround.WicketHeight:0.00} m",
             $"{ScoreStatusText}    Striker {_match.StrikerPlayer.Name}    legal balls {_match.LegalBalls}/{_match.OversPerInnings * OverScoreboard.BallsPerOver}",
             $"Preset: {_deliveryPreset.Name}    next {_deliveryPresets[_nextDeliveryPresetIndex].Name}    release ({_deliveryPreset.ReleasePosition.X:0.00}, {_deliveryPreset.ReleasePosition.Y:0.00}, {_deliveryPreset.ReleasePosition.Z:0.00}) m",

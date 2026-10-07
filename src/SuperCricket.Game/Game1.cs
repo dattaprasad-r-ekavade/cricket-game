@@ -80,7 +80,6 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private DeliveryPreset[] _deliveryPresets = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
-    private int _matchBowlingSeed;
     private GameSettings _gameSettings = new();
     private CpuDifficulty _cpuDifficulty = CpuDifficulty.Standard;
     private DeliveryPreset _deliveryPreset = null!;
@@ -97,14 +96,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
     private static readonly int[] OversChoices = [1, 2, 5, 10];
-    private LimitedOversMatch _match = null!;
+    private MatchController _matchController = null!;
+    private LimitedOversMatch _match => _matchController.Match;
     private readonly FieldingSide _fieldingSide = new();
     private readonly MatchInputRouter _inputRouter = new();
     private float _simulationAccumulator;
     private bool _simulationPaused;
     private bool _audioUnavailable;
-    private bool _isFirstMatch;
-    private bool _hasCompletedFirstMatch;
     private float _bowlerRunUpDurationSeconds;
     private float _bowlerRunUpElapsed;
     private float _bowlerActionElapsed;

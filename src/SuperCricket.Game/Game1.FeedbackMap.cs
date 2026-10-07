@@ -260,7 +260,7 @@ public partial class Game1
         _contactFeedbackIsMiss = false;
         _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds * 0.82f;
         _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds * 0.82f;
-        _match.CompleteDelivery();
+        _matchController.CompleteDelivery();
         _shotResolved = true;
         _simulationPaused = true;
     }

@@ -19,9 +19,7 @@ public partial class Game1
 {
     private void StartNewMatch(int? seed = null)
     {
-        _isFirstMatch = !_hasCompletedFirstMatch;
-        _match.Reset(_selectedOversPerInnings);
-        _matchBowlingSeed = seed ?? Random.Shared.Next();
+        _matchController.StartNewMatch(_selectedOversPerInnings, seed);
         _nextDeliveryPresetIndex = 0;
         _bowlingAimOffsetX = 0f;
         _bowlingAimOffsetZ = 0f;
@@ -30,7 +28,7 @@ public partial class Game1
 
     private void StartNextInnings()
     {
-        _match.StartNextInnings();
+        _matchController.StartNextInnings();
         _nextDeliveryPresetIndex = 0;
         _bowlingAimOffsetX = 0f;
         _bowlingAimOffsetZ = 0f;
@@ -42,7 +40,7 @@ public partial class Game1
         for (var ball = 0; ball < _match.OversPerInnings * OverScoreboard.BallsPerOver; ball++)
         {
             CurrentDelivery.ResolveBoundary(clearedInTheAir: false, currentRunCrossed: false);
-            _match.CompleteDelivery();
+            _matchController.CompleteDelivery();
             if (!_match.IsInningsComplete)
                 BeginDelivery();
         }
@@ -81,7 +79,7 @@ public partial class Game1
                 _match.CurrentBowler.Bowling,
                 _match.StrikerPlayer.Power,
                 situation,
-                CreateBowlingDecisionSeed(),
+                _matchController.CreateBowlingDecisionSeed(),
                 _cpuDifficulty).Delivery;
         }
         else
@@ -89,9 +87,9 @@ public partial class Game1
             _deliveryPreset = selectedPreset;
         }
         if (!_verifyGameplay && !_developerMode && !IsCpuBattingControlled)
-            _deliveryPreset = DeliveryPaceModel.ApplyHumanBattingPace(_deliveryPreset, _cpuDifficulty, _isFirstMatch);
+            _deliveryPreset = DeliveryPaceModel.ApplyHumanBattingPace(_deliveryPreset, _cpuDifficulty, _matchController.IsFirstMatch);
         ConfigureFieldingRatingsForCurrentSide();
-        _match.BeginDelivery(_deliveryPreset.IsNoBall);
+        _matchController.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } predictedBounce
             ? ToXna(predictedBounce.Position)
@@ -169,7 +167,7 @@ public partial class Game1
                 _playerAsset,
                 _bowlerAsset,
                 _shotSet,
-                CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
+                _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
                 _fieldingSide.Positions,
                 _cpuDifficulty);
             _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
@@ -204,31 +202,6 @@ public partial class Game1
             _ => "loft"
         }, plan.HorizontalAim);
         _cpuShotStarted = true;
-    }
-
-    private int CreateBowlingDecisionSeed()
-    {
-        unchecked
-        {
-            var seed = _matchBowlingSeed;
-            seed = seed * 31 + _match.InningsNumber;
-            seed = seed * 31 + _match.LegalBalls;
-            seed = seed * 31 + _match.Runs;
-            seed = seed * 31 + _match.Wickets;
-            seed = AddSeedText(seed, _match.CurrentBowler.Id);
-            seed = AddSeedText(seed, _match.StrikerPlayer.Id);
-            return seed;
-        }
-    }
-
-    private static int AddSeedText(int seed, string text)
-    {
-        unchecked
-        {
-            foreach (var character in text)
-                seed = seed * 31 + character;
-            return seed;
-        }
     }
 
     private void ConfigureFieldingRatingsForCurrentSide()

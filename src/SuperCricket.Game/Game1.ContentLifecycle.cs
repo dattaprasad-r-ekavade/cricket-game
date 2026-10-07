@@ -105,10 +105,10 @@ public partial class Game1
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "yorker-pace.json"))
         ];
         _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
-        _match = new LimitedOversMatch(
+        _matchController = new MatchController(new LimitedOversMatch(
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "highland-xi.json")),
-            _selectedOversPerInnings);
+            _selectedOversPerInnings));
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter-humanoid.glb");
         _playerAsset = PlayerAsset.Load(playerPath);
         _playerAnimator = new PlayerAnimator(_playerAsset);
