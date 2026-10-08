@@ -7,6 +7,7 @@ public readonly record struct RunOutResolution(DismissedEnd DismissedEnd, bool S
 /// <summary>Continuous equal-speed running, including returns and ground ownership at either wicket.</summary>
 public sealed class BetweenWicketsState
 {
+    private const double GroundOwnershipLevelTolerance = 1e-7d;
     public bool IsMoving { get; private set; }
     public bool IsReturning { get; private set; }
     private double _progress;
@@ -63,8 +64,9 @@ public sealed class BetweenWicketsState
         }
         else
             _progress += (IsReturning ? -1d : 1d) * deltaSeconds / runDurationSeconds;
-        // At exact equality, retain the ground owner from immediately before drawing level (Law 30.2.3).
-        if (_progress != 0.5d)
+        // Float frame durations can place an intended level crossing a few ulps to either side.
+        // Retain the previous ground owner within this micrometre-scale movement tolerance.
+        if (Math.Abs(_progress - 0.5d) > GroundOwnershipLevelTolerance)
             _groundsSwapped = _progress > 0.5d;
         if (IsReturning && _progress == 0d)
         {

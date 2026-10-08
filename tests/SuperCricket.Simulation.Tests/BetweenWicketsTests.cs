@@ -134,6 +134,31 @@ public sealed class BetweenWicketsTests
         Assert.False(crossedBack.SwapEnds);
     }
 
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    [InlineData(120)]
+    public void FrameRateRoundingAtLevelRetainsThePreviousGroundOwner(int frameRate)
+    {
+        var runners = new BetweenWicketsState();
+        runners.StartRun();
+        for (var frame = 0; frame < frameRate / 2; frame++)
+            runners.Advance(1f / frameRate, 1f);
+
+        Assert.InRange(MathF.Abs(runners.Progress - 0.5f), 0f, 0.000001f);
+        Assert.True(runners.TryResolveRunOut(WicketEnd.Near, true, out var resolution));
+        Assert.False(resolution.SwapEnds);
+
+        runners.Advance(1f / frameRate, 1f);
+        Assert.True(runners.TryResolveRunOut(WicketEnd.Near, true, out resolution));
+        Assert.True(resolution.SwapEnds);
+        runners.TurnBack();
+        runners.Advance(1f / frameRate, 1f);
+        Assert.InRange(MathF.Abs(runners.Progress - 0.5f), 0f, 0.000001f);
+        Assert.True(runners.TryResolveRunOut(WicketEnd.Near, true, out resolution));
+        Assert.True(resolution.SwapEnds);
+    }
+
     public static IEnumerable<object[]> RunOutCases()
     {
         foreach (var completed in new[] { 0, 1, 2 })
