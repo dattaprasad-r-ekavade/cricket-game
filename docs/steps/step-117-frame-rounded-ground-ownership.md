@@ -19,7 +19,7 @@ The 7 October run-out fix retained the previous ground owner when batters were e
 - Focused frame-rate theory: all 3 cases pass after the fix.
 - Full Release suite: all 390 tests passed (Content 9, Simulation 222, Game 159).
 - `tools/review.ps1 -SkipGame -SkipCaptures`: passed, including deterministic physics batches and batting reachability checks.
-- Hosted Windows validation: pending.
+- Hosted Windows validation: passed in [run 37736538957](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37736538957).
 - No game window or visual capture was started.
 
 ## Acceptance still open
