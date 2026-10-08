@@ -182,7 +182,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private NumericsVector3 _fielderThrowTarget;
     private int _fielderThrowerIndex;
     private const float NearBatterZ = BattingPracticeAnalyzer.BatterWicketLineZ;
-    private const float FarBatterZ = 8.72f;
+    private const float FarBatterZ = CricketPitchGeometry.FarBatterAnchorZ;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;
     private string _shotOutcome = "Choose a shot before the ball reaches the batter.";

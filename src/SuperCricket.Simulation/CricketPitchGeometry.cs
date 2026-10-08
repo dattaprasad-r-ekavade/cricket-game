@@ -9,4 +9,10 @@ public static class CricketPitchGeometry
     public const float WicketOffsetMeters = PitchLengthMeters / 2f;
     public const float NearWicketZ = -WicketOffsetMeters;
     public const float FarWicketZ = WicketOffsetMeters;
+    public const float PoppingCreaseOffsetMeters = 1.22f;
+    public const float BatterAnchorInsetFromPoppingCreaseMeters = 0.12f;
+    public const float NearPoppingCreaseZ = NearWicketZ + PoppingCreaseOffsetMeters;
+    public const float FarPoppingCreaseZ = FarWicketZ - PoppingCreaseOffsetMeters;
+    public const float NearBatterAnchorZ = NearPoppingCreaseZ + BatterAnchorInsetFromPoppingCreaseMeters;
+    public const float FarBatterAnchorZ = FarPoppingCreaseZ - BatterAnchorInsetFromPoppingCreaseMeters;
 }

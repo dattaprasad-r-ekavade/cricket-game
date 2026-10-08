@@ -27,7 +27,7 @@ public readonly record struct BattingPracticeTrajectory(
 public static partial class BattingPracticeAnalyzer
 {
     public const float MinimumInputDelaySeconds = -0.5f;
-    public const float BatterWicketLineZ = -8.72f;
+    public const float BatterWicketLineZ = CricketPitchGeometry.NearBatterAnchorZ;
     private const float BatterZ = BatterWicketLineZ;
     private const float BatterX = -0.48f;
     private const float BatterGroundOffset = -0.025f;

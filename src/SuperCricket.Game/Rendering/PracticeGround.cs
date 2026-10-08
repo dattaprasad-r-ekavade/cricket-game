@@ -434,14 +434,13 @@ public static class PracticeGround
     {
         var halfWidth = PitchWidth / 2f;
         var creaseHalfWidth = halfWidth + 0.305f;
-        const float creaseOffset = 1.22f;
         const float lineWidth = 0.045f;
         var white = new Color(237, 234, 216);
 
         foreach (var end in new[] { -1f, 1f })
         {
             var wicketZ = end * WicketOffset;
-            var poppingZ = wicketZ - end * creaseOffset;
+            var poppingZ = wicketZ - end * CricketPitchGeometry.PoppingCreaseOffsetMeters;
             var bowlingZ = wicketZ - end * 0.10f;
             mesh.HorizontalLine(-creaseHalfWidth, creaseHalfWidth, poppingZ, lineWidth, 0.002f, white);
             mesh.HorizontalLine(-halfWidth, halfWidth, bowlingZ, lineWidth, 0.002f, white);
