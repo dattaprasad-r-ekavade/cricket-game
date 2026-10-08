@@ -22,7 +22,7 @@ The prepared Rookie delivery from CPU seed 491 cannot be contacted from the cent
 - Full Release suite: all 382 tests passed (Content 9, Simulation 218, Game 155).
 - Code review fix: a queued GamePad stroke now retains its original input label even if keyboard input arrives while the feet settle.
 - Default headless review: passed, including both builds, content validators, seeded physics-batch repeatability, batter-footwork authoring checks and batting-timing repeatability.
-- Hosted Windows validation: pending.
+- Hosted Windows validation: passed in [run 37732279455](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37732279455).
 - No game window, capture, or runtime profile was started.
 
 ## Acceptance still open
