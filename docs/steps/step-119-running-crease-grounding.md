@@ -20,7 +20,7 @@ Step 118 verified that the stationary practice stance grounded beyond both creas
 - Full Release suite: all 395 tests passed (Content 9, Simulation 222, Game 164).
 - `tools/review.ps1 -SkipGame -SkipCaptures`: passed, including asset validation, batting reachability, timing calibration, deterministic match batches, and field coverage.
 - Intermediate transition samples do not maintain the 0.02 m grounded-shoe margin (far runner measured 0.000 m, 0.010 m, and 0.018 m beyond the crease at 30, 60, and 120 Hz respectively). The human visual gate remains open to judge this stop animation in motion.
-- Hosted validation: pending.
+- Hosted Windows validation passed in [run 37741784872](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37741784872).
 - No game window or visual capture was started.
 
 ## Acceptance still open
