@@ -18,6 +18,7 @@ The run-out review found that the batting analyzer, far-end batter placement, an
 
 - Full Release test suite: all 387 tests passed (Content 9, Simulation 219, Game 159).
 - `tools/review.ps1 -SkipGame -SkipCaptures`: passed, including asset validation, deterministic match batches, field coverage, and batting reachability checks.
+- Hosted Windows validation: passed in [run 37735242592](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37735242592).
 - The game remained closed; no visual capture was started.
 
 ## Acceptance still open

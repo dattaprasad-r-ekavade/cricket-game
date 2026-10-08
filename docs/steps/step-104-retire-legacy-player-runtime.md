@@ -27,4 +27,4 @@ Remove `.scplayer.json` loading from the shipping C# runtime and player CLI now 
 
 ## Remaining
 
-C1 remains open for a dedicated fielder rig and textured character assets. The archived `.scplayer.json` files are test fixtures, and the Blender exporter may write a parity artifact; neither is consumed by the game or C# player tools. Human visual review and keyboard/GamePad playtests are still open.
+C1's runtime migration is complete. A dedicated fielder rig and textured character assets remain under C2/C5. The archived `.scplayer.json` files are test fixtures, and the Blender exporter may write a parity artifact; neither is consumed by the game or C# player tools. Human visual review and keyboard/GamePad playtests are still open.
