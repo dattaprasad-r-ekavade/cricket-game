@@ -32,5 +32,5 @@ These CPU timings are indicative: repeated profiles varied with host load. They 
 - Reference-pose parity and zero-allocation tests passed for both the batter and bowler GLBs.
 - Full Release suite: all 386 tests passed (Content 9, Simulation 218, Game 159).
 - `tools/review.ps1 -SkipGame -SkipCaptures`: passed; the game remained closed.
-- Hosted Windows validation: pending.
+- Hosted Windows validation: passed in [run 37733767897](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37733767897).
 - The complete-over CPU/GPU profile on the named hardware remains open for Milestone D.
