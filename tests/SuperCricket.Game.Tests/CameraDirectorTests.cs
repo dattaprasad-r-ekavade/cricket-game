@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using SuperCricket.Game.Rendering;
+using SuperCricket.Simulation;
 
 namespace SuperCricket.Game.Tests;
 
@@ -24,13 +25,13 @@ public sealed class CameraDirectorTests
         Assert.True(director.SelectPreset("behind-striker"));
         Assert.Equal("Behind striker", director.PresetName);
         Assert.Equal(8f, director.Distance);
-        Assert.Equal(-8.72f, director.Target.Z);
+        Assert.Equal(CricketPitchGeometry.NearBatterAnchorZ, director.Target.Z);
         Assert.InRange(MathF.Abs(director.Position.X - director.Target.X), 0f, 0.001f);
         Assert.True(director.Position.Z < director.Target.Z, "Behind-striker view must sit on the near side of the batter, looking down the pitch.");
 
         director.CyclePreset();
         Assert.Equal("Bowler end", director.PresetName);
-        Assert.Equal(8.72f, director.Target.Z);
+        Assert.Equal(CricketPitchGeometry.FarBatterAnchorZ, director.Target.Z);
     }
 
     [Fact]

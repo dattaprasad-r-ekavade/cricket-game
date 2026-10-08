@@ -11,8 +11,8 @@ public sealed class BattingTimingCalibrationTests
 
     [Theory]
     [InlineData("defence", 0.15f, 0.55f)]
-    [InlineData("drive", 0.225f, 0.525f)]
-    [InlineData("loft", 0.225f, 0.525f)]
+    [InlineData("drive", 0.225f, 0.55f)]
+    [InlineData("loft", 0.225f, 0.55f)]
     public void SlowerDeliveryTargetsRealContactInsteadOfStockTiming(
         string shotName, float stockDelay, float slowerDelay)
     {

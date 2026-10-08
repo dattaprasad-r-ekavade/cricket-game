@@ -16,7 +16,7 @@ public sealed class IncomingDeliveryTests
         var stock = LoadDelivery("standard-pace");
         var delivery = BowlingDecisionModel.ChooseDelivery(
             stock, 91, 65, new BowlingSituation(0, 1, 0, 0, null), seed).Delivery;
-        var batterPoint = FindCrossing(delivery, -8.72f);
+        var batterPoint = FindCrossing(delivery, BattingPracticeAnalyzer.BatterWicketLineZ);
         var stumpPoint = FindCrossing(delivery, -10.06f);
         Assert.InRange(MathF.Abs(batterPoint.X), 0f, 0.12f + delivery.BallRadiusMeters);
         Assert.True(MathF.Abs(stumpPoint.X) > 0.12f + delivery.BallRadiusMeters);
