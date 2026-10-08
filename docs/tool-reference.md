@@ -24,6 +24,8 @@ To compare the projected pitch point and batting contact-zone guide across diffi
 
 Use `dotnet run --project src/SuperCricket.Game -- --profile-frames 300` for a live renderer profile. It warms up for up to 60 frames, then reports frame-interval and CPU update/draw-submission distributions; GPU execution timing requires a GPU profiler.
 
+Use `dotnet run --project src/SuperCricket.Game -c Release -- --profile-animation 1800` for a headless CPU profile of the shipped batter and bowler GLBs. It warms the animators, measures skin-palette update and sampling, reports frame-time percentiles and managed allocations per frame, and exits without creating a game window or graphics device. This isolates animation sampling; it does not replace the complete-over CPU/GPU profile on the named release hardware.
+
 ```powershell
 dotnet run --project src/SuperCricket.Tools -- validate assets/deliveries/standard-pace.json
 dotnet run --project src/SuperCricket.Tools -- simulate assets/deliveries/standard-pace.json

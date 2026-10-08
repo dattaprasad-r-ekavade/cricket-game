@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using SuperCricket.Simulation;
+using SuperCricket.Game.Animation;
 
 string? capturePath = null;
 string? captureCamera = null;
@@ -32,6 +33,16 @@ if (profileMode)
     if (args.Length != 2 || !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out profileFrameCount) ||
         profileFrameCount is < 1 or > 36000)
         throw new ArgumentException(GetCaptureUsage());
+}
+var animationProfileMode = args.Length > 0 && args[0] == "--profile-animation";
+if (animationProfileMode)
+{
+    if (args.Length != 2 || !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out var animationFrameCount) ||
+        animationFrameCount is < 1 or > 36000)
+        throw new ArgumentException(GetCaptureUsage());
+
+    AnimationSamplingProfiler.Run(animationFrameCount);
+    return;
 }
 if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode && !developerMode)
 {
@@ -151,4 +162,4 @@ using var game = new SuperCricket.Game.Game1(
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target | --live-field-preview] [--feedback-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
+    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target | --live-field-preview] [--feedback-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --profile-animation <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";

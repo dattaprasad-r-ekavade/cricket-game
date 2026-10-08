@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework;
 using SuperCricket.Content;
 using XnaMatrix = Microsoft.Xna.Framework.Matrix;
 using XnaVector3 = Microsoft.Xna.Framework.Vector3;
+using NumericsQuaternion = System.Numerics.Quaternion;
+using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game.Animation;
 
@@ -108,14 +110,19 @@ public sealed class PlayerAnimator
     public XnaMatrix[] GetSkinMatrices()
     {
         var blend = GetTransitionBlend();
+        var currentSamples = FindPoseSamples(_currentClip, _currentTime);
+        var previousClip = _previousClip;
+        var previousSamples = previousClip is null
+            ? default
+            : FindPoseSamples(previousClip, _previousTime);
 
         for (var boneIndex = 0; boneIndex < _skinMatrices.Length; boneIndex++)
         {
-            var currentPose = SamplePose(_currentClip, _currentTime, boneIndex);
-            if (_previousClip is not null)
+            var currentPose = SamplePose(currentSamples, boneIndex);
+            if (previousClip is not null)
             {
-                var previousPose = SamplePose(_previousClip, _previousTime, boneIndex);
-                currentPose = TransformData.Interpolate(previousPose, currentPose, blend);
+                var previousPose = SamplePose(previousSamples, boneIndex);
+                currentPose = PoseTransform.Interpolate(previousPose, currentPose, blend);
             }
 
             var poseMatrix = ToXna(currentPose.ToNumericsMatrix());
@@ -177,7 +184,7 @@ public sealed class PlayerAnimator
         return new XnaVector3(finalMotion.X, finalMotion.Y, finalMotion.Z);
     }
 
-    private static TransformData SamplePose(PlayerAnimationData clip, float timeSeconds, int boneIndex)
+    private static PoseSampleWindow FindPoseSamples(PlayerAnimationData clip, float timeSeconds)
     {
         var samples = clip.Samples;
         var time = Math.Clamp(timeSeconds, 0f, clip.DurationSeconds);
@@ -190,10 +197,46 @@ public sealed class PlayerAnimator
             var previous = samples[nextIndex - 1];
             var span = next.TimeSeconds - previous.TimeSeconds;
             var amount = span <= 0f ? 0f : (time - previous.TimeSeconds) / span;
-            return TransformData.Interpolate(previous.Bones[boneIndex], next.Bones[boneIndex], amount);
+            return new PoseSampleWindow(previous, next, amount);
         }
 
-        return samples[^1].Bones[boneIndex];
+        var finalSample = samples[^1];
+        return new PoseSampleWindow(finalSample, finalSample, 0f);
+    }
+
+    private static PoseTransform SamplePose(PoseSampleWindow samples, int boneIndex)
+    {
+        var from = samples.Previous.Bones[boneIndex];
+        if (ReferenceEquals(samples.Previous, samples.Next))
+            return PoseTransform.From(from);
+
+        return PoseTransform.Interpolate(
+            PoseTransform.From(from),
+            PoseTransform.From(samples.Next.Bones[boneIndex]),
+            samples.Amount);
+    }
+
+    private readonly record struct PoseSampleWindow(
+        PlayerPoseSampleData Previous,
+        PlayerPoseSampleData Next,
+        float Amount);
+
+    private readonly record struct PoseTransform(NumericsVector3 Translation, NumericsQuaternion Rotation, NumericsVector3 Scale)
+    {
+        public static PoseTransform From(TransformData transform) => new(
+            transform.Translation.ToVector3(),
+            transform.Rotation.ToQuaternion(),
+            transform.Scale.ToVector3());
+
+        public static PoseTransform Interpolate(PoseTransform from, PoseTransform to, float amount) => new(
+            NumericsVector3.Lerp(from.Translation, to.Translation, amount),
+            NumericsQuaternion.Normalize(NumericsQuaternion.Slerp(from.Rotation, to.Rotation, amount)),
+            NumericsVector3.Lerp(from.Scale, to.Scale, amount));
+
+        public Matrix4x4 ToNumericsMatrix() =>
+            Matrix4x4.CreateScale(Scale) *
+            Matrix4x4.CreateFromQuaternion(Rotation) *
+            Matrix4x4.CreateTranslation(Translation);
     }
 
     private static XnaMatrix ToXna(Matrix4x4 matrix) => new(
