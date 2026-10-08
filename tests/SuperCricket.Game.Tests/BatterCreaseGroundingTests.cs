@@ -80,4 +80,85 @@ public sealed class BatterCreaseGroundingTests(ITestOutputHelper output)
         foreach (var summary in contactCounts)
             output.WriteLine(summary);
     }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    [InlineData(120)]
+    public void BothRunnersGroundBeyondTheirCreasesWhenRunCompletes(int frameRate)
+    {
+        const float fixedStepSeconds = 1f / 120f;
+        var runners = new BetweenWicketsState();
+        var animations = new BatterAnimationController(BatterAsset.Value);
+        runners.StartRun();
+        animations.SetRunning(true);
+
+        var accumulator = 0f;
+        var frameSeconds = 1f / frameRate;
+        for (var frame = 0; frame < frameRate * 3 && runners.IsMoving; frame++)
+        {
+            animations.Update(frameSeconds);
+            accumulator += frameSeconds;
+            while (accumulator >= fixedStepSeconds && runners.IsMoving)
+            {
+                var movement = runners.Advance(fixedStepSeconds, CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
+                accumulator -= fixedStepSeconds;
+                if (movement == RunMovementResult.CompletedRun)
+                    animations.SetRunning(false);
+            }
+        }
+
+        Assert.False(runners.IsMoving, "The simulated batter did not reach the opposite crease.");
+        Assert.Equal(1, runners.CompletedRuns);
+        var worlds = BatterRunningPresenter.GetWorlds(
+            runners, CricketPitchGeometry.NearBatterAnchorZ, CricketPitchGeometry.FarBatterAnchorZ, 0f);
+        AssertRunnersGroundedBeyondCreases(animations, worlds.Striker, worlds.NonStriker, frameRate, "run completion");
+
+        var transitionFrames = (int)MathF.Ceiling(0.12f / frameSeconds);
+        for (var transitionFrame = 0; transitionFrame < transitionFrames; transitionFrame++)
+            animations.Update(frameSeconds);
+        Assert.False(animations.Striker.IsTransitioning, "The striker animation did not finish its stance transition.");
+        Assert.False(animations.NonStriker.IsTransitioning, "The non-striker animation did not finish its stance transition.");
+        AssertRunnersGroundedBeyondCreases(animations, worlds.Striker, worlds.NonStriker, frameRate, "completed stance transition");
+    }
+
+    private static void AssertRunnersGroundedBeyondCreases(
+        BatterAnimationController animations, Matrix strikerWorld, Matrix nonStrikerWorld, int frameRate, string phase)
+    {
+        AssertShoeGroundedBeyondCrease(animations.Striker, strikerWorld, atNearEnd: false, frameRate, phase);
+        AssertShoeGroundedBeyondCrease(animations.NonStriker, nonStrikerWorld, atNearEnd: true, frameRate, phase);
+    }
+
+    private static void AssertShoeGroundedBeyondCrease(
+        PlayerAnimator animator, Matrix world, bool atNearEnd, int frameRate, string phase)
+    {
+        var creaseZ = atNearEnd ? CricketPitchGeometry.NearPoppingCreaseZ : CricketPitchGeometry.FarPoppingCreaseZ;
+        var skinMatrices = animator.GetSkinMatrices();
+        var furthestGroundedBehindMeters = 0f;
+        foreach (var mesh in BatterAsset.Value.Meshes.Where(mesh =>
+                     mesh.Name.Contains("Shoe Sole", StringComparison.OrdinalIgnoreCase)))
+        {
+            for (var vertex = 0; vertex < mesh.Positions.Length / 3; vertex++)
+            {
+                var position = new Vector3(mesh.Positions[vertex * 3], mesh.Positions[vertex * 3 + 1], mesh.Positions[vertex * 3 + 2]);
+                var skinned = Vector3.Zero;
+                for (var influence = 0; influence < 4; influence++)
+                {
+                    var weight = mesh.BoneWeights[vertex * 4 + influence];
+                    if (weight <= 0f)
+                        continue;
+                    skinned += Vector3.Transform(position, skinMatrices[mesh.BoneIndices[vertex * 4 + influence]]) * weight;
+                }
+
+                var worldPosition = Vector3.Transform(skinned, world);
+                if (MathF.Abs(worldPosition.Y - PitchSurfaceY) > 0.02f)
+                    continue;
+                var behindDistance = atNearEnd ? creaseZ - worldPosition.Z : worldPosition.Z - creaseZ;
+                furthestGroundedBehindMeters = MathF.Max(furthestGroundedBehindMeters, behindDistance);
+            }
+        }
+
+        Assert.True(furthestGroundedBehindMeters >= 0.02f,
+            $"At {frameRate} Hz during {phase}, the {(atNearEnd ? "near" : "far")} runner reaches only {furthestGroundedBehindMeters:0.000} m beyond the crease with a grounded shoe sole.");
+    }
 }
