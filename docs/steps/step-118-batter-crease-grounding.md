@@ -21,6 +21,7 @@ Step 116 centralized the crease and batter-anchor positions, but its test only c
 - Slower-delivery calibration test: all 3 cases pass, including measured contact quality for drive and loft.
 - Full Release suite: all 392 tests passed (Content 9, Simulation 222, Game 161).
 - `tools/review.ps1 -SkipGame -SkipCaptures`: passed, including asset validation, timing calibration, deterministic match batches, batting reachability, and field coverage.
+- Hosted Windows validation passed in [run 37739259382](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/37739259382).
 - No game window or visual capture was started.
 
 ## Acceptance still open
