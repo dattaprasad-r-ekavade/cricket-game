@@ -43,6 +43,7 @@ public partial class Game1
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
         _inputRouter.BeginKeyboardFrame(keyboard);
+        UpdateAutomaticBatterFootwork();
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
         bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
         var pressedKeys = keyboard.GetPressedKeys();
@@ -251,6 +252,7 @@ public partial class Game1
         if (!freezeBatterAnimations)
         {
             UpdateBatterFootwork(elapsedSeconds);
+            TryStartPendingAutomaticFootworkShot();
             _currentBatWorld = GetBatWorldTransform();
             UpdateFielderAnimations(elapsedSeconds);
         }

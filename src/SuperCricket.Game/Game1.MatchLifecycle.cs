@@ -88,6 +88,8 @@ public partial class Game1
         _batterFootworkOffsetX = 0f;
         _targetBatterFootworkOffsetX = 0f;
         _footworkTransitionActive = false;
+        _automaticFootworkIsSettling = false;
+        _pendingAutomaticFootworkShot = null;
         _runners.Reset();
         _runRequestedPending = false;
         _cpuRunsRemaining = 0;

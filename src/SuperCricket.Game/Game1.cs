@@ -114,6 +114,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _selectedOversPerInnings = 1;
     private float _batterFootworkOffsetX;
     private float _targetBatterFootworkOffsetX;
+    private bool _automaticFootworkIsSettling;
+    private (string ShotName, float? HorizontalAim, float? ForwardAim,
+        string? AnimationClip, string? ControlLabel)? _pendingAutomaticFootworkShot;
     private float _humanShotAimOffset;
     private float _humanForwardShotAim = 1f;
     private bool _humanForwardShotAimSelected;

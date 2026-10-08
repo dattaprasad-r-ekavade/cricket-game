@@ -4,6 +4,49 @@ namespace SuperCricket.Simulation;
 
 public static partial class BattingPracticeAnalyzer
 {
+    public const int MaximumAutomaticFootworkSteps = 2;
+
+    /// <summary>Uses the centered stance when reachable; otherwise measures nearby steps before offering timing.</summary>
+    public static AutomaticFootworkTimingPlan CalibrateReachableFootwork(
+        PlayerAsset batter,
+        PlayerAsset bowler,
+        BattingShotSet shotSet,
+        DeliveryPreset delivery,
+        float inputDelayStepSeconds = 0.025f,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(batter);
+        ArgumentNullException.ThrowIfNull(bowler);
+        ArgumentNullException.ThrowIfNull(shotSet);
+        ArgumentNullException.ThrowIfNull(delivery);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var primaryDirection = 1;
+        if (TryGetWicketLinePosition(delivery, out var wicketLinePosition) && wicketLinePosition.X < -0.001f)
+            primaryDirection = -1;
+
+        var centered = CalibrateTiming(
+            batter, bowler, shotSet, delivery, 0f, inputDelayStepSeconds, cancellationToken);
+        if (centered.Shots.Count > 0)
+            return new AutomaticFootworkTimingPlan(0f, centered);
+
+        for (var step = 1; step <= MaximumAutomaticFootworkSteps; step++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var direction in new[] { primaryDirection, -primaryDirection })
+            {
+                var offset = direction * step * BatterFootwork.StepDistanceMeters;
+                var profile = CalibrateTiming(
+                    batter, bowler, shotSet, delivery, offset, inputDelayStepSeconds, cancellationToken);
+                if (profile.Shots.Count > 0)
+                    return new AutomaticFootworkTimingPlan(offset, profile);
+            }
+        }
+
+        // Do not move the batter to an unmeasured position or present a guessed timing window.
+        return new AutomaticFootworkTimingPlan(0f, centered);
+    }
+
     /// <summary>Measures the best contact input for this prepared delivery at the batter's current stance.</summary>
     public static BattingTimingDeliveryProfile CalibrateTiming(
         PlayerAsset batter,

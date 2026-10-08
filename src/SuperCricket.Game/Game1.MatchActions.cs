@@ -82,6 +82,15 @@ public partial class Game1
         if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
 
+        if (!_developerMode && !IsCpuBattingControlled && !IsAutomaticBatterFootworkReady())
+        {
+            _pendingAutomaticFootworkShot = (
+                name, horizontalAimOverride, forwardAimOverride, animationClipOverride,
+                controlLabelOverride ?? MatchHudPresenter.GetShotControlLabel(name, _lastInputWasGamePad));
+            _shotOutcome = "SETTING FEET FOR THE DELIVERY; STROKE QUEUED";
+            return;
+        }
+
         var authoredShot = _shotSet.Get(name);
         var horizontalAim = horizontalAimOverride ?? Math.Clamp(
             IsCpuBattingControlled
@@ -108,6 +117,16 @@ public partial class Game1
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
         _batterAnimations.PlayShot(_chosenShot.AnimationClip);
+    }
+
+    private void TryStartPendingAutomaticFootworkShot()
+    {
+        if (_pendingAutomaticFootworkShot is not { } request || !IsAutomaticBatterFootworkReady())
+            return;
+
+        _pendingAutomaticFootworkShot = null;
+        StartShot(request.ShotName, request.HorizontalAim, request.ForwardAim,
+            request.AnimationClip, request.ControlLabel);
     }
 
     private void AdjustHumanShotAim(float adjustment)
@@ -507,6 +526,7 @@ public partial class Game1
         _runners.Stop();
         _batterAnimations.SetRunning(false);
         _runRequestedPending = false;
+        _pendingAutomaticFootworkShot = null;
         _cpuRunsRemaining = 0;
         _fielderThrowActive = false;
         _fielderSequencePhase = FielderSequencePhase.None;

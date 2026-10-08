@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperCricket.Content;
+using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
 
@@ -11,7 +12,7 @@ internal sealed class BattingTimingCoordinator : IDisposable
 {
     public BattingTimingRequest? Current { get; private set; }
 
-    public void Prepare(Func<CancellationToken, BattingTimingDeliveryProfile> measure, bool runSynchronously = false)
+    public void Prepare(Func<CancellationToken, AutomaticFootworkTimingPlan> measure, bool runSynchronously = false)
     {
         Clear();
         Current = new BattingTimingRequest(measure, runSynchronously);
@@ -34,9 +35,9 @@ internal sealed class BattingTimingRequest
 {
     private CancellationTokenSource? _cancellation = new();
 
-    internal Task<BattingTimingDeliveryProfile> Completion { get; }
+    internal Task<AutomaticFootworkTimingPlan> Completion { get; }
 
-    public BattingTimingRequest(Func<CancellationToken, BattingTimingDeliveryProfile> measure, bool runSynchronously)
+    public BattingTimingRequest(Func<CancellationToken, AutomaticFootworkTimingPlan> measure, bool runSynchronously)
     {
         var token = _cancellation.Token;
         if (runSynchronously)
@@ -64,7 +65,7 @@ internal sealed class BattingTimingRequest
 
     public float? FindIdealInputDelaySeconds(string shotName) =>
         Completion.IsCompletedSuccessfully
-            ? Completion.Result.FindIdealInputDelaySeconds(shotName)
+            ? Completion.Result.TimingProfile.FindIdealInputDelaySeconds(shotName)
             : null;
 
     public void Cancel()

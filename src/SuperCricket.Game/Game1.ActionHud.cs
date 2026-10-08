@@ -183,6 +183,9 @@ public partial class Game1
             return "RUNNING";
         if (_battingInputRecorder.HasPendingInput)
             return $"REC  {_battingInputRecorder.PendingLabel}";
+        if (!_developerMode && !IsCpuBattingControlled && _battingTiming.Current is { } timing &&
+            !timing.Completion.IsCompleted)
+            return "SETTING FEET";
         if (_chosenShot is not { } shot)
             return _playerAnimator.CurrentClipName switch
             {
