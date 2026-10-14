@@ -14,7 +14,7 @@ static int Run(string[] arguments)
 {
     if (arguments.Length == 0 ||
         arguments[0] is "help" or "--help" or "-h" ||
-        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-match-batch" or "verify-fielding" or "verify-footwork"))
+        arguments.Length < 2 && arguments[0] is not ("verify-match" or "verify-match-batch" or "verify-fielding" or "verify-footwork" or "verify-delivery-envelopes"))
     {
         PrintUsage();
         return arguments.Length < 2 ? 2 : 0;
@@ -180,6 +180,13 @@ static int Run(string[] arguments)
             if (arguments.Length != 1)
                 throw new ArgumentException("Usage: verify-match-batch");
             return RunSimulationTests("FullyQualifiedName~AutomatedMatchBatchReviewCheckTests");
+        }
+
+        if (arguments[0] == "verify-delivery-envelopes")
+        {
+            if (arguments.Length != 1)
+                throw new ArgumentException("Usage: verify-delivery-envelopes");
+            return RunSimulationTests("FullyQualifiedName~DeliveryEnvelopeTests");
         }
 
         if (arguments[0] == "simulate-match-batch")
@@ -827,6 +834,7 @@ static void PrintUsage()
     Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-match-batch");
+    Console.WriteLine("  verify-delivery-envelopes");
     Console.WriteLine("  verify-fielding");
     Console.WriteLine("  verify-footwork <batter-asset> <bowler-asset> <shots.json> <wide-delivery.json>");
 }

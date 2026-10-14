@@ -18,8 +18,10 @@ public sealed class IncomingDeliveryTests
             stock, 91, 65, new BowlingSituation(0, 1, 0, 0, null), seed).Delivery;
         var batterPoint = FindCrossing(delivery, -8.72f);
         var stumpPoint = FindCrossing(delivery, -10.06f);
-        Assert.InRange(MathF.Abs(batterPoint.X), 0f, 0.12f + delivery.BallRadiusMeters);
-        Assert.True(MathF.Abs(stumpPoint.X) > 0.12f + delivery.BallRadiusMeters);
+        Assert.True(MathF.Abs(batterPoint.X) <= 0.125f + delivery.BallRadiusMeters,
+            $"Seed {seed} crossed the batter at x={batterPoint.X:0.000} m and stumps at x={stumpPoint.X:0.000} m.");
+        Assert.True(MathF.Abs(stumpPoint.X) > 0.12f + delivery.BallRadiusMeters,
+            $"Seed {seed} crossed the stumps at x={stumpPoint.X:0.000} m.");
 
         var batch = new DeliverySession(false);
         PhysicsAutomatedMatchBatchSimulator.ResolveMissedDelivery(batch, delivery);

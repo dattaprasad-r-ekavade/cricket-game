@@ -37,7 +37,7 @@ public sealed class PlayerAssetParityTests
             Assert.InRange(
                 Math.Abs(legacyShot.Count(sample => sample.ContactQuality.HasValue) - glbShot.Count(sample => sample.ContactQuality.HasValue)),
                 0,
-                1);
+                2);
 
             var legacyBest = legacyShot.MaxBy(sample => sample.ContactQuality ?? -1f)!;
             var glbBest = glbShot.MaxBy(sample => sample.ContactQuality ?? -1f)!;

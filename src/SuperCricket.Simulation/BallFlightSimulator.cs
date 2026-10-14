@@ -13,6 +13,8 @@ public sealed class BallFlightSimulator
     private int _bounceCount;
     private BallMotionPhase _phase;
     private float? _battingRollingDeceleration;
+    private float? _battedBallPitchBounceRestitution;
+    private float? _battedBallTangentialRetention;
 
     public BallFlightSimulator(DeliveryPreset preset)
     {
@@ -42,6 +44,8 @@ public sealed class BallFlightSimulator
         _position = contactPosition;
         _velocity = outgoingVelocity;
         _battingRollingDeceleration = rollingDecelerationMetersPerSecondSquared;
+        _battedBallPitchBounceRestitution = _preset.BattedBallPitchBounceRestitution;
+        _battedBallTangentialRetention = _preset.BattedBallTangentialRetention;
         _bounceCount = 0;
         _phase = BallMotionPhase.InFlight;
     }
@@ -118,12 +122,13 @@ public sealed class BallFlightSimulator
         _bounceCount++;
 
         var restitution = _bounceCount == 1
-            ? _preset.PitchBounceRestitution
+            ? _battedBallPitchBounceRestitution ?? _preset.PitchBounceRestitution
             : _preset.GroundBounceRestitution;
+        var tangentialRetention = _battedBallTangentialRetention ?? _preset.TangentialRetention;
         _velocity = new Vector3(
-            impactVelocity.X * _preset.TangentialRetention,
+            impactVelocity.X * tangentialRetention,
             -impactVelocity.Y * restitution,
-            impactVelocity.Z * _preset.TangentialRetention);
+            impactVelocity.Z * tangentialRetention);
 
         if (_velocity.Y < 0.65f)
         {

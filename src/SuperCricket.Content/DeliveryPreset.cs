@@ -31,8 +31,10 @@ public sealed class DeliveryPreset
     public float PitchWidthMeters { get; set; } = 3.05f;
     public float PitchLengthMeters { get; set; } = 20.12f;
     public float PitchBounceRestitution { get; set; } = 0.53f;
+    public float BattedBallPitchBounceRestitution { get; set; } = 0.53f;
     public float GroundBounceRestitution { get; set; } = 0.38f;
     public float TangentialRetention { get; set; } = 0.96f;
+    public float BattedBallTangentialRetention { get; set; } = 0.96f;
     public float RollingDecelerationMetersPerSecondSquared { get; set; } = 1.6f;
     public float FixedTimeStepSeconds { get; set; } = 1f / 120f;
     public float MaximumSimulationSeconds { get; set; } = 3.5f;
@@ -102,9 +104,11 @@ public sealed class DeliveryPreset
         if (!float.IsFinite(PitchSurfaceHeightMeters) || !float.IsFinite(FieldSurfaceHeightMeters))
             errors.Add("Surface heights must be finite.");
         if (!IsPositive(PitchWidthMeters) || !IsPositive(PitchLengthMeters)) errors.Add("Pitch dimensions must be positive.");
-        if (!IsUnitInterval(PitchBounceRestitution) || !IsUnitInterval(GroundBounceRestitution))
+        if (!IsUnitInterval(PitchBounceRestitution) || !IsUnitInterval(BattedBallPitchBounceRestitution) ||
+            !IsUnitInterval(GroundBounceRestitution))
             errors.Add("Bounce restitution values must be between 0 and 1.");
-        if (!IsUnitInterval(TangentialRetention)) errors.Add("Tangential retention must be between 0 and 1.");
+        if (!IsUnitInterval(TangentialRetention) || !IsUnitInterval(BattedBallTangentialRetention))
+            errors.Add("Tangential retention values must be between 0 and 1.");
         if (!IsPositive(RollingDecelerationMetersPerSecondSquared)) errors.Add("Rolling deceleration must be positive.");
         if (!IsPositive(FixedTimeStepSeconds) || FixedTimeStepSeconds > 0.05f)
             errors.Add("Fixed time step must be greater than zero and at most 0.05 seconds.");

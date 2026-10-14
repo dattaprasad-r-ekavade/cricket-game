@@ -52,18 +52,23 @@ public static class BowlingDecisionModel
         var random = new Random(seed);
         var pressure = GetPressure(situation);
         var variation = SelectVariation(random.NextDouble(), strikerPower, situation.Wickets, pressure);
-        var intendedLineX = GetIntendedLineVelocity(variation);
+        var stockSpeedScale = 1f + (stockDelivery.StartVelocity.Length() / 34f - 1f) * 0.82f;
+        var intendedLineX = GetIntendedLineVelocity(variation) * stockSpeedScale;
         var skill = bowlingRating / 100f;
-        var accuracySpread = (0.85f - skill * 0.65f) * difficultyTuning.BowlingAccuracySpreadMultiplier;
+        var accuracySpread = (0.85f - skill * 0.65f) * difficultyTuning.BowlingAccuracySpreadMultiplier * stockSpeedScale;
         var accuracyError = ((float)random.NextDouble() * 2f - 1f) * accuracySpread;
         var paceJitter = ((float)random.NextDouble() * 2f - 1f) * 0.035f;
         var paceScale = 0.92f + skill * 0.10f + paceJitter;
+        var stockSpeed = stockDelivery.StartVelocity.Length();
+        if (stockSpeed * 3.6f is >= 120f and <= 145f)
+            paceScale = Math.Clamp(paceScale, 120f / (3.6f * stockSpeed), 144.5f / (3.6f * stockSpeed));
 
         var delivery = stockDelivery.DeepCopy();
         delivery.Name = $"{stockDelivery.Name} - {GetDisplayName(variation)}";
         delivery.ReleaseVelocity.X = stockDelivery.ReleaseVelocity.X + intendedLineX + accuracyError;
+        delivery.ReleaseVelocity.Y = stockDelivery.ReleaseVelocity.Y * paceScale;
         delivery.ReleaseVelocity.Z = stockDelivery.ReleaseVelocity.Z * paceScale;
-        delivery.LateralAccelerationMetersPerSecondSquared = GetMovementAcceleration(variation, skill);
+        delivery.LateralAccelerationMetersPerSecondSquared = GetMovementAcceleration(variation, skill) * stockSpeedScale * stockSpeedScale;
 
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)

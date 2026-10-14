@@ -56,6 +56,53 @@ public static class BowlingAimModel
         return targetPreset;
     }
 
+    internal static DeliveryPreset AimForPitchTargetPreservingSpeed(
+        DeliveryPreset preset,
+        float lineOffsetMeters,
+        float lengthOffsetMeters,
+        float releaseSpeedMetersPerSecond)
+    {
+        ArgumentNullException.ThrowIfNull(preset);
+        if (!float.IsFinite(lineOffsetMeters) || !float.IsFinite(lengthOffsetMeters))
+            throw new ArgumentOutOfRangeException(nameof(lineOffsetMeters), "Pitch target offsets must be finite.");
+        if (!float.IsFinite(releaseSpeedMetersPerSecond) || releaseSpeedMetersPerSecond is < 1f or > 80f)
+            throw new ArgumentOutOfRangeException(nameof(releaseSpeedMetersPerSecond));
+
+        var result = preset.DeepCopy();
+        var initialBounce = FindFirstBounce(result)
+            ?? throw new ArgumentException("The source delivery does not bounce during its simulated flight.", nameof(preset));
+        var targetX = initialBounce.Position.X + lineOffsetMeters;
+        var targetZ = initialBounce.Position.Z + lengthOffsetMeters;
+        BallFlightFrame? bounce = initialBounce;
+
+        for (var iteration = 0; iteration < 12; iteration++)
+        {
+            var currentBounce = bounce!.Value;
+            var lineOffset = targetX - currentBounce.Position.X;
+            var lengthOffset = targetZ - currentBounce.Position.Z;
+            if (MathF.Abs(lineOffset) <= 0.025f && MathF.Abs(lengthOffset) <= 0.025f)
+                break;
+
+            result = AimForPitchTarget(result,
+                Math.Clamp(lineOffset, -MaximumLineOffsetMeters, MaximumLineOffsetMeters),
+                Math.Clamp(lengthOffset, -MaximumLengthOffsetMeters, MaximumLengthOffsetMeters));
+            var velocity = result.ReleaseVelocity.ToVector3();
+            result.ReleaseVelocity = Vector3Data.From(Vector3.Normalize(velocity) * releaseSpeedMetersPerSecond);
+            bounce = FindFirstBounce(result)
+                ?? throw new InvalidOperationException("Aimed delivery lost its predicted pitch bounce.");
+        }
+
+        var finalBounce = FindFirstBounce(result)
+            ?? throw new InvalidOperationException("Aimed delivery lost its predicted pitch bounce.");
+        if (MathF.Abs(targetX - finalBounce.Position.X) > 0.15f ||
+            MathF.Abs(targetZ - finalBounce.Position.Z) > 0.15f)
+            throw new InvalidOperationException("The selected pitch target could not be reached while preserving release speed.");
+        var errors = result.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Aimed delivery is invalid: {string.Join(" ", errors)}", nameof(preset));
+        return result;
+    }
+
     public static BallFlightFrame? FindFirstBounce(DeliveryPreset preset)
     {
         ArgumentNullException.ThrowIfNull(preset);

@@ -58,8 +58,9 @@ public static class BowlingAccuracyModel
         var scatterRange = scatterSteps * 0.0625f * scatterScale;
         var scatterLine = scatterEnabled && scatterSteps > 0 ? ((float)random.NextDouble() * 2f - 1f) * scatterRange : 0f;
         var scatterLength = scatterEnabled && scatterSteps > 0 ? ((float)random.NextDouble() * 2f - 1f) * scatterRange : 0f;
-        var aimed = BowlingAimModel.AimForPitchTarget(delivery,
-            targetLineOffsetMeters + scatterLine, targetLengthOffsetMeters + scatterLength);
+        var releaseSpeed = delivery.StartVelocity.Length();
+        var aimed = BowlingAimModel.AimForPitchTargetPreservingSpeed(delivery,
+            targetLineOffsetMeters + scatterLine, targetLengthOffsetMeters + scatterLength, releaseSpeed);
         return new BowlingAimResult(aimed, radius, scatterLine, scatterLength, rhythm, stamina);
     }
 
@@ -187,7 +188,21 @@ public static class PaceMeterModel
         result.TopSpin = definition.TopSpin;
         result.PitchSpinMultiplier = definition.Style == BowlerStyle.Pace ? 1f : definition.PitchSpinMultipliers[pitchType];
         result.Name = definition.Name;
-        result = BowlingAimModel.AimForPitchTarget(result, targetLineOffsetMeters, targetLengthOffsetMeters);
+        if (definition.Style == BowlerStyle.Pace && definition.Id != "pace-slower-ball")
+        {
+            var stockBounce = BowlingAimModel.FindFirstBounce(stockDelivery)
+                ?? throw new ArgumentException("Stock delivery must have a predicted pitch bounce.", nameof(stockDelivery));
+            var predictedBounce = BowlingAimModel.FindFirstBounce(result)
+                ?? throw new InvalidOperationException("Catalogue delivery did not produce a predicted pitch bounce.");
+            result = BowlingAimModel.AimForPitchTargetPreservingSpeed(result,
+                stockBounce.Position.X - predictedBounce.Position.X + targetLineOffsetMeters,
+                stockBounce.Position.Z - predictedBounce.Position.Z + targetLengthOffsetMeters,
+                chosenSpeedKph / 3.6f);
+        }
+        else
+        {
+            result = BowlingAimModel.AimForPitchTarget(result, targetLineOffsetMeters, targetLengthOffsetMeters);
+        }
         var errors = result.Validate();
         if (errors.Count > 0) throw new InvalidOperationException($"Catalogue delivery produced an invalid preset: {string.Join(" ", errors)}");
         return result;

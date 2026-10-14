@@ -4,9 +4,9 @@
     {
       "deliveryName": "Standard pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.15 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.225 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.225 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.1 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.15 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.175 }
       ]
     },
     {
@@ -20,9 +20,9 @@
     {
       "deliveryName": "No-ball pace",
       "shots": [
-        { "shotName": "defence", "idealInputDelaySeconds": 0.15 },
-        { "shotName": "drive", "idealInputDelaySeconds": 0.225 },
-        { "shotName": "loft", "idealInputDelaySeconds": 0.225 }
+        { "shotName": "defence", "idealInputDelaySeconds": 0.175 },
+        { "shotName": "drive", "idealInputDelaySeconds": 0.25 },
+        { "shotName": "loft", "idealInputDelaySeconds": 0.25 }
       ]
     },
     {
