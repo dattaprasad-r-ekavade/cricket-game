@@ -180,7 +180,7 @@ The window centre and size are in metres of ball travel. **Starting values to tu
 
 GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
-- **Automatic foot** (`StrokeFoot.Auto`): Short or a ball arriving above 0.9 m → Back; Full/Yorker/FullToss → Front; Good → Front for drives (Straight/OffDrive/Cover/MidWicket), Back for Square/Fine/LegSquare. Put this in `BallCategoryClassifier.ChooseFoot` (WP5), not in the router.
+- **Automatic foot** (`StrokeFoot.Auto`): Short or a ball arriving above 0.9 m → Back; Full/Yorker/FullToss → Front; Good → Front for drives (Straight/OffDrive/Cover/MidWicket), Back for Square/Fine/LegFine/LegSquare. Put this in `BallCategoryClassifier.ChooseFoot` (WP5), not in the router.
 - **Manual foot** setting (pause menu, persisted in `GameSettingsStore`): W = back-foot stroke, S = front-foot stroke.
 - The commit moment is the **press**, not the release.
 - Keep the Step 112 chord recorder as an alternative scheme "Classic chords" in settings; not the default.
@@ -190,7 +190,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 ---
 
-### WP5 — Ball category and stroke selection (S–M) · A5.5
+### WP5 — Ball category and stroke selection (S–M) · A5.5 [x]
 
 **Create** `src/SuperCricket.Simulation/Batting/BallCategoryClassifier.cs`:
 - `BallCategory Classify(DeliveryPreset prepared, float batterStanceX, bool leftHanded)`: use the predicted first bounce (`BowlingAimModel.FindFirstBounce`) and the crossing at the batting crease. Length by bounce distance in front of the batting crease: Yorker < 1.0 m, Full 1.0–3.0, Good 3.0–6.5, Short > 6.5, no bounce before the crease = FullToss. Line by crossing x relative to off/middle/leg stump, mirrored for a left-hander.
