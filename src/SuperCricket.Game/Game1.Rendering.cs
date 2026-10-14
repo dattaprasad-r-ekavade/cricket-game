@@ -197,7 +197,12 @@ public partial class Game1
             return;
 
         const int ringSegments = 12;
-        const float ringRadius = 0.55f;
+        var runUpProgress = HasHumanBowlingControls && _humanBowlingStarted
+            ? Math.Clamp(_bowlerRunUpElapsed / MathF.Max(0.001f, _bowlerRunUpDurationSeconds), 0f, 1f)
+            : 0f;
+        var ringRadius = HasHumanBowlingControls
+            ? MathHelper.Lerp(MathF.Max(0.68f, _bowlingTargetRadiusMeters), _bowlingTargetRadiusMeters, runUpProgress)
+            : 0.55f;
         const float crossHalfLength = 0.16f;
         var markerColor = new Color(82, 255, 220);
         for (var segment = 0; segment < ringSegments; segment++)

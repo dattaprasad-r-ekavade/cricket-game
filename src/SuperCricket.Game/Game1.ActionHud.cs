@@ -2,7 +2,10 @@ using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SuperCricket.Content;
 using SuperCricket.Game.Animation;
+using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 
 namespace SuperCricket.Game;
 
@@ -27,13 +30,31 @@ public partial class Game1
             phase,
             _deliveryPresets[_nextDeliveryPresetIndex].Name,
             _gameSettings.BattingInputScheme,
-            _gameSettings.BattingFootSelection);
+            _gameSettings.BattingFootSelection,
+            HasHumanBowlingControls,
+            HasHumanBowlingControls
+                ? MatchHudPresenter.BuildBowlingDeliveryOptions(
+                    _bowlingOptions.Select(delivery => delivery.Name).ToArray(),
+                    _lastInputWasGamePad,
+                    _bowlingControlPage)
+                : null,
+            _bowlingControlPage,
+            _humanBowlingStarted,
+            GetHumanBowlingPaceProgress(),
+            _humanBowlingPaceResult?.IsNoBall == true);
         var hints = MatchHudPresenter.BuildActionHints(hudState);
         var controlsWidth = Math.Clamp(viewport.Width / 2 - HudMargin * 2, 280, 520);
         var scoreWidth = Math.Min(600, viewport.Width - controlsWidth - HudMargin * 3);
         var controlsHeight = 12 + 34 + hints.Count * HudControlRowHeight +
-            (phase == MatchHudPhase.Batting ? 42 : 0) + 27 + 10;
+            (phase == MatchHudPhase.Batting ? 42 : 0) +
+            (HasHumanBowlingControls && _humanBowlingStarted ? 42 : 0) + 27 + 10;
         var scorePanel = new Rectangle(HudMargin, HudMargin, scoreWidth, HudScorePanelHeight);
+        var bowlerLines = HasHumanBowlingControls
+            ? MatchHudPresenter.BuildBowlerStatusLines(_match.CurrentBowlingFigures)
+            : Array.Empty<string>();
+        var bowlerPanel = bowlerLines.Count > 0
+            ? new Rectangle(HudMargin, scorePanel.Bottom + 12, scoreWidth, 40 + bowlerLines.Count * 21)
+            : Rectangle.Empty;
         var controlsPanel = new Rectangle(
             viewport.Width - HudMargin - controlsWidth,
             HudMargin,
@@ -41,7 +62,8 @@ public partial class Game1
             controlsHeight);
 
         _scoreHudBounds = scorePanel;
-        _matchHudBounds = Rectangle.Union(scorePanel, controlsPanel);
+        var hudBounds = Rectangle.Union(scorePanel, controlsPanel);
+        _matchHudBounds = bowlerLines.Count > 0 ? Rectangle.Union(hudBounds, bowlerPanel) : hudBounds;
         var scale = _gameSettings.LargeText ? 1.08f : 1f;
         var background = _gameSettings.HighContrast ? Color.Black : new Color(4, 10, 15, 232);
         var accent = _gameSettings.HighContrast ? Color.Yellow : new Color(242, 206, 116);
@@ -50,6 +72,8 @@ public partial class Game1
         DrawHudPanel(scorePanel, background, accent);
         DrawHudPanel(controlsPanel, background, _gameSettings.HighContrast ? Color.Yellow : new Color(88, 219, 240));
         DrawScorePanel(scorePanel, accent, scale);
+        if (bowlerLines.Count > 0)
+            DrawBowlerRotationPanel(bowlerPanel, bowlerLines, accent, scale);
         DrawControlsPanel(controlsPanel, hints, phase, accent, scale);
         _spriteBatch.End();
     }
@@ -136,6 +160,13 @@ public partial class Game1
             rowY += 38;
         }
 
+        if (HasHumanBowlingControls && _humanBowlingStarted)
+        {
+            rowY += 2;
+            DrawBowlingPaceMeter(panel, rowY, accent, textScale);
+            rowY += 40;
+        }
+
         var footer = _lastInputWasGamePad
             ? "START  PAUSE     L3  CAMERA"
             : "P  PAUSE     V  CAMERA     PGDN  CLOSER / PGUP  FARTHER";
@@ -143,6 +174,30 @@ public partial class Game1
             new Vector2(panel.X + 14, panel.Bottom - 22),
             _gameSettings.HighContrast ? Color.Yellow : new Color(200, 214, 220),
             0.65f * scale);
+    }
+
+    private void DrawBowlerRotationPanel(Rectangle panel, System.Collections.Generic.IReadOnlyList<string> lines, Color accent, float scale)
+    {
+        DrawHudPanel(panel, _gameSettings.HighContrast ? Color.Black : new Color(4, 10, 15, 232), accent);
+        DrawOverlayText("BOWLING ROTATION", new Vector2(panel.X + 14, panel.Y + 8), accent, 0.72f * scale);
+        for (var index = 0; index < lines.Count; index++)
+            DrawOverlayText(lines[index], new Vector2(panel.X + 14, panel.Y + 28 + index * 21), Color.White, 0.68f * scale);
+    }
+
+    private void DrawBowlingPaceMeter(Rectangle panel, int y, Color accent, float scale)
+    {
+        var isNoBall = _humanBowlingPaceResult?.IsNoBall == true;
+        var label = isNoBall ? "NO BALL" : _humanBowlingPaceResult is { } result ? result.Pace.ToString().ToUpperInvariant() : "TIMING";
+        DrawOverlayText($"PACE  /  {label}", new Vector2(panel.X + 14, y), isNoBall ? Color.OrangeRed : accent, 0.67f * scale);
+        var bar = new Rectangle(panel.X + 14, y + 17, panel.Width - 28, 8);
+        _spriteBatch.Draw(_feedbackMapPixel, bar, _gameSettings.HighContrast ? Color.DarkGray : new Color(57, 74, 81));
+        var fill = new Rectangle(bar.X, bar.Y, (int)MathF.Round(bar.Width * GetHumanBowlingPaceProgress()), bar.Height);
+        if (fill.Width > 0)
+            _spriteBatch.Draw(_feedbackMapPixel, fill, isNoBall ? Color.OrangeRed : accent);
+        var meterProfile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        var noBallX = bar.X + (int)MathF.Round(bar.Width * 0.92f);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(noBallX, bar.Y - 4, 2, bar.Height + 8), Color.OrangeRed);
+        DrawOverlayText($"NO BALL  |  {PaceMeterModel.FillSeconds(meterProfile):0.0}s", new Vector2(bar.Right - 115, y), Color.OrangeRed, 0.58f * scale);
     }
 
     private void DrawShotLaneMeter(Rectangle panel, int y, Color accent, float scale)

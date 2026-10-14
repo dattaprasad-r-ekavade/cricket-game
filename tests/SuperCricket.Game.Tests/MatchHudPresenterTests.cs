@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using SuperCricket.Content;
 using SuperCricket.Game;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Events;
@@ -87,6 +88,48 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(4, hints.Count);
         Assert.Equal(new HudActionHint("S / S+D / W+D", "Block / front drive / back drive"), hints[1]);
         Assert.Equal(new HudActionHint("SHIFT", "Add loft to the chord stroke"), hints[2]);
+    }
+
+    [Fact]
+    public void BowlingDeliveryOptionsShowEightKeyboardSlotsAndControllerPages()
+    {
+        var names = new[] { "Stock", "Outswing", "Inswing", "Cutter", "Yorker", "Bouncer" };
+
+        var keyboard = MatchHudPresenter.BuildBowlingDeliveryOptions(names, isGamePad: false, page: 0);
+        var controllerPage = MatchHudPresenter.BuildBowlingDeliveryOptions(names, isGamePad: true, page: 1);
+
+        Assert.Equal(new HudActionHint("1", "Stock"), keyboard[0]);
+        Assert.Equal(new HudActionHint("6", "Bouncer"), keyboard[5]);
+        Assert.Equal(2, controllerPage.Count);
+        Assert.Equal(new HudActionHint("A", "Yorker"), controllerPage[0]);
+        Assert.Equal(new HudActionHint("X", "Bouncer"), controllerPage[1]);
+    }
+
+    [Fact]
+    public void BowlerRotationLinesExposeOversStaminaAndTheActiveBowler()
+    {
+        var team = TeamRosterAsset.CreatePlaceholder("Bowling Status XI");
+        var opening = new BowlerSpellStatistics(team.Players[8], 2, 79f, true);
+        var next = new BowlerSpellStatistics(team.Players[9], 0, 100f, false);
+
+        var lines = MatchHudPresenter.BuildBowlerStatusLines([opening, next]);
+
+        Assert.Contains("> " + team.Players[8].Name + "  2.0 ov  stamina 79%", lines[0]);
+        Assert.Contains(team.Players[9].Name + "  0.0 ov  stamina 100%", lines[1]);
+    }
+
+    [Fact]
+    public void BowlingPromptNamesTheFrontFootNoBallWhenTheMeterResolvesLate()
+    {
+        var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(
+            false,
+            MatchHudPhase.Bowling,
+            "Stock pace",
+            IsHumanBowling: true,
+            BowlingStarted: true,
+            BowlingNoBall: true));
+
+        Assert.Contains(new HudActionHint("CALL", "NO BALL"), hints);
     }
 
     [Theory]

@@ -36,7 +36,7 @@ public sealed class DeliverySession
         }
     }
 
-    public bool IsNoBall { get; }
+    public bool IsNoBall { get; private set; }
     public bool IsComplete => _isComplete;
     public int BatterRuns => _batterRuns;
     public int ExtraRuns => _extraRuns;
@@ -62,6 +62,17 @@ public sealed class DeliverySession
             return IncomingDeliveryResolution.Bowled;
         }
         return IncomingDeliveryResolution.PassedBatAndWickets;
+    }
+
+    /// <summary>Applies a front-foot no-ball call before the ball is resolved.</summary>
+    public void SignalNoBall()
+    {
+        EnsureActive();
+        if (IsNoBall)
+            return;
+        IsNoBall = true;
+        _extraRuns = Math.Max(_extraRuns, 1);
+        _extra = DeliveryExtra.NoBall;
     }
 
     public void RecordCompletedRun()

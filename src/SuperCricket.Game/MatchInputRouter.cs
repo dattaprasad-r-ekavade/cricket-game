@@ -9,7 +9,15 @@ internal readonly record struct ControllerInputFrame(
     MatchControllerActions Actions,
     float AimAxis,
     float AimLengthAxis,
-    bool RunHeld);
+    bool RunHeld,
+    MatchControllerButtons PressedButtons,
+    bool PacePressed);
+
+internal readonly record struct BowlingControlInputFrame(
+    int? DeliveryIndex,
+    bool PreviousPagePressed,
+    bool NextPagePressed,
+    bool PacePressed);
 
 internal readonly record struct KeyboardBattingInputFrame(
     float HorizontalAim,
@@ -26,6 +34,7 @@ internal sealed class MatchInputRouter
     private KeyboardState _currentKeyboard;
     private KeyboardState _previousKeyboard;
     private MatchControllerButtons _previousControllerButtons;
+    private bool _previousPaceTrigger;
 
     public ControllerInputFrame ReadController(
         GamePadState state,
@@ -40,7 +49,8 @@ internal sealed class MatchInputRouter
             isCpuBattingControlled,
             isMatchComplete,
             isPaused,
-            developerMode);
+            developerMode,
+            state.Triggers.Right >= 0.55f);
 
     internal ControllerInputFrame ReadController(
         MatchControllerButtons buttons,
@@ -50,8 +60,10 @@ internal sealed class MatchInputRouter
         bool isCpuBattingControlled,
         bool isMatchComplete,
         bool isPaused,
-        bool developerMode)
+        bool developerMode,
+        bool paceTriggerHeld = false)
     {
+        var pressedButtons = buttons & ~_previousControllerButtons;
         var actions = MatchControllerInputModel.ReadPressedActions(
             buttons,
             _previousControllerButtons,
@@ -60,18 +72,52 @@ internal sealed class MatchInputRouter
             isPaused,
             developerMode);
         _previousControllerButtons = buttons;
+        var pacePressed = paceTriggerHeld && !_previousPaceTrigger;
+        _previousPaceTrigger = paceTriggerHeld;
 
         return new ControllerInputFrame(
             actions,
             aimAxis,
             aimLengthAxis,
-            runHeld);
+            runHeld,
+            pressedButtons,
+            pacePressed);
     }
 
     public void BeginKeyboardFrame(KeyboardState state) => _currentKeyboard = state;
 
     public bool WasKeyPressed(Keys key) =>
         _currentKeyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+
+    public BowlingControlInputFrame ReadBowlingControls(ControllerInputFrame controller, int page)
+    {
+        int? keyboardDelivery = null;
+        var bowlingKeys = new[]
+        {
+            Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8
+        };
+        for (var index = 0; index < bowlingKeys.Length; index++)
+        {
+            if (!WasKeyPressed(bowlingKeys[index]))
+                continue;
+            keyboardDelivery = index;
+            break;
+        }
+
+        var pressed = controller.PressedButtons;
+        int? controllerDelivery = null;
+        var pageOffset = Math.Max(0, page) * 4;
+        if ((pressed & MatchControllerButtons.A) != 0) controllerDelivery = pageOffset;
+        else if ((pressed & MatchControllerButtons.X) != 0) controllerDelivery = pageOffset + 1;
+        else if ((pressed & MatchControllerButtons.Y) != 0) controllerDelivery = pageOffset + 2;
+        else if ((pressed & MatchControllerButtons.B) != 0) controllerDelivery = pageOffset + 3;
+
+        return new BowlingControlInputFrame(
+            keyboardDelivery ?? controllerDelivery,
+            (pressed & MatchControllerButtons.LeftShoulder) != 0,
+            (pressed & MatchControllerButtons.RightShoulder) != 0,
+            controller.PacePressed || WasKeyPressed(Keys.Space));
+    }
 
     public KeyboardBattingInputFrame ReadBattingInput(
         BattingInputScheme scheme,
@@ -139,6 +185,7 @@ internal sealed class MatchInputRouter
     {
         _currentKeyboard = default;
         _previousKeyboard = default;
+        _previousPaceTrigger = false;
     }
 
     private static MatchControllerButtons ReadControllerButtons(GamePadState state)

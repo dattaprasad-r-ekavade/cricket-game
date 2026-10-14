@@ -28,7 +28,8 @@ public partial class Game1
             _simulationPaused,
             _developerMode);
         UpdateMatch(gameTime, Keyboard.GetState(), controllerInput.Actions, controllerInput.AimAxis,
-            controllerInput.AimLengthAxis, controllerInput.RunHeld);
+            controllerInput.AimLengthAxis, controllerInput.RunHeld, controllerInput.PressedButtons,
+            controllerInput.PacePressed);
     }
 
     private void UpdateMatch(GameTime gameTime, KeyboardState keyboard) =>
@@ -40,13 +41,18 @@ public partial class Game1
         MatchControllerActions controllerActions,
         float controllerAimAxis = 0f,
         float controllerAimLengthAxis = 0f,
-        bool controllerRunHeld = false)
+        bool controllerRunHeld = false,
+        MatchControllerButtons controllerPressedButtons = MatchControllerButtons.None,
+        bool controllerPacePressed = false)
     {
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
         UpdateGamePadFeedback(elapsedSeconds);
         _inputRouter.BeginKeyboardFrame(keyboard);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
+        var controllerFrame = new ControllerInputFrame(
+            controllerActions, controllerAimAxis, controllerAimLengthAxis, controllerRunHeld,
+            controllerPressedButtons, controllerPacePressed);
         bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
         var pressedKeys = keyboard.GetPressedKeys();
         var keyboardBattingInput = default(KeyboardBattingInputFrame);
@@ -73,7 +79,7 @@ public partial class Game1
         {
             if (_match.IsInningsComplete)
                 StartNextInnings();
-            else
+            else if (!HasHumanBowlingControls)
                 BeginDelivery();
         }
         if ((KeyPressed(Keys.O) ||
@@ -101,9 +107,23 @@ public partial class Game1
             ControllerPressed(MatchControllerActions.SelectNoBallDelivery))) SelectNextDelivery(2);
         if (_developerMode && !_simulationPaused && ((KeyPressed(Keys.D4)) ||
             ControllerPressed(MatchControllerActions.SelectYorkerDelivery))) SelectNextDelivery(3);
-        if (IsCpuBattingControlled && !_developerMode && !_simulationPaused &&
+        if (IsCpuBattingControlled && !_developerMode && !_simulationPaused && !HasHumanBowlingControls &&
             (KeyPressed(Keys.C) || ControllerPressed(MatchControllerActions.CycleDelivery)))
             CycleNextDelivery();
+        if (HasHumanBowlingControls && !_simulationPaused && !_match.IsInningsComplete)
+        {
+            RefreshBowlingOptions();
+            var bowlingInput = _inputRouter.ReadBowlingControls(controllerFrame, _bowlingControlPage);
+            var pageCount = Math.Max(1, (_bowlingOptions.Length + 3) / 4);
+            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.PreviousPagePressed)
+                _bowlingControlPage = (_bowlingControlPage + pageCount - 1) % pageCount;
+            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.NextPagePressed)
+                _bowlingControlPage = (_bowlingControlPage + 1) % pageCount;
+            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.DeliveryIndex is { } deliveryIndex)
+                SelectHumanBowlingDelivery(deliveryIndex);
+            if (bowlingInput.PacePressed && _humanBowlingStarted && !_bowlerReleased)
+                ResolveHumanBowlingPaceMeter(_paceMeterElapsedSeconds);
+        }
         if (KeyPressed(Keys.V) || ControllerPressed(MatchControllerActions.CycleCamera)) _camera.CyclePreset();
         if (_developerMode && KeyPressed(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
         if (_developerMode && !IsCpuBattingControlled && !_simulationPaused &&
@@ -197,7 +217,8 @@ public partial class Game1
                 }
             }
         }
-        else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused && !_match.IsInningsComplete)
+        else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused &&
+            !_match.IsInningsComplete && !_humanBowlingStarted)
         {
             if (KeyPressed(Keys.Left) || ControllerPressed(MatchControllerActions.AimOffSide))
                 AdjustHumanBowlingAim(-0.4f, 0f);

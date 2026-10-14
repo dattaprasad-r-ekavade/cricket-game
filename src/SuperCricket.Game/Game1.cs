@@ -8,10 +8,12 @@ using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Batting;
+using SuperCricket.Simulation.Bowling;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -53,10 +55,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly bool _captureBowlingTarget;
     private readonly bool _captureFeedbackPreview;
     private readonly bool _captureTimingGaugePreview;
+    private readonly bool _captureBowlingMeterPreview;
     private readonly bool _captureFieldInsetPreview;
     private readonly CpuDifficulty? _captureDifficultyOverride;
     private readonly bool _captureCameraPresetSpecified;
     private bool _developerMode;
+    private bool _reviewHumanBowlingControls;
     private SpriteBatch _spriteBatch = null!;
     private SpriteFont _debugFont = null!;
     private Texture2D _debugPanel = null!;
@@ -83,8 +87,18 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly VertexPositionColor[] _feedbackRingVertices = new VertexPositionColor[64];
     private readonly List<FrameTiming> _profileTimings = [];
     private DeliveryPreset[] _deliveryPresets = [];
+    private DeliveryCatalogue _bowlingCatalogue = new();
+    private DeliveryDefinition[] _bowlingOptions = [];
     private int _nextDeliveryPresetIndex;
     private int _activeDeliveryPresetIndex;
+    private int _selectedBowlingOptionIndex;
+    private int _bowlingControlPage;
+    private string? _bowlingOptionsBowlerId;
+    private bool _humanBowlingStarted;
+    private float _paceMeterElapsedSeconds;
+    private PaceMeterResult? _humanBowlingPaceResult;
+    private BowlingAimResult? _humanBowlingAimResult;
+    private float _bowlingTargetRadiusMeters = 0.55f;
     private GameSettings _gameSettings = new();
     private CpuDifficulty _cpuDifficulty = CpuDifficulty.Standard;
     private DeliveryPreset _deliveryPreset = null!;
@@ -242,7 +256,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         bool captureFeedbackPreview = false,
         CpuDifficulty? captureDifficultyOverride = null,
         bool captureFieldInsetPreview = false,
-        bool captureTimingGaugePreview = false)
+        bool captureTimingGaugePreview = false,
+        bool captureBowlingMeterPreview = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -264,7 +279,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             captureTimingGaugePreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null || captureBowlingTarget ||
-                captureFieldInsetPreview) ||
+                captureFieldInsetPreview || captureBowlingMeterPreview) ||
+            captureBowlingMeterPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null || captureBowlingTarget ||
+                captureFeedbackPreview || captureFieldInsetPreview) ||
             captureFieldInsetPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
@@ -286,6 +305,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureBowlingTarget = captureBowlingTarget;
         _captureFeedbackPreview = captureFeedbackPreview;
         _captureTimingGaugePreview = captureTimingGaugePreview;
+        _captureBowlingMeterPreview = captureBowlingMeterPreview;
         _captureFieldInsetPreview = captureFieldInsetPreview;
         _captureDifficultyOverride = captureDifficultyOverride;
         _captureCameraPresetSpecified = captureCameraPreset is not null;

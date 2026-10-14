@@ -39,6 +39,12 @@ public readonly record struct MatchInningsResult(
     }
 }
 
+public readonly record struct BowlerSpellStatistics(
+    TeamPlayerData Bowler,
+    int OversBowled,
+    float Stamina,
+    bool IsCurrentBowler);
+
 /// <summary>Runs two innings of a short match using the same delivery and innings scorecard rules as practice.</summary>
 public sealed class LimitedOversMatch
 {
@@ -96,6 +102,28 @@ public sealed class LimitedOversMatch
                 _innings.LegalBalls / OverScoreboard.BallsPerOver,
                 OversPerInnings - 1);
             return options[completedOvers % options.Length];
+        }
+    }
+    public IReadOnlyList<BowlerSpellStatistics> CurrentBowlingFigures
+    {
+        get
+        {
+            var options = InningsNumber == 1 ? _secondBowlingOptions : _firstBowlingOptions;
+            var completedOvers = Math.Min(
+                _innings.LegalBalls / OverScoreboard.BallsPerOver,
+                OversPerInnings);
+            var currentBowler = CurrentBowler;
+            return options.Select((bowler, index) =>
+            {
+                var oversBowled = completedOvers <= index
+                    ? 0
+                    : (completedOvers - 1 - index) / options.Length + 1;
+                return new BowlerSpellStatistics(
+                    bowler,
+                    oversBowled,
+                    Bowling.BowlingAccuracyModel.StaminaAfterOvers(bowler.BowlingAttributes.Stamina, oversBowled),
+                    string.Equals(bowler.Id, currentBowler.Id, StringComparison.Ordinal));
+            }).ToArray();
         }
     }
     public IReadOnlyList<TeamPlayerData> FieldingPlayers

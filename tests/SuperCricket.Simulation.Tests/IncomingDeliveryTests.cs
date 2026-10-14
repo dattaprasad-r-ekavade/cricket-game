@@ -5,6 +5,23 @@ namespace SuperCricket.Simulation.Tests;
 
 public sealed class IncomingDeliveryTests
 {
+    [Fact]
+    public void FrontFootNoBallCanBeSignalledAfterTheStrideAndBeforeDeliveryResolution()
+    {
+        var delivery = new DeliverySession(isNoBall: false);
+
+        delivery.SignalNoBall();
+        var resolution = delivery.ResolveIncoming(isWide: false, hitsWickets: true);
+        var result = delivery.Complete();
+
+        Assert.True(delivery.IsNoBall);
+        Assert.Equal(IncomingDeliveryResolution.NoBall, resolution);
+        Assert.Equal(DeliveryExtra.NoBall, result.Extra);
+        Assert.Equal(1, result.ExtraRuns);
+        Assert.False(result.IsLegal);
+        Assert.Equal(DismissalKind.None, result.Dismissal);
+    }
+
     [Theory]
     [InlineData(25)]
     [InlineData(42)]

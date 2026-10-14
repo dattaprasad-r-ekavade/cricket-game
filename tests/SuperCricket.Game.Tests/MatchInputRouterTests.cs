@@ -54,6 +54,66 @@ public sealed class MatchInputRouterTests
         router.EndKeyboardFrame();
     }
 
+    [Theory]
+    [InlineData(Keys.D1, 0)]
+    [InlineData(Keys.D4, 3)]
+    [InlineData(Keys.D8, 7)]
+    public void BowlingKeyboardMapsOneThroughEightToCatalogueSlots(Keys key, int expectedIndex)
+    {
+        var router = new MatchInputRouter();
+        router.BeginKeyboardFrame(new KeyboardState(key));
+
+        var input = router.ReadBowlingControls(default, page: 0);
+
+        Assert.Equal(expectedIndex, input.DeliveryIndex);
+    }
+
+    [Fact]
+    public void BowlingControllerFacesSelectFourSlotsAndShouldersPageThroughTheCatalogue()
+    {
+        var router = new MatchInputRouter();
+        var firstPageFrame = router.ReadController(
+            MatchControllerButtons.B,
+            0f,
+            0f,
+            false,
+            isCpuBattingControlled: true,
+            isMatchComplete: false,
+            isPaused: false,
+            developerMode: false);
+        Assert.Equal(3, router.ReadBowlingControls(firstPageFrame, page: 0).DeliveryIndex);
+
+        router.ReadController(MatchControllerButtons.None, 0f, 0f, false, true, false, false, false);
+        var nextPage = router.ReadController(
+            MatchControllerButtons.RightShoulder | MatchControllerButtons.Y,
+            0f,
+            0f,
+            false,
+            isCpuBattingControlled: true,
+            isMatchComplete: false,
+            isPaused: false,
+            developerMode: false);
+
+        var input = router.ReadBowlingControls(nextPage, page: 1);
+        Assert.True(input.NextPagePressed);
+        Assert.Equal(6, input.DeliveryIndex);
+    }
+
+    [Fact]
+    public void PaceTriggerIsEdgeTriggeredForTheBowlingMeter()
+    {
+        var router = new MatchInputRouter();
+        var pressed = router.ReadController(
+            MatchControllerButtons.None, 0f, 0f, false, true, false, false, false,
+            paceTriggerHeld: true);
+        var held = router.ReadController(
+            MatchControllerButtons.None, 0f, 0f, false, true, false, false, false,
+            paceTriggerHeld: true);
+
+        Assert.True(pressed.PacePressed);
+        Assert.False(held.PacePressed);
+    }
+
     [Fact]
     public void ControllerActionsAreEdgeTriggeredAndCarryAnalogAndHeldInput()
     {

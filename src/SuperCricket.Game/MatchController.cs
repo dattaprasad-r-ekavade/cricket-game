@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 
 namespace SuperCricket.Game;
 
@@ -17,6 +19,7 @@ internal sealed class MatchController
 
     public LimitedOversMatch Match { get; }
     public int BowlingSeed { get; private set; }
+    public BowlingAimResult? LastBowlingAccuracy { get; private set; }
     public bool IsFirstMatch => !_hasCompletedFirstMatch;
     public BowlingSituation CurrentBowlingSituation => new(
         Match.LegalBalls,
@@ -97,6 +100,26 @@ internal sealed class MatchController
             : activePresetIndex == 0 && !verificationRun
                 ? ChooseCpuBowlingDelivery(selectedPreset, difficulty)
                 : selectedPreset;
+
+        if (!cpuBattingControlled && !developerMode && !verificationRun)
+        {
+            var bowler = Match.CurrentBowler;
+            var figures = Match.CurrentBowlingFigures.Single(item => item.Bowler.Id == bowler.Id);
+            var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
+            LastBowlingAccuracy = BowlingAccuracyModel.Aim(
+                delivery,
+                0f,
+                0f,
+                bowler,
+                Match.LegalBalls % OverScoreboard.BallsPerOver,
+                // The CPU decision model already applies its seeded accuracy error; the shared model supplies
+                // the target radius and stamina response without stacking a second random scatter on that choice.
+                BowlingSkillLevel.Rookie,
+                CreateBowlingDecisionSeed() ^ unchecked((int)0x4f1bbcdc),
+                profile,
+                figures.Stamina);
+            delivery = LastBowlingAccuracy.Value.Delivery;
+        }
 
         return PrepareHumanBattingDelivery(
             delivery,

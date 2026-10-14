@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
@@ -107,6 +108,7 @@ public partial class Game1
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "no-ball-pace.json")),
             DeliveryPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Deliveries", "yorker-pace.json"))
         ];
+        _bowlingCatalogue = DeliveryCatalogue.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Bowling", "deliveries.json"));
         _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
         _matchController = new MatchController(new LimitedOversMatch(
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
@@ -169,6 +171,8 @@ public partial class Game1
         {
             if (_captureBowlingTarget)
                 PrepareBowlingTargetCapture();
+            else if (_captureBowlingMeterPreview)
+                PrepareBowlingMeterPreviewCapture();
 
             if (_captureBatterFootworkActionClip is { } footworkClip &&
                 _captureBatterFootworkActionTimeSeconds is { } footworkTime)
@@ -209,11 +213,16 @@ public partial class Game1
                         GetBallTrailColor(frame.Velocity.Length())));
                 }
             }
+            else if (_captureBowlingMeterPreview)
+            {
+                if (_bowlerRunUpDurationSeconds <= 0f)
+                    throw new InvalidOperationException("The bowling meter preview requires a positive bowler run-up.");
+            }
             else
             {
                 SetBowlerCaptureReleasePose();
             }
-            if (_captureBowlingTarget && !_captureCameraPresetSpecified && IsHumanBowling)
+            if ((_captureBowlingTarget || _captureBowlingMeterPreview) && !_captureCameraPresetSpecified && IsHumanBowling)
                 _camera.SelectPreset("ball-follow");
             if (_camera.FollowsBall)
                 _camera.FollowBall(ToXna(_ballFlight.CurrentFrame.Position), 0f);

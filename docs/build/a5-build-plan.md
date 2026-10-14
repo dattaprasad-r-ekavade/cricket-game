@@ -223,7 +223,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 **Accept:** tests: zero scatter on easy settings; the rhythm ramp; stamina decay; meter bands, including the no-ball band; every catalogue entry produces a delivery that bounces inside the pitch for a centred target (seeded batch of 100 per entry).
 
-### WP7b — Bowling controls (M, wave 2, owns `Game1.MatchActions.cs`)
+### WP7b — Bowling controls (M, wave 2, owns `Game1.MatchActions.cs`) [x]
 
 - One key per available delivery (1–8 / face buttons with a page toggle); pressing it locks the target and starts the run-up in a single step. Arrows move the target before the press.
 - Show the shrinking target ring, the meter in the stride, and "NO BALL" when it happens. The CPU bowler uses the same model with its own target choice.

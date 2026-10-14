@@ -56,7 +56,18 @@ public partial class Game1
             phase,
             _deliveryPresets[_nextDeliveryPresetIndex].Name,
             _gameSettings.BattingInputScheme,
-            _gameSettings.BattingFootSelection));
+            _gameSettings.BattingFootSelection,
+            HasHumanBowlingControls,
+            HasHumanBowlingControls
+                ? MatchHudPresenter.BuildBowlingDeliveryOptions(
+                    _bowlingOptions.Select(delivery => delivery.Name).ToArray(),
+                    _lastInputWasGamePad,
+                    _bowlingControlPage)
+                : null,
+            _bowlingControlPage,
+            _humanBowlingStarted,
+            GetHumanBowlingPaceProgress(),
+            _humanBowlingPaceResult?.IsNoBall == true));
     }
 
     private void DrawDebugOverlay()

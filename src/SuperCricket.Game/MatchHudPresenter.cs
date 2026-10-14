@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
@@ -24,7 +25,13 @@ internal readonly record struct MatchHudState(
     MatchHudPhase Phase,
     string NextDeliveryName,
     BattingInputScheme InputScheme = BattingInputScheme.Directional,
-    BattingFootSelection FootSelection = BattingFootSelection.Automatic);
+    BattingFootSelection FootSelection = BattingFootSelection.Automatic,
+    bool IsHumanBowling = false,
+    IReadOnlyList<HudActionHint>? BowlingOptions = null,
+    int BowlingPage = 0,
+    bool BowlingStarted = false,
+    float BowlingMeterProgress = 0f,
+    bool BowlingNoBall = false);
 
 internal readonly record struct MatchHudConditions(
     bool IsMatchComplete,
@@ -767,6 +774,8 @@ internal static class MatchHudPresenter
         MatchHudPhase.BallBatted or MatchHudPhase.Running => state.IsGamePad
             ? [new("B", "Run again  |  hold to turn back")]
             : [new("D  /  A", "D runs again  |  A turns back")],
+        MatchHudPhase.Bowling when state.IsHumanBowling => BuildHumanBowlingHints(state),
+        MatchHudPhase.BowlingDeliveryComplete when state.IsHumanBowling => BuildHumanBowlingHints(state),
         MatchHudPhase.Bowling => state.IsGamePad
             ? [
                 new("D-PAD / STICK", "Aim the next bounce"),
@@ -799,6 +808,33 @@ internal static class MatchHudPresenter
         _ => throw new ArgumentOutOfRangeException(nameof(state), state.Phase, "Unsupported match HUD phase.")
     };
 
+    public static IReadOnlyList<HudActionHint> BuildBowlingDeliveryOptions(
+        IReadOnlyList<string> names,
+        bool isGamePad,
+        int page)
+    {
+        ArgumentNullException.ThrowIfNull(names);
+        var buttonNames = isGamePad ? new[] { "A", "X", "Y", "B" } :
+            new[] { "1", "2", "3", "4", "5", "6", "7", "8" };
+        var pageSize = buttonNames.Length;
+        var pageCount = Math.Max(1, (names.Count + pageSize - 1) / pageSize);
+        var selectedPage = Math.Clamp(page, 0, pageCount - 1);
+        var start = selectedPage * pageSize;
+        var end = Math.Min(names.Count, start + pageSize);
+        var options = new List<HudActionHint>();
+        for (var index = start; index < end; index++)
+            options.Add(new HudActionHint(buttonNames[index - start], names[index]));
+        return options;
+    }
+
+    public static IReadOnlyList<string> BuildBowlerStatusLines(IReadOnlyList<BowlerSpellStatistics> figures)
+    {
+        ArgumentNullException.ThrowIfNull(figures);
+        return figures.Select(item =>
+            $"{(item.IsCurrentBowler ? ">" : " ")} {item.Bowler.Name}  {item.OversBowled}.0 ov  stamina {item.Stamina:0}%")
+            .ToArray();
+    }
+
     public static string GetShotControlLabel(
         string shotName,
         bool isGamePad,
@@ -828,6 +864,17 @@ internal static class MatchHudPresenter
 
     private static string GetBowlingHint(MatchHudState state, string pause, bool includeNextBall)
     {
+        if (state.IsHumanBowling)
+        {
+            if (state.BowlingStarted)
+                return state.IsGamePad
+                    ? $"RT: set pace    {pause}"
+                    : $"Space: set pace    {pause}";
+            return state.IsGamePad
+                ? $"D-pad: aim    A/X/Y/B: select delivery    LB/RB: page    {pause}"
+                : $"Arrows: aim    1-8: choose delivery and bowl    {pause}";
+        }
+
         var aim = state.IsGamePad ? "Next pitch: D-pad / left stick aim" : "Next pitch: arrows aim";
         var changeDelivery = state.IsGamePad ? "LB: delivery" : "C: delivery";
         var nextDelivery = state.IsGamePad ? "RB: bowl next" : "N: bowl next";
@@ -838,5 +885,25 @@ internal static class MatchHudPresenter
         return includeNextBall
             ? $"{aim}    {delivery}    {nextDelivery}    {pause}"
             : $"{aim}    {delivery}    {pause}";
+    }
+
+    private static IReadOnlyList<HudActionHint> BuildHumanBowlingHints(MatchHudState state)
+    {
+        var hints = new List<HudActionHint>();
+        if (state.BowlingStarted)
+        {
+            hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD / STICK" : "ARROWS", "Aim locked for this delivery"));
+            hints.Add(new HudActionHint(state.IsGamePad ? "RT" : "SPACE", "Set pace in the meter"));
+            if (state.BowlingNoBall)
+                hints.Add(new HudActionHint("CALL", "NO BALL"));
+            return hints;
+        }
+
+        if (state.BowlingOptions is { Count: > 0 } options)
+            hints.AddRange(options);
+        hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD / STICK" : "ARROWS", "Move pitch target"));
+        if (state.IsGamePad && state.BowlingOptions is { Count: > 4 })
+            hints.Add(new HudActionHint("LB / RB", $"Delivery page {state.BowlingPage + 1}"));
+        return hints;
     }
 }

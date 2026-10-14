@@ -8,11 +8,13 @@ using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Batting;
 using SuperCricket.Simulation.Events;
+using SuperCricket.Simulation.Bowling;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -25,6 +27,156 @@ public partial class Game1
             return;
         _nextDeliveryPresetIndex = Math.Clamp(index, 0, _deliveryPresets.Length - 1);
         UpdateBowlingTargetPreview();
+    }
+
+    private bool HasHumanBowlingControls => IsCpuBattingControlled && !_developerMode &&
+        (!_verifyGameplay && (_liveMatchReviewPath is null || _reviewHumanBowlingControls));
+
+    private void RefreshBowlingOptions()
+    {
+        if (_bowlingCatalogue.Deliveries.Count == 0)
+        {
+            _bowlingOptions = [];
+            return;
+        }
+
+        var bowler = _match.CurrentBowler;
+        _bowlingOptions = _bowlingCatalogue.Deliveries
+            .Where(delivery => delivery.Style == bowler.BowlingAttributes.Style)
+            .ToArray();
+        if (_bowlingOptions.Length == 0)
+            _bowlingOptions = _bowlingCatalogue.Deliveries.ToArray();
+        if (!string.Equals(_bowlingOptionsBowlerId, bowler.Id, StringComparison.Ordinal))
+        {
+            _selectedBowlingOptionIndex = 0;
+            _bowlingControlPage = 0;
+            _bowlingOptionsBowlerId = bowler.Id;
+        }
+        _selectedBowlingOptionIndex = Math.Clamp(_selectedBowlingOptionIndex, 0, _bowlingOptions.Length - 1);
+    }
+
+    private void SelectHumanBowlingDelivery(int optionIndex)
+    {
+        if (!HasHumanBowlingControls)
+            return;
+
+        RefreshBowlingOptions();
+        if (optionIndex < 0 || optionIndex >= _bowlingOptions.Length)
+            return;
+
+        if (_deliveryComplete || _match.CurrentDelivery is null)
+            BeginDelivery();
+        RefreshBowlingOptions();
+        _selectedBowlingOptionIndex = Math.Clamp(optionIndex, 0, _bowlingOptions.Length - 1);
+        _bowlingControlPage = _selectedBowlingOptionIndex / 4;
+
+        _humanBowlingStarted = true;
+        _paceMeterElapsedSeconds = 0f;
+        _humanBowlingPaceResult = null;
+        _bowlerRunUpElapsed = 0f;
+        _bowlerActionElapsed = 0f;
+        _bowlerActionStarted = false;
+        _bowlerActionFinished = false;
+        _bowlerReleased = false;
+        _deliveryPreset = BuildHumanBowlingDelivery(PaceMeterModel.Resolve(null, CpuDifficultyModel.GetProfile(
+            _cpuDifficulty, DifficultySide.Human)));
+        if (_deliveryPreset.IsNoBall)
+            CurrentDelivery.SignalNoBall();
+        _ballFlight = new BallFlightSimulator(_deliveryPreset);
+        _fieldingSide.ConfigureBoundaryRadius(_deliveryPreset.FieldBoundaryRadiusMeters);
+        _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } bounce
+            ? ToXna(bounce.Position)
+            : null;
+        _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
+        UpdateBowlingTargetPreview();
+        _activeBowlingTargetPosition = _bowlingTargetMarkerPosition;
+        var situation = _matchController.CurrentBowlingSituation;
+        _cpuBattingPlan = CpuLiveBattingPlanModel.Choose(
+            _match.StrikerPlayer,
+            _match.CurrentBowler,
+            _match.FieldingPlayers,
+            situation,
+            _activeFieldingTactic,
+            _deliveryPreset,
+            _playerAsset,
+            _bowlerAsset,
+            _shotSet,
+            _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
+            _fieldingSide.Positions,
+            _cpuDifficulty,
+            _strokeTable);
+        _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
+        _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
+        _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
+        _bowlerAnimator.Play("bowling-run-up", 0.08f);
+    }
+
+    private DeliveryPreset BuildHumanBowlingDelivery(PaceMeterResult pace)
+    {
+        RefreshBowlingOptions();
+        var bowler = _match.CurrentBowler;
+        var definition = _bowlingOptions[_selectedBowlingOptionIndex];
+        var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        var figures = _match.CurrentBowlingFigures.Single(item => item.Bowler.Id == bowler.Id);
+        var skill = BowlingAccuracyModel.SkillForRating(bowler.BowlingAttributes.Accuracy);
+        var paceRating = bowler.BowlingAttributes.Pace / 100f;
+        var selectedBaseSpeed = definition.MinSpeedKph +
+            (definition.MaxSpeedKph - definition.MinSpeedKph) * paceRating;
+        var chosenSpeed = definition.MinSpeedKph +
+            (selectedBaseSpeed - definition.MinSpeedKph) * pace.SpeedMultiplier;
+        var delivery = PaceMeterModel.CreateDelivery(
+            definition,
+            _deliveryPresets[0],
+            _bowlingAimOffsetX,
+            _bowlingAimOffsetZ,
+            chosenSpeed,
+            PitchType.Normal);
+        delivery.IsNoBall = pace.IsNoBall;
+        var aimed = BowlingAccuracyModel.Aim(
+            delivery,
+            0f,
+            0f,
+            bowler,
+            _match.LegalBalls % OverScoreboard.BallsPerOver,
+            skill,
+            _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x3c6ef372),
+            profile,
+            figures.Stamina);
+        _humanBowlingAimResult = aimed;
+        _bowlingTargetRadiusMeters = aimed.TargetRadiusMeters;
+        return aimed.Delivery;
+    }
+
+    private void ResolveHumanBowlingPaceMeter(float? elapsedSeconds = null)
+    {
+        if (_humanBowlingPaceResult is not null)
+            return;
+
+        var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        var pace = PaceMeterModel.Resolve(elapsedSeconds, profile);
+        _humanBowlingPaceResult = pace;
+        _deliveryPreset = BuildHumanBowlingDelivery(pace);
+        _ballFlight = new BallFlightSimulator(_deliveryPreset);
+        _predictedBouncePosition = BowlingAimModel.FindFirstBounce(_deliveryPreset) is { } bounce
+            ? ToXna(bounce.Position)
+            : null;
+        _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
+        if (pace.IsNoBall)
+        {
+            CurrentDelivery.SignalNoBall();
+            _umpireSignalText = "NO BALL";
+            _umpireSignalRemainingSeconds = 2.2f;
+        }
+    }
+
+    private float GetHumanBowlingPaceProgress()
+    {
+        if (!HasHumanBowlingControls || !_humanBowlingStarted)
+            return 0f;
+        if (_humanBowlingPaceResult is { } result)
+            return result.FillFraction;
+        var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        return Math.Clamp(_paceMeterElapsedSeconds / PaceMeterModel.FillSeconds(profile), 0f, 1f);
     }
 
     private void CycleNextDelivery()
@@ -59,6 +211,37 @@ public partial class Game1
         if (_developerMode || !IsCpuBattingControlled || _deliveryPresets.Length == 0)
         {
             _bowlingTargetMarkerPosition = null;
+            return;
+        }
+
+        if (HasHumanBowlingControls && _bowlingCatalogue.Deliveries.Count > 0)
+        {
+            RefreshBowlingOptions();
+            var bowler = _match.CurrentBowler;
+            var definition = _bowlingOptions[_selectedBowlingOptionIndex];
+            var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+            var figures = _match.CurrentBowlingFigures.Single(item => item.Bowler.Id == bowler.Id);
+            var pace = PaceMeterModel.Resolve(null, profile);
+            var selectedBaseSpeed = definition.MinSpeedKph +
+                (definition.MaxSpeedKph - definition.MinSpeedKph) * (bowler.BowlingAttributes.Pace / 100f);
+            var chosenSpeed = definition.MinSpeedKph +
+                (selectedBaseSpeed - definition.MinSpeedKph) * pace.SpeedMultiplier;
+            var preview = PaceMeterModel.CreateDelivery(
+                definition, _deliveryPresets[0], _bowlingAimOffsetX, _bowlingAimOffsetZ, chosenSpeed, PitchType.Normal);
+            var aim = BowlingAccuracyModel.Aim(
+                preview, 0f, 0f, bowler,
+                _match.LegalBalls % OverScoreboard.BallsPerOver,
+                BowlingAccuracyModel.SkillForRating(bowler.BowlingAttributes.Accuracy),
+                _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x3c6ef372),
+                profile,
+                figures.Stamina);
+            _bowlingTargetRadiusMeters = aim.TargetRadiusMeters;
+            if (BowlingAimModel.FindFirstBounce(preview) is not { } intendedBounce)
+            {
+                _bowlingTargetMarkerPosition = null;
+                return;
+            }
+            _bowlingTargetMarkerPosition = ToXna(intendedBounce.Position) + Vector3.UnitY * 0.045f;
             return;
         }
 
@@ -611,6 +794,12 @@ public partial class Game1
         _cpuRunsRemaining = 0;
         _fielderThrowActive = false;
         _fielderSequencePhase = FielderSequencePhase.None;
+        if (HasHumanBowlingControls)
+        {
+            _humanBowlingStarted = false;
+            _paceMeterElapsedSeconds = 0f;
+            _humanBowlingPaceResult = null;
+        }
         if (_dismissal != DismissalKind.None)
         {
             PlayAudio(CricketAudioCue.Wicket);

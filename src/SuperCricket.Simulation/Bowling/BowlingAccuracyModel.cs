@@ -22,6 +22,18 @@ public readonly record struct BowlingAimResult(
 /// <summary>Seeded target accuracy, landing scatter, and stamina effects for a bowler.</summary>
 public static class BowlingAccuracyModel
 {
+    public static BowlingSkillLevel SkillForRating(int accuracyRating)
+    {
+        ValidateRating(accuracyRating, nameof(accuracyRating));
+        return accuracyRating switch
+        {
+            < 40 => BowlingSkillLevel.Rookie,
+            < 60 => BowlingSkillLevel.Amateur,
+            < 80 => BowlingSkillLevel.Standard,
+            _ => BowlingSkillLevel.Pro
+        };
+    }
+
     public static BowlingAimResult Aim(
         DeliveryPreset delivery,
         float targetLineOffsetMeters,
@@ -72,7 +84,8 @@ public static class BowlingAccuracyModel
         int ballsInSpell,
         BowlingSkillLevel skillLevel,
         int seed,
-        DifficultyProfileAsset profile)
+        DifficultyProfileAsset profile,
+        float? staminaOverride = null)
     {
         ArgumentNullException.ThrowIfNull(bowler);
         ArgumentNullException.ThrowIfNull(profile);
@@ -81,7 +94,9 @@ public static class BowlingAccuracyModel
             throw new ArgumentException($"Invalid bowling difficulty profile: {string.Join(" ", errors)}", nameof(profile));
         var accuracy = bowler.BowlingAttributes?.Accuracy
             ?? throw new ArgumentException("Bowler accuracy rating is required.", nameof(bowler));
-        var stamina = bowler.BowlingAttributes.Stamina;
+        var stamina = staminaOverride ?? bowler.BowlingAttributes.Stamina;
+        if (!float.IsFinite(stamina) || stamina is < 0f or > 100f)
+            throw new ArgumentOutOfRangeException(nameof(staminaOverride));
         var effectiveMinRadius = profile.BowlingTargetRadiusMinMeters;
         var effectiveMaxRadius = profile.BowlingTargetRadiusMaxMeters;
         if (profile.Side == DifficultySide.Cpu && profile.Cpu is { } cpu)

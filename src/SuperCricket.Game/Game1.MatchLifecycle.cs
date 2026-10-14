@@ -11,6 +11,7 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -22,6 +23,9 @@ public partial class Game1
         _matchController.StartNewMatch(_selectedOversPerInnings, seed);
         ResetBatterTimingStates();
         _nextDeliveryPresetIndex = 0;
+        _selectedBowlingOptionIndex = 0;
+        _bowlingControlPage = 0;
+        _bowlingOptionsBowlerId = null;
         _bowlingAimOffsetX = 0f;
         _bowlingAimOffsetZ = 0f;
         BeginDelivery();
@@ -50,11 +54,26 @@ public partial class Game1
         StartNextInnings();
     }
 
+    private void PrepareBowlingMeterPreviewCapture()
+    {
+        PrepareBowlingTargetCapture();
+        if (!HasHumanBowlingControls || _bowlingOptions.Length == 0)
+            throw new InvalidOperationException("The bowling meter capture could not prepare a human bowling selection.");
+
+        SelectHumanBowlingDelivery(0);
+        var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        _paceMeterElapsedSeconds = PaceMeterModel.FillSeconds(profile) * 0.5f;
+        ResolveHumanBowlingPaceMeter(_paceMeterElapsedSeconds);
+        SetBowlerDeliveryCapturePose(_paceMeterElapsedSeconds);
+    }
+
     private void BeginDelivery()
     {
         if (_match.IsInningsComplete || _match.IsMatchComplete)
             return;
 
+        if (HasHumanBowlingControls)
+            RefreshBowlingOptions();
         _groundVertices = PracticeGround.CreateField();
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         var selectedPreset = _deliveryPresets[_activeDeliveryPresetIndex];
@@ -125,6 +144,10 @@ public partial class Game1
         _bowlerActionStarted = false;
         _bowlerActionFinished = false;
         _bowlerReleased = false;
+        _humanBowlingStarted = false;
+        _paceMeterElapsedSeconds = 0f;
+        _humanBowlingPaceResult = null;
+        _humanBowlingAimResult = null;
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
         UpdateBowlingTargetPreview();
@@ -200,6 +223,9 @@ public partial class Game1
 
     private float UpdateBowler(float elapsedSeconds)
     {
+        if (HasHumanBowlingControls && !_humanBowlingStarted)
+            return 0f;
+
         if (_bowlerActionFinished)
         {
             _bowlerAnimator.Update(elapsedSeconds);
@@ -234,10 +260,14 @@ public partial class Game1
             var previousActionTime = _bowlerActionElapsed;
             _bowlerAnimator.Update(actionStep);
             _bowlerActionElapsed += actionStep;
+            if (HasHumanBowlingControls && !_bowlerReleased && _humanBowlingPaceResult is null)
+                _paceMeterElapsedSeconds = _bowlerActionElapsed;
             remaining -= actionStep;
 
             if (!_bowlerReleased && _bowlerActionElapsed >= _bowlerReleaseTimeSeconds)
             {
+                if (HasHumanBowlingControls)
+                    ResolveHumanBowlingPaceMeter();
                 _bowlerReleased = true;
                 if (!_captureCameraPresetSpecified && IsHumanBowling && _camera.PresetName == "Bowler end")
                     _camera.SelectPreset("ball-follow");

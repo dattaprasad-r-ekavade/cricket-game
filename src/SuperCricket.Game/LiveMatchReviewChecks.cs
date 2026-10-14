@@ -6,7 +6,9 @@ using System.Linq;
 using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 
 namespace SuperCricket.Game;
 
@@ -69,6 +71,7 @@ public partial class Game1
 
     private void VerifyNormalBowlingSelectorControls()
     {
+        _reviewHumanBowlingControls = true;
         var step = TimeSpan.FromSeconds(1d / 120d);
         var time = TimeSpan.Zero;
         void Tick(params Keys[] keys)
@@ -95,27 +98,8 @@ public partial class Game1
         RequireLiveReview(IsCpuBattingControlled, "control test did not enter the human bowling innings");
         RequireLiveReview(_bowlingTargetMarkerPosition is not null,
             "the human bowling innings did not show the predicted pitch target");
-        RequireLiveReview(GetPrimaryControlHint().Contains("Next pitch: arrows aim", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("C: delivery", StringComparison.Ordinal),
-            "the human bowling HUD did not keep next-pitch controls concise and phase-specific");
-
-        var expectedNext = (_nextDeliveryPresetIndex + 1) % _deliveryPresets.Length;
-        Tick(Keys.C);
-        Tick();
-        RequireLiveReview(_nextDeliveryPresetIndex == expectedNext,
-            "C did not cycle to the next bowling delivery in normal mode");
-
-        var cycleAction = MatchControllerInputModel.ReadPressedActions(
-            MatchControllerButtons.LeftShoulder,
-            MatchControllerButtons.None,
-            isCpuBattingControlled: true,
-            isMatchComplete: false,
-            developerMode: false);
-        expectedNext = (_nextDeliveryPresetIndex + 1) % _deliveryPresets.Length;
-        UpdateMatch(new GameTime(time, TimeSpan.Zero), new KeyboardState(), cycleAction);
-        RequireLiveReview((cycleAction & MatchControllerActions.CycleDelivery) != 0 &&
-            _nextDeliveryPresetIndex == expectedNext,
-            "GamePad LB did not cycle the next bowling delivery in normal mode");
+        RequireLiveReview(GetPrimaryControlHint().Contains("1-8: choose delivery and bowl", StringComparison.Ordinal),
+            "the human bowling HUD did not show the one-step delivery selection controls");
 
         var markerBeforeAim = _bowlingTargetMarkerPosition!.Value;
         Tick(Keys.Left);
@@ -138,20 +122,45 @@ public partial class Game1
         UpdateMatch(new GameTime(time, TimeSpan.Zero), new KeyboardState(), longAction);
         RequireLiveReview((longAction & MatchControllerActions.AimLong) != 0 &&
             MathF.Abs(_bowlingAimOffsetZ - targetBeforePadInput + 0.4f) < 0.001f &&
-            GetPrimaryControlHint().Contains("Next pitch: D-pad / left stick aim", StringComparison.Ordinal),
+            GetPrimaryControlHint().Contains("A/X/Y/B: select delivery", StringComparison.Ordinal),
             "GamePad D-pad did not adjust the bowling target length or switch the live control prompt");
 
         var selectedTarget = _bowlingTargetMarkerPosition!.Value;
+        var selectedName = _bowlingOptions[0].Name;
+        Tick(Keys.D1);
+        Tick();
+        RequireLiveReview(_humanBowlingStarted && _deliveryPreset.Name == selectedName && _humanBowlingAimResult is not null,
+            "one delivery key did not commit the target, use BowlingAccuracyModel, and start the run-up");
+        for (var frame = 0; frame < 600 && !_bowlerActionStarted; frame++) Tick();
+        RequireLiveReview(_bowlerActionStarted, "the run-up did not enter the delivery stride where the pace meter is active");
+        for (var frame = 0; frame < 18; frame++) Tick();
+        Tick(Keys.Space);
+        Tick();
+        RequireLiveReview(_humanBowlingPaceResult is { IsNoBall: false } pace && pace.Pace == DeliveryPaceBand.Slow &&
+            GetPrimaryControlHint().Contains("Space: set pace", StringComparison.Ordinal),
+            "the pace meter did not capture the stride press and update its control prompt");
+
         CurrentDelivery.ResolveIncoming(isWide: false, hitsWickets: false);
         FinishDelivery();
-        Tick(Keys.N);
-        Tick();
         var actualBounce = BowlingAimModel.FindFirstBounce(_deliveryPreset);
         RequireLiveReview(actualBounce is { } bounce &&
-            MathF.Abs(ToXna(bounce.Position).X - selectedTarget.X) < 0.15f &&
-            MathF.Abs(ToXna(bounce.Position).Z - selectedTarget.Z) < 0.15f,
+            MathF.Abs(ToXna(bounce.Position).X - selectedTarget.X) <= _humanBowlingAimResult!.Value.TargetRadiusMeters + 0.2f &&
+            MathF.Abs(ToXna(bounce.Position).Z - selectedTarget.Z) <= _humanBowlingAimResult.Value.TargetRadiusMeters + 0.2f,
             $"the next delivery did not pitch at its selected target marker ({(actualBounce is { } actual ? $"{actual.Position.X:0.00},{actual.Position.Z:0.00}" : "no bounce")} vs {selectedTarget.X:0.00},{selectedTarget.Z:0.00}; {_deliveryPreset.Name}; index {_activeDeliveryPresetIndex}; aim {_bowlingAimOffsetX:0.00},{_bowlingAimOffsetZ:0.00})");
-        Console.WriteLine("PASS: C/LB select deliveries, keyboard/GamePad direction moves the pitch marker, and the next ball reaches it.");
+        var legalBallsBeforeNoBall = _match.LegalBalls;
+        Tick(Keys.D1);
+        Tick();
+        for (var frame = 0; frame < 600 && !_bowlerActionStarted; frame++) Tick();
+        var noBallFillSeconds = PaceMeterModel.FillSeconds(
+            CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human));
+        ResolveHumanBowlingPaceMeter(noBallFillSeconds * 0.94f);
+        var noBallResolution = CurrentDelivery.ResolveIncoming(isWide: false, hitsWickets: true);
+        FinishDelivery();
+        RequireLiveReview(noBallResolution == IncomingDeliveryResolution.NoBall &&
+            CurrentDelivery.IsNoBall && _match.LegalBalls == legalBallsBeforeNoBall,
+            "the late stride band did not signal a no-ball or incorrectly advanced the legal-ball count");
+        _reviewHumanBowlingControls = false;
+        Console.WriteLine("PASS: delivery keys commit the target and start the run-up; the stride meter resolves pace/no-ball and the accuracy model reaches the target.");
     }
 
     private LiveMatchReviewResult PlayLiveMatchReview(LiveMatchReviewCase scenario)

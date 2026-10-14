@@ -1,4 +1,5 @@
 using SuperCricket.Content;
+using SuperCricket.Simulation.Bowling;
 
 namespace SuperCricket.Simulation;
 
@@ -34,6 +35,13 @@ public static class LimitedOversMatchReviewChecks
             CompleteDotBall(chase);
         Require(ReferenceEquals(chase.CurrentBowler, secondTeam.Players[10]),
             "bowling ability did not order the over-to-over bowler rotation");
+        var figuresAfterOpeningOver = chase.CurrentBowlingFigures;
+        var openingBowlerFigures = figuresAfterOpeningOver.Single(item => item.Bowler.Id == openingBowler.Id);
+        var nextBowlerFigures = figuresAfterOpeningOver.Single(item => item.Bowler.Id == chase.CurrentBowler.Id);
+        Require(openingBowlerFigures.OversBowled == 1 && MathF.Abs(openingBowlerFigures.Stamina -
+            BowlingAccuracyModel.StaminaAfterOvers(openingBowler.BowlingAttributes.Stamina, 1)) < 0.001f &&
+            !openingBowlerFigures.IsCurrentBowler && nextBowlerFigures.OversBowled == 0 && nextBowlerFigures.IsCurrentBowler,
+            "the bowling rotation figures did not report each bowler's overs, stamina and active role");
         for (var ball = OverScoreboard.BallsPerOver; ball < OverScoreboard.BallsPerOver * 2; ball++)
             CompleteDotBall(chase);
         Require(ReferenceEquals(chase.CurrentBowler, secondTeam.Players[10]),
