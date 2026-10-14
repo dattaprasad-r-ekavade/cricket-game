@@ -324,7 +324,7 @@ Replace the shot choice in `CpuBattingOutcomeModel` / `CpuLiveBattingPlanModel` 
 
 Tune `assets/deliveries/*.json` and the WP7a catalogue so that seeded deliveries land in the measured reference envelope (data-stats §4b): good/full length pitches 2.5–5 m in front of the batting crease; quicks 120–145 km/h; about 20% speed lost at the bounce (adjust `PitchBounceRestitution`/`TangentialRetention`); crossing the crease at 0.1–0.6 m for good length. Add a `verify-delivery-envelopes` test that fails if a stock delivery leaves the envelope.
 
-### WP17 — Match event bus (S–M)
+### WP17 — Match event bus (S–M) [x]
 
 `MatchEventBus` in Simulation: `Publish(MatchEvent)`, typed subscriptions, and a per-delivery event log saved with the scorecard (useful for replays, commentary and tests). Raise events from the existing code paths (release, bounce, contact, wicket, runs, boundary, over end). No presentation changes.
 

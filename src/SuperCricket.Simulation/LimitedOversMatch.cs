@@ -1,4 +1,5 @@
 using SuperCricket.Content;
+using SuperCricket.Simulation.Events;
 
 namespace SuperCricket.Simulation;
 
@@ -8,9 +9,34 @@ public readonly record struct MatchInningsResult(
     int Runs,
     int Wickets,
     int LegalBalls,
-    int OversPerInnings)
+    int OversPerInnings,
+    IReadOnlyList<DeliveryEventLog>? EventLog = null)
 {
     public string OversText => $"{LegalBalls / OverScoreboard.BallsPerOver}.{LegalBalls % OverScoreboard.BallsPerOver}";
+    public IReadOnlyList<DeliveryEventLog> DeliveryLogs => EventLog ?? Array.Empty<DeliveryEventLog>();
+
+    public bool Equals(MatchInningsResult other) =>
+        InningsNumber == other.InningsNumber &&
+        string.Equals(TeamName, other.TeamName, StringComparison.Ordinal) &&
+        Runs == other.Runs &&
+        Wickets == other.Wickets &&
+        LegalBalls == other.LegalBalls &&
+        OversPerInnings == other.OversPerInnings &&
+        DeliveryLogs.SequenceEqual(other.DeliveryLogs);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(InningsNumber);
+        hash.Add(TeamName, StringComparer.Ordinal);
+        hash.Add(Runs);
+        hash.Add(Wickets);
+        hash.Add(LegalBalls);
+        hash.Add(OversPerInnings);
+        foreach (var delivery in DeliveryLogs)
+            hash.Add(delivery);
+        return hash.ToHashCode();
+    }
 }
 
 /// <summary>Runs two innings of a short match using the same delivery and innings scorecard rules as practice.</summary>
@@ -23,6 +49,7 @@ public sealed class LimitedOversMatch
     private MatchState _innings = null!;
     private MatchInningsResult? _firstInnings;
     private MatchInningsResult? _secondInnings;
+    public MatchEventBus Events { get; } = new();
 
     public LimitedOversMatch(
         string firstTeamName = "Coastal XI",
@@ -137,18 +164,23 @@ public sealed class LimitedOversMatch
         InningsNumber = 1;
         _firstInnings = null;
         _secondInnings = null;
-        _innings = new MatchState(selectedOvers);
+        Events.Reset();
+        _innings = new MatchState(selectedOvers, Events, inningsNumber: 1);
     }
 
     public DeliverySession BeginDelivery(bool isNoBall)
     {
         if (IsInningsComplete)
             throw new InvalidOperationException("The innings is complete; begin the next innings before bowling again.");
+        if (CurrentDelivery is { IsComplete: false })
+            throw new InvalidOperationException("The current delivery must be completed before beginning another delivery.");
         return _innings.BeginDelivery(isNoBall);
     }
 
     public DeliveryResult CompleteDelivery()
     {
+        if (CurrentDelivery is { IsComplete: true } completed)
+            return completed.Result!.Value;
         var result = _innings.CompleteDelivery();
         if (!IsInningsComplete)
             return result;
@@ -159,7 +191,8 @@ public sealed class LimitedOversMatch
             _innings.Runs,
             _innings.Wickets,
             _innings.LegalBalls,
-            OversPerInnings);
+            OversPerInnings,
+            Events.GetDeliveryLogs(InningsNumber));
         if (InningsNumber == 1)
             _firstInnings = summary;
         else
@@ -172,7 +205,7 @@ public sealed class LimitedOversMatch
         if (InningsNumber != 1 || _firstInnings is null || !IsInningsComplete)
             throw new InvalidOperationException("The first innings must be complete before the second innings can start.");
         InningsNumber = 2;
-        _innings = new MatchState(OversPerInnings);
+        _innings = new MatchState(OversPerInnings, Events, inningsNumber: 2);
     }
 
     private static void ValidateTeams(TeamRosterAsset firstTeam, TeamRosterAsset secondTeam)

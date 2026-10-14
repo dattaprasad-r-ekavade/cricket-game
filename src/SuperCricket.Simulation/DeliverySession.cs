@@ -1,3 +1,6 @@
+using System.Numerics;
+using SuperCricket.Simulation.Events;
+
 namespace SuperCricket.Simulation;
 
 public enum IncomingDeliveryResolution
@@ -20,10 +23,12 @@ public sealed class DeliverySession
     private bool _swapEndsOnRunOut;
     private bool _isComplete;
     private DeliveryResult? _result;
+    private readonly MatchEventBus? _eventBus;
 
-    public DeliverySession(bool isNoBall)
+    public DeliverySession(bool isNoBall, MatchEventBus? eventBus = null)
     {
         IsNoBall = isNoBall;
+        _eventBus = eventBus;
         if (isNoBall)
         {
             _extraRuns = 1;
@@ -67,13 +72,18 @@ public sealed class DeliverySession
     }
 
     /// <summary>Resolves the current ball against the boundary and any run in progress.</summary>
-    public int ResolveBoundary(bool clearedInTheAir, bool currentRunCrossed)
+    public int ResolveBoundary(
+        bool clearedInTheAir,
+        bool currentRunCrossed,
+        Vector3? position = null,
+        float timeSeconds = 0f)
     {
         EnsureActive();
         var boundaryRuns = clearedInTheAir ? 6 : 4;
         var runningRuns = _completedRuns + (currentRunCrossed ? 1 : 0);
         _batterRuns = Math.Max(boundaryRuns, runningRuns);
         _completedRuns = runningRuns > boundaryRuns ? runningRuns : 0;
+        _eventBus?.Publish(new Boundary(timeSeconds, boundaryRuns, clearedInTheAir, position));
         return _batterRuns;
     }
 

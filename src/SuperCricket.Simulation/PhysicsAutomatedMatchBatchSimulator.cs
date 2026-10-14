@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Simulation.Events;
 using SuperCricket.Simulation.Fielding;
 using SuperCricket.Simulation.Umpiring;
 
@@ -153,7 +154,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         if (decision.Leave)
         {
             telemetry.Leaves++;
-            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: false);
+            match.Events.Publish(new BallBeatBat(0f));
+            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: false, match.Events);
             match.CompleteDelivery();
             if (session.Dismissal == DismissalKind.Bowled)
                 telemetry.BowledDismissals++;
@@ -187,7 +189,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         if (!trajectory.Sample.ContactQuality.HasValue)
         {
             telemetry.Misses++;
-            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true);
+            match.Events.Publish(new BallBeatBat(MathF.Max(0f, decision.InputDelaySeconds)));
+            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true, match.Events);
             match.CompleteDelivery();
             if (session.Dismissal == DismissalKind.Bowled)
                 telemetry.BowledDismissals++;
@@ -201,6 +204,12 @@ public static class PhysicsAutomatedMatchBatchSimulator
             trajectory.OutgoingVelocity is not { } outgoingVelocity ||
             trajectory.OutgoingFrames.Count < 2)
             throw new InvalidOperationException("A physics batting contact did not include its point, velocity, and flight frames.");
+
+        var contactTimeSeconds = trajectory.Sample.ContactTimeSeconds ?? 0f;
+        if (BowlingAimModel.FindFirstBounce(delivery) is { } firstBounce && firstBounce.TimeSeconds <= contactTimeSeconds)
+            match.Events.Publish(new BallPitched(firstBounce.TimeSeconds, firstBounce.Position, firstBounce.BounceCount));
+        match.Events.Publish(new StrokePlayed(decision.InputDelaySeconds, shotName));
+        match.Events.Publish(new BatContact(contactTimeSeconds, contactPosition));
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
         var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
@@ -264,7 +273,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
             random.Next()).Delivery;
     }
 
-    internal static void ResolveMissedDelivery(DeliverySession session, DeliveryPreset delivery)
+    internal static void ResolveMissedDelivery(
+        DeliverySession session,
+        DeliveryPreset delivery,
+        MatchEventBus? eventBus = null)
     {
         var ball = new BallFlightSimulator(delivery);
         var previous = ball.CurrentFrame;
@@ -272,6 +284,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             var current = ball.Step();
+            PublishBounceEvents(eventBus, previous, current);
             if (IncomingDeliveryModel.TryResolve(session, previous.Position, current.Position, delivery, out _, out _))
                 return;
             previous = current;
@@ -283,7 +296,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset delivery,
         Random random,
         PhysicsMatchTelemetry? telemetry,
-        bool shotOffered)
+        bool shotOffered,
+        MatchEventBus? eventBus = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(delivery);
@@ -295,9 +309,12 @@ public static class PhysicsAutomatedMatchBatchSimulator
         for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
         {
             var current = ball.Step();
+            PublishBounceEvents(eventBus, previous, current);
             if (!session.IsNoBall && session.Extra != DeliveryExtra.Wide &&
                 TryFindPadContact(previous, current, delivery, out var contact))
             {
+                eventBus?.Publish(new BodyHit(contact.TimeSeconds, contact.Position));
+                eventBus?.Publish(new Appeal(contact.TimeSeconds, DismissalKind.Lbw.ToString()));
                 var decision = LbwModel.Evaluate(new LbwContact(
                     contact.Position,
                     contact.Velocity,
@@ -311,6 +328,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
                     ShotOffered: shotOffered),
                     CpuDifficultyModel.GetProfile(CpuDifficulty.Standard, DifficultySide.Human),
                     seed: random.Next());
+                eventBus?.Publish(new UmpireDecision(contact.TimeSeconds, decision.IsOut, DismissalKind.Lbw.ToString()));
                 if (decision.IsOut)
                 {
                     session.ResolveLbw();
@@ -353,6 +371,12 @@ public static class PhysicsAutomatedMatchBatchSimulator
             current.BounceCount,
             current.Phase);
         return true;
+    }
+
+    private static void PublishBounceEvents(MatchEventBus? eventBus, BallFlightFrame previous, BallFlightFrame current)
+    {
+        if (eventBus is not null && current.BounceCount > previous.BounceCount)
+            eventBus.Publish(new BallPitched(current.TimeSeconds, current.Position, current.BounceCount));
     }
 
     internal static void SimulateBattedBall(
@@ -421,6 +445,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             if (!float.IsFinite(deltaTime) || deltaTime <= 0f)
                 throw new InvalidOperationException("Physics match trajectory frames are not in strictly increasing time order.");
 
+            PublishBounceEvents(match.Events, previous, current);
+
             var elapsedSinceContact = current.TimeSeconds - contactTime;
             while (completedRuns < plannedRuns &&
                 elapsedSinceContact >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
@@ -488,7 +514,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
                                 telemetry.RunOuts++;
                             }
                             else if (runOut.NearRunOut)
+                            {
                                 telemetry.NearRunOuts++;
+                                match.Events.Publish(new NearRunOut(current.TimeSeconds, closestCreaseDistance));
+                            }
                         }
                         else if (runners.TryResolveRunOut(WicketEnd.Near, wicketBroken: true, out var runOut))
                         {
@@ -517,7 +546,9 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 session.ResolveBoundary(
                     boundary.ClearedInTheAir,
                     completedRuns < plannedRuns &&
-                    elapsedInCurrentRun >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds * 0.5f);
+                    elapsedInCurrentRun >= CpuLiveRunningDecisionModel.DefaultRunDurationSeconds * 0.5f,
+                    boundary.Position,
+                    current.TimeSeconds);
                 if (session.CompletedRuns >= 2)
                     telemetry.TwoRunScores++;
                 match.CompleteDelivery();
