@@ -30,11 +30,11 @@
       "aggression": 1, "difficulty": 0.2, "reward": 0.35,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["outsideOff","stumps","leg"]},
       "zones": {
-        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":13.02,"maxSpeedMetersPerSecond":17.34,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":16.17,"maxSpeedMetersPerSecond":20.4,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":21.0,"maxSpeedMetersPerSecond":25.5,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":15.96,"maxSpeedMetersPerSecond":20.14,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":12.81,"maxSpeedMetersPerSecond":16.83,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":14.97,"maxSpeedMetersPerSecond":19.94,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":18.59,"maxSpeedMetersPerSecond":23.46,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":24.15,"maxSpeedMetersPerSecond":29.33,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":18.35,"maxSpeedMetersPerSecond":23.16,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":14.73,"maxSpeedMetersPerSecond":19.36,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -42,11 +42,11 @@
       "aggression": 1, "difficulty": 0.2, "reward": 0.35,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["outsideOff","stumps","leg"]},
       "zones": {
-        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":13.02,"maxSpeedMetersPerSecond":17.34,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":16.17,"maxSpeedMetersPerSecond":20.4,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":21.0,"maxSpeedMetersPerSecond":25.5,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":15.96,"maxSpeedMetersPerSecond":20.14,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":12.81,"maxSpeedMetersPerSecond":16.83,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":14.97,"maxSpeedMetersPerSecond":19.94,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":18.59,"maxSpeedMetersPerSecond":23.46,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":24.15,"maxSpeedMetersPerSecond":29.33,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":18.35,"maxSpeedMetersPerSecond":23.16,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":14.73,"maxSpeedMetersPerSecond":19.36,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -54,11 +54,11 @@
       "aggression": 2, "difficulty": 0.42, "reward": 0.6,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["outsideOff","stumps","leg"]},
       "zones": {
-        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":12.4,"maxSpeedMetersPerSecond":17.0,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":40.0,"minSpeedMetersPerSecond":15.4,"maxSpeedMetersPerSecond":20.0,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":32.0,"minSpeedMetersPerSecond":20.0,"maxSpeedMetersPerSecond":25.0,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":15.2,"maxSpeedMetersPerSecond":19.75,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":12.2,"maxSpeedMetersPerSecond":16.5,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":-14.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":14.26,"maxSpeedMetersPerSecond":19.55,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":8.0,"yawSpreadDegrees":7.0,"elevationDegrees":40.0,"minSpeedMetersPerSecond":17.71,"maxSpeedMetersPerSecond":23,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":0.0,"yawSpreadDegrees":3.0,"elevationDegrees":32.0,"minSpeedMetersPerSecond":23,"maxSpeedMetersPerSecond":28.75,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":12.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":17.48,"maxSpeedMetersPerSecond":22.71,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":14.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":14.03,"maxSpeedMetersPerSecond":18.98,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -90,11 +90,11 @@
       "aggression": 1, "difficulty": 0.24, "reward": 0.39,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":13.42,"maxSpeedMetersPerSecond":17.78,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":16.67,"maxSpeedMetersPerSecond":20.92,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":21.65,"maxSpeedMetersPerSecond":26.15,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":16.45,"maxSpeedMetersPerSecond":20.66,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":13.21,"maxSpeedMetersPerSecond":17.26,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":15.43,"maxSpeedMetersPerSecond":20.45,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":19.17,"maxSpeedMetersPerSecond":24.05,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":24.9,"maxSpeedMetersPerSecond":30.07,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":18.92,"maxSpeedMetersPerSecond":23.76,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":15.19,"maxSpeedMetersPerSecond":19.85,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -102,11 +102,11 @@
       "aggression": 1, "difficulty": 0.24, "reward": 0.39,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":13.42,"maxSpeedMetersPerSecond":17.78,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":16.67,"maxSpeedMetersPerSecond":20.92,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":21.65,"maxSpeedMetersPerSecond":26.15,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":16.45,"maxSpeedMetersPerSecond":20.66,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":13.21,"maxSpeedMetersPerSecond":17.26,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":15.43,"maxSpeedMetersPerSecond":20.45,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":19.17,"maxSpeedMetersPerSecond":24.05,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":24.9,"maxSpeedMetersPerSecond":30.07,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":18.92,"maxSpeedMetersPerSecond":23.76,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":15.19,"maxSpeedMetersPerSecond":19.85,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -114,11 +114,11 @@
       "aggression": 2, "difficulty": 0.45, "reward": 0.64,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":12.71,"maxSpeedMetersPerSecond":17.34,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":41.0,"minSpeedMetersPerSecond":15.78,"maxSpeedMetersPerSecond":20.4,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":33.0,"minSpeedMetersPerSecond":20.5,"maxSpeedMetersPerSecond":25.5,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":15.58,"maxSpeedMetersPerSecond":20.14,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":12.5,"maxSpeedMetersPerSecond":16.83,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":8.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":14.61,"maxSpeedMetersPerSecond":19.94,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":30.0,"yawSpreadDegrees":7.0,"elevationDegrees":41.0,"minSpeedMetersPerSecond":18.15,"maxSpeedMetersPerSecond":23.46,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":22.0,"yawSpreadDegrees":3.0,"elevationDegrees":33.0,"minSpeedMetersPerSecond":23.58,"maxSpeedMetersPerSecond":29.33,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":34.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":17.92,"maxSpeedMetersPerSecond":23.16,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":36.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":14.38,"maxSpeedMetersPerSecond":19.36,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -150,11 +150,11 @@
       "aggression": 1, "difficulty": 0.27, "reward": 0.44,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":13.83,"maxSpeedMetersPerSecond":18.22,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":17.17,"maxSpeedMetersPerSecond":21.44,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":22.3,"maxSpeedMetersPerSecond":26.8,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":16.95,"maxSpeedMetersPerSecond":21.17,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":13.6,"maxSpeedMetersPerSecond":17.69,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":15.91,"maxSpeedMetersPerSecond":20.95,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":19.74,"maxSpeedMetersPerSecond":24.66,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":25.65,"maxSpeedMetersPerSecond":30.82,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":19.49,"maxSpeedMetersPerSecond":24.34,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":15.64,"maxSpeedMetersPerSecond":20.36,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -162,11 +162,11 @@
       "aggression": 1, "difficulty": 0.27, "reward": 0.44,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":13.83,"maxSpeedMetersPerSecond":18.22,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":17.17,"maxSpeedMetersPerSecond":21.44,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":22.3,"maxSpeedMetersPerSecond":26.8,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":16.95,"maxSpeedMetersPerSecond":21.17,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":13.6,"maxSpeedMetersPerSecond":17.69,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":15.91,"maxSpeedMetersPerSecond":20.95,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":19.74,"maxSpeedMetersPerSecond":24.66,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":25.65,"maxSpeedMetersPerSecond":30.82,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":19.49,"maxSpeedMetersPerSecond":24.34,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":15.64,"maxSpeedMetersPerSecond":20.36,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -174,11 +174,11 @@
       "aggression": 2, "difficulty": 0.49, "reward": 0.67,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":13.02,"maxSpeedMetersPerSecond":17.68,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":16.17,"maxSpeedMetersPerSecond":20.8,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":34.0,"minSpeedMetersPerSecond":21.0,"maxSpeedMetersPerSecond":26.0,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":15.96,"maxSpeedMetersPerSecond":20.54,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":48.0,"minSpeedMetersPerSecond":12.81,"maxSpeedMetersPerSecond":17.16,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":34.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":14.97,"maxSpeedMetersPerSecond":20.34,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":56.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":18.59,"maxSpeedMetersPerSecond":23.92,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":48.0,"yawSpreadDegrees":3.0,"elevationDegrees":34.0,"minSpeedMetersPerSecond":24.15,"maxSpeedMetersPerSecond":29.9,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":60.0,"yawSpreadDegrees":7.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":18.35,"maxSpeedMetersPerSecond":23.62,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":62.0,"yawSpreadDegrees":10.0,"elevationDegrees":48.0,"minSpeedMetersPerSecond":14.73,"maxSpeedMetersPerSecond":19.73,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -210,11 +210,11 @@
       "aggression": 1, "difficulty": 0.31, "reward": 0.48,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":14.23,"maxSpeedMetersPerSecond":18.67,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.2,"minSpeedMetersPerSecond":17.67,"maxSpeedMetersPerSecond":21.96,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.2,"minSpeedMetersPerSecond":22.95,"maxSpeedMetersPerSecond":27.45,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.2,"minSpeedMetersPerSecond":17.44,"maxSpeedMetersPerSecond":21.69,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":14.0,"maxSpeedMetersPerSecond":18.12,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":16.37,"maxSpeedMetersPerSecond":21.47,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.2,"minSpeedMetersPerSecond":20.32,"maxSpeedMetersPerSecond":25.25,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.2,"minSpeedMetersPerSecond":26.39,"maxSpeedMetersPerSecond":31.57,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.2,"minSpeedMetersPerSecond":20.06,"maxSpeedMetersPerSecond":24.96,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":16.1,"maxSpeedMetersPerSecond":20.83,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -222,11 +222,11 @@
       "aggression": 1, "difficulty": 0.31, "reward": 0.48,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":14.23,"maxSpeedMetersPerSecond":18.67,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.2,"minSpeedMetersPerSecond":17.67,"maxSpeedMetersPerSecond":21.96,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.2,"minSpeedMetersPerSecond":22.95,"maxSpeedMetersPerSecond":27.45,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.2,"minSpeedMetersPerSecond":17.44,"maxSpeedMetersPerSecond":21.69,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":14.0,"maxSpeedMetersPerSecond":18.12,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":16.37,"maxSpeedMetersPerSecond":21.47,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.2,"minSpeedMetersPerSecond":20.32,"maxSpeedMetersPerSecond":25.25,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.2,"minSpeedMetersPerSecond":26.39,"maxSpeedMetersPerSecond":31.57,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.2,"minSpeedMetersPerSecond":20.06,"maxSpeedMetersPerSecond":24.96,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":16.1,"maxSpeedMetersPerSecond":20.83,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -234,11 +234,11 @@
       "aggression": 2, "difficulty": 0.52, "reward": 0.7,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":13.33,"maxSpeedMetersPerSecond":18.02,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":16.56,"maxSpeedMetersPerSecond":21.2,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":35.0,"minSpeedMetersPerSecond":21.5,"maxSpeedMetersPerSecond":26.5,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":45.0,"minSpeedMetersPerSecond":16.34,"maxSpeedMetersPerSecond":20.94,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":13.12,"maxSpeedMetersPerSecond":17.49,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":64.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":15.33,"maxSpeedMetersPerSecond":20.72,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":70.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":19.04,"maxSpeedMetersPerSecond":24.38,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":78.0,"yawSpreadDegrees":3.0,"elevationDegrees":35.0,"minSpeedMetersPerSecond":24.73,"maxSpeedMetersPerSecond":30.48,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":90.0,"yawSpreadDegrees":7.0,"elevationDegrees":45.0,"minSpeedMetersPerSecond":18.79,"maxSpeedMetersPerSecond":24.08,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":92.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":15.08,"maxSpeedMetersPerSecond":20.13,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -270,11 +270,11 @@
       "aggression": 1, "difficulty": 0.34, "reward": 0.53,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":14.63,"maxSpeedMetersPerSecond":19.11,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.6,"minSpeedMetersPerSecond":18.17,"maxSpeedMetersPerSecond":22.48,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.6,"minSpeedMetersPerSecond":23.6,"maxSpeedMetersPerSecond":28.1,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.6,"minSpeedMetersPerSecond":17.94,"maxSpeedMetersPerSecond":22.2,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":14.4,"maxSpeedMetersPerSecond":18.55,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":16.83,"maxSpeedMetersPerSecond":21.97,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.6,"minSpeedMetersPerSecond":20.89,"maxSpeedMetersPerSecond":25.86,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.6,"minSpeedMetersPerSecond":27.14,"maxSpeedMetersPerSecond":32.32,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.6,"minSpeedMetersPerSecond":20.63,"maxSpeedMetersPerSecond":25.53,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":16.56,"maxSpeedMetersPerSecond":21.33,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -282,11 +282,11 @@
       "aggression": 1, "difficulty": 0.34, "reward": 0.53,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":14.63,"maxSpeedMetersPerSecond":19.11,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.6,"minSpeedMetersPerSecond":18.17,"maxSpeedMetersPerSecond":22.48,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.6,"minSpeedMetersPerSecond":23.6,"maxSpeedMetersPerSecond":28.1,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.6,"minSpeedMetersPerSecond":17.94,"maxSpeedMetersPerSecond":22.2,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":14.4,"maxSpeedMetersPerSecond":18.55,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":16.83,"maxSpeedMetersPerSecond":21.97,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":8.6,"minSpeedMetersPerSecond":20.89,"maxSpeedMetersPerSecond":25.86,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":0.6,"minSpeedMetersPerSecond":27.14,"maxSpeedMetersPerSecond":32.32,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":10.6,"minSpeedMetersPerSecond":20.63,"maxSpeedMetersPerSecond":25.53,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":16.56,"maxSpeedMetersPerSecond":21.33,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -294,11 +294,11 @@
       "aggression": 2, "difficulty": 0.56, "reward": 0.74,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["wideOutsideOff","outsideOff","stumps"]},
       "zones": {
-        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":13.64,"maxSpeedMetersPerSecond":18.36,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":40.0,"minSpeedMetersPerSecond":16.94,"maxSpeedMetersPerSecond":21.6,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":32.0,"minSpeedMetersPerSecond":22.0,"maxSpeedMetersPerSecond":27.0,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":16.72,"maxSpeedMetersPerSecond":21.33,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":13.42,"maxSpeedMetersPerSecond":17.82,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":94.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":15.69,"maxSpeedMetersPerSecond":21.11,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":100.0,"yawSpreadDegrees":7.0,"elevationDegrees":40.0,"minSpeedMetersPerSecond":19.48,"maxSpeedMetersPerSecond":24.84,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":108.0,"yawSpreadDegrees":3.0,"elevationDegrees":32.0,"minSpeedMetersPerSecond":25.3,"maxSpeedMetersPerSecond":31.05,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":120.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":19.22,"maxSpeedMetersPerSecond":24.53,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":122.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":15.43,"maxSpeedMetersPerSecond":20.49,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -330,11 +330,11 @@
       "aggression": 1, "difficulty": 0.38, "reward": 0.57,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":15.04,"maxSpeedMetersPerSecond":19.55,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":18.67,"maxSpeedMetersPerSecond":23.0,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":24.25,"maxSpeedMetersPerSecond":28.75,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":18.43,"maxSpeedMetersPerSecond":22.71,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":14.79,"maxSpeedMetersPerSecond":18.98,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":17.3,"maxSpeedMetersPerSecond":22.48,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":21.47,"maxSpeedMetersPerSecond":26.45,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":27.89,"maxSpeedMetersPerSecond":33.06,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":21.2,"maxSpeedMetersPerSecond":26.11,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":17.01,"maxSpeedMetersPerSecond":21.83,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -342,11 +342,11 @@
       "aggression": 1, "difficulty": 0.38, "reward": 0.57,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":15.04,"maxSpeedMetersPerSecond":19.55,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":18.67,"maxSpeedMetersPerSecond":23.0,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":24.25,"maxSpeedMetersPerSecond":28.75,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":18.43,"maxSpeedMetersPerSecond":22.71,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":14.79,"maxSpeedMetersPerSecond":18.98,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":21.0,"minSpeedMetersPerSecond":17.3,"maxSpeedMetersPerSecond":22.48,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.0,"minSpeedMetersPerSecond":21.47,"maxSpeedMetersPerSecond":26.45,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":-1.0,"minSpeedMetersPerSecond":27.89,"maxSpeedMetersPerSecond":33.06,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.0,"minSpeedMetersPerSecond":21.2,"maxSpeedMetersPerSecond":26.11,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":17.01,"maxSpeedMetersPerSecond":21.83,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -354,11 +354,11 @@
       "aggression": 2, "difficulty": 0.6, "reward": 0.78,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":13.95,"maxSpeedMetersPerSecond":18.7,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":41.0,"minSpeedMetersPerSecond":17.32,"maxSpeedMetersPerSecond":22.0,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":33.0,"minSpeedMetersPerSecond":22.5,"maxSpeedMetersPerSecond":27.5,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":17.1,"maxSpeedMetersPerSecond":21.72,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":48.0,"minSpeedMetersPerSecond":13.72,"maxSpeedMetersPerSecond":18.15,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":-122.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":16.04,"maxSpeedMetersPerSecond":21.51,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":-100.0,"yawSpreadDegrees":7.0,"elevationDegrees":41.0,"minSpeedMetersPerSecond":19.91,"maxSpeedMetersPerSecond":25.3,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-108.0,"yawSpreadDegrees":3.0,"elevationDegrees":33.0,"minSpeedMetersPerSecond":25.88,"maxSpeedMetersPerSecond":31.63,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":-120.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":19.67,"maxSpeedMetersPerSecond":24.97,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":-94.0,"yawSpreadDegrees":10.0,"elevationDegrees":48.0,"minSpeedMetersPerSecond":15.77,"maxSpeedMetersPerSecond":20.87,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -390,11 +390,11 @@
       "aggression": 1, "difficulty": 0.41, "reward": 0.62,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":15.44,"maxSpeedMetersPerSecond":19.99,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":19.17,"maxSpeedMetersPerSecond":23.52,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":24.9,"maxSpeedMetersPerSecond":29.4,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":18.92,"maxSpeedMetersPerSecond":23.23,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":15.19,"maxSpeedMetersPerSecond":19.4,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":17.76,"maxSpeedMetersPerSecond":22.99,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":22.04,"maxSpeedMetersPerSecond":27.04,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":28.64,"maxSpeedMetersPerSecond":33.81,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":21.75,"maxSpeedMetersPerSecond":26.72,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":17.47,"maxSpeedMetersPerSecond":22.31,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -402,11 +402,11 @@
       "aggression": 1, "difficulty": 0.41, "reward": 0.62,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":15.44,"maxSpeedMetersPerSecond":19.99,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":19.17,"maxSpeedMetersPerSecond":23.52,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":24.9,"maxSpeedMetersPerSecond":29.4,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":18.92,"maxSpeedMetersPerSecond":23.23,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":15.19,"maxSpeedMetersPerSecond":19.4,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":19.0,"minSpeedMetersPerSecond":17.76,"maxSpeedMetersPerSecond":22.99,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.4,"minSpeedMetersPerSecond":22.04,"maxSpeedMetersPerSecond":27.04,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.6,"minSpeedMetersPerSecond":28.64,"maxSpeedMetersPerSecond":33.81,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.4,"minSpeedMetersPerSecond":21.75,"maxSpeedMetersPerSecond":26.72,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":24.0,"minSpeedMetersPerSecond":17.47,"maxSpeedMetersPerSecond":22.31,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -414,11 +414,11 @@
       "aggression": 2, "difficulty": 0.63, "reward": 0.81,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":14.26,"maxSpeedMetersPerSecond":19.04,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":17.71,"maxSpeedMetersPerSecond":22.4,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":34.0,"minSpeedMetersPerSecond":23.0,"maxSpeedMetersPerSecond":28.0,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":17.48,"maxSpeedMetersPerSecond":22.12,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":14.03,"maxSpeedMetersPerSecond":18.48,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":-92.0,"yawSpreadDegrees":10.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":16.4,"maxSpeedMetersPerSecond":21.9,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":-70.0,"yawSpreadDegrees":7.0,"elevationDegrees":42.0,"minSpeedMetersPerSecond":20.36,"maxSpeedMetersPerSecond":25.76,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-78.0,"yawSpreadDegrees":3.0,"elevationDegrees":34.0,"minSpeedMetersPerSecond":26.45,"maxSpeedMetersPerSecond":32.2,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":-90.0,"yawSpreadDegrees":7.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":20.11,"maxSpeedMetersPerSecond":25.43,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":-64.0,"yawSpreadDegrees":10.0,"elevationDegrees":46.0,"minSpeedMetersPerSecond":16.14,"maxSpeedMetersPerSecond":21.26,"edgeChance":0.25,"beatenOrMissed":false}
       }
     },
     {
@@ -450,11 +450,11 @@
       "aggression": 1, "difficulty": 0.45, "reward": 0.66,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":15.84,"maxSpeedMetersPerSecond":20.43,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":19.67,"maxSpeedMetersPerSecond":24.04,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":25.55,"maxSpeedMetersPerSecond":30.05,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":19.42,"maxSpeedMetersPerSecond":23.74,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":15.59,"maxSpeedMetersPerSecond":19.83,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":18.22,"maxSpeedMetersPerSecond":23.5,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":22.62,"maxSpeedMetersPerSecond":27.65,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":29.38,"maxSpeedMetersPerSecond":34.56,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":22.33,"maxSpeedMetersPerSecond":27.3,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":17.93,"maxSpeedMetersPerSecond":22.81,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -462,11 +462,11 @@
       "aggression": 1, "difficulty": 0.45, "reward": 0.66,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":15.84,"maxSpeedMetersPerSecond":20.43,"edgeChance":0.24,"beatenOrMissed":false},
-        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":19.67,"maxSpeedMetersPerSecond":24.04,"edgeChance":0.12,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":25.55,"maxSpeedMetersPerSecond":30.05,"edgeChance":0.025,"beatenOrMissed":false},
-        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":19.42,"maxSpeedMetersPerSecond":23.74,"edgeChance":0.14,"beatenOrMissed":false},
-        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":15.59,"maxSpeedMetersPerSecond":19.83,"edgeChance":0.24,"beatenOrMissed":false}
+        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":20.0,"minSpeedMetersPerSecond":18.22,"maxSpeedMetersPerSecond":23.5,"edgeChance":0.24,"beatenOrMissed":false},
+        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":7.8,"minSpeedMetersPerSecond":22.62,"maxSpeedMetersPerSecond":27.65,"edgeChance":0.12,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":-0.2,"minSpeedMetersPerSecond":29.38,"maxSpeedMetersPerSecond":34.56,"edgeChance":0.025,"beatenOrMissed":false},
+        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":9.8,"minSpeedMetersPerSecond":22.33,"maxSpeedMetersPerSecond":27.3,"edgeChance":0.14,"beatenOrMissed":false},
+        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":25.0,"minSpeedMetersPerSecond":17.93,"maxSpeedMetersPerSecond":22.81,"edgeChance":0.24,"beatenOrMissed":false}
       }
     },
     {
@@ -474,11 +474,11 @@
       "aggression": 2, "difficulty": 0.66, "reward": 0.84,
       "suits": {"lengths":["short","good","full","yorker","fullToss"],"lines":["stumps","leg","wideLeg"]},
       "zones": {
-        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":14.57,"maxSpeedMetersPerSecond":19.38,"edgeChance":0.25,"beatenOrMissed":false},
-        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":18.1,"maxSpeedMetersPerSecond":22.8,"edgeChance":0.13,"beatenOrMissed":false},
-        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":35.0,"minSpeedMetersPerSecond":23.5,"maxSpeedMetersPerSecond":28.5,"edgeChance":0.035,"beatenOrMissed":false},
-        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":45.0,"minSpeedMetersPerSecond":17.86,"maxSpeedMetersPerSecond":22.52,"edgeChance":0.15,"beatenOrMissed":false},
-        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":14.34,"maxSpeedMetersPerSecond":18.81,"edgeChance":0.25,"beatenOrMissed":false}
+        "start": {"yawDegrees":-39.0,"yawSpreadDegrees":10.0,"elevationDegrees":44.0,"minSpeedMetersPerSecond":16.75,"maxSpeedMetersPerSecond":22.29,"edgeChance":0.25,"beatenOrMissed":false},
+        "early": {"yawDegrees":-33.0,"yawSpreadDegrees":7.0,"elevationDegrees":43.0,"minSpeedMetersPerSecond":20.82,"maxSpeedMetersPerSecond":26.22,"edgeChance":0.13,"beatenOrMissed":false},
+        "ideal": {"yawDegrees":-25.0,"yawSpreadDegrees":3.0,"elevationDegrees":35.0,"minSpeedMetersPerSecond":27.03,"maxSpeedMetersPerSecond":32.78,"edgeChance":0.035,"beatenOrMissed":false},
+        "late": {"yawDegrees":-37.0,"yawSpreadDegrees":7.0,"elevationDegrees":45.0,"minSpeedMetersPerSecond":20.54,"maxSpeedMetersPerSecond":25.89,"edgeChance":0.15,"beatenOrMissed":false},
+        "end": {"yawDegrees":-11.0,"yawSpreadDegrees":10.0,"elevationDegrees":47.0,"minSpeedMetersPerSecond":16.49,"maxSpeedMetersPerSecond":21.63,"edgeChance":0.25,"beatenOrMissed":false}
       }
     }
   ]

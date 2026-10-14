@@ -138,7 +138,7 @@ The window centre and size are in metres of ball travel. **Starting values to tu
 
 ---
 
-### WP3 — Outcome-first contact (L, wave 2, owns `Game1.MatchLoop.cs`) · A5.2
+### WP3 — Outcome-first contact (L, wave 2, owns `Game1.MatchLoop.cs`) · A5.2 [x]
 
 **Create** `src/SuperCricket.Simulation/Batting/StrokeOutcomeResolver.cs`:
 `StrokeResolution Resolve(StrokeTableAsset table, StrokeRequest request, BallCategory ball, float distanceAtInput, TimingWindow window, bool leftHanded, bool assist, Random rng)`:
@@ -354,7 +354,7 @@ Report: what changed, test results, numbers asked for in Accept, open questions,
 ## 6. Gate after wave 3 (human playtest)
 
 1. A new player learns batting from the nets tutorial in under three minutes and can say why a shot went up ("I was late").
-2. The same input timing against the same delivery gives the same zone and the same class of shot, 10 times out of 10.
+2. The same input timing against the same delivery gives the same zone and the same class of shot, 10 times out of 10 ("same timing on same ball gives the same kind of shot").
 3. Rookie: at least 60% of attacking inputs on good-length balls make contact; Legend: under 30% Ideal without practice.
 4. The bowler can name what they bowled and see where it landed; a no-ball from a late meter press is understood.
 5. An LBW and a run-out each show a decision and a replay that explain it.

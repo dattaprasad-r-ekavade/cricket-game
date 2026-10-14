@@ -25,6 +25,7 @@ public readonly record struct CpuLiveRunDecision(
 public static class CpuLiveRunningDecisionModel
 {
     public const float DefaultRunDurationSeconds = 1.35f;
+    public const float RunSafetyMarginSeconds = 0.25f;
     public const int MaximumPlannedRuns = 2;
 
     public static CpuLiveRunDecision Choose(
@@ -84,8 +85,10 @@ public static class CpuLiveRunningDecisionModel
                     return new CpuLiveRunDecision(0, CpuLiveRunDecisionReason.FielderCanCollectBeforeRun, elapsedSinceContact);
 
                 var collectionDuration = contact.Kind == FieldingContactKind.Catch ? catchDuration : pickupAnimationDurationSeconds;
+                var safetyMargin = contact.Kind == FieldingContactKind.Catch ? 0f : RunSafetyMarginSeconds;
                 var safeRuns = CountCompletedRuns(
-                    elapsedSinceContact + collectionDuration + throwAnimationDurationSeconds,
+                    MathF.Max(0f,
+                        elapsedSinceContact + collectionDuration + throwAnimationDurationSeconds - safetyMargin),
                     runDurationSeconds,
                     maximumRunCount);
                 return new CpuLiveRunDecision(

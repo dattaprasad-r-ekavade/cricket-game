@@ -1,4 +1,5 @@
 using SuperCricket.Content;
+using SuperCricket.Simulation.Batting;
 
 namespace SuperCricket.Simulation;
 
@@ -24,6 +25,27 @@ public readonly record struct CpuBattingDecision(
 /// <summary>Maps batting, bowling, fielding, and match ratings into CPU match-outcome probabilities.</summary>
 public static class CpuBattingOutcomeModel
 {
+    public static StrokeResolution ResolveStrokeOutcome(
+        CpuShotChoice shot,
+        float horizontalAim,
+        float forwardAim,
+        BallCategory ball,
+        float distanceAtInputMeters,
+        TimingWindow window,
+        bool leftHanded,
+        bool assist,
+        StrokeTableAsset strokeTable,
+        Random random)
+    {
+        var request = new StrokeRequest(
+            StrokeDirectionModel.FromAim(horizontalAim, forwardAim),
+            shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack,
+            shot == CpuShotChoice.Loft,
+            StrokeFoot.Auto);
+        return StrokeOutcomeResolver.Resolve(
+            strokeTable, request, ball, distanceAtInputMeters, window, leftHanded, assist, random);
+    }
+
     public static CpuBattingDecision Choose(
         TeamPlayerData striker,
         TeamPlayerData bowler,

@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using SuperCricket.Content;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using NumericsVector3 = System.Numerics.Vector3;
@@ -24,11 +25,13 @@ public partial class Game1
         var standardContactZoneAlpha = GetBattingContactZoneAlpha();
         _cpuDifficulty = CpuDifficulty.Pro;
         var proContactZoneAlpha = GetBattingContactZoneAlpha();
+        _cpuDifficulty = CpuDifficulty.Legend;
+        var legendContactZoneAlpha = GetBattingContactZoneAlpha();
         _cpuDifficulty = difficultyBeforeContactZoneReview;
         Require(rookieContactZoneAlpha > standardContactZoneAlpha && standardContactZoneAlpha > proContactZoneAlpha &&
-            rookieContactZoneAlpha > 0 && proContactZoneAlpha == 0,
-            "batting contact-zone assistance did not scale from a strong Rookie outline to a hidden Pro outline");
-        Console.WriteLine("PASS: the projected bounce matches the flight simulation; contact-zone prominence descends from Rookie to Standard to hidden on Pro.");
+            rookieContactZoneAlpha > 0 && proContactZoneAlpha > 0 && legendContactZoneAlpha == 0,
+            "batting contact-zone assistance did not scale from Rookie through Pro and hide above Pro");
+        Console.WriteLine("PASS: the projected bounce matches the flight simulation; contact-zone prominence descends from Rookie through Pro and hides on Legend.");
 
         Reset();
         for (var step = 0; step < 1200 && _firstBouncePosition is null; step++) Tick(1f / 120f);
@@ -336,12 +339,13 @@ public partial class Game1
 
         foreach (var frameRate in new[] { 30, 60, 120 })
         {
-            foreach (var (key, delay) in new[] { (Keys.A, 0.2f), (Keys.S, 0.25f), (Keys.D, 0.25f) })
+            foreach (var key in new[] { Keys.A, Keys.S, Keys.D })
             {
                 Reset();
+                var idealInputDelay = FindInputDelayAtDistance(_deliveryPreset, 1.5f);
                 var elapsed = 1f / frameRate;
                 for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
-                for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < delay; step++) Tick(elapsed);
+                for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < idealInputDelay; step++) Tick(elapsed);
                 Tick(elapsed, key);
                 for (var step = 0; step < frameRate * 2 && !_battedBall && !_deliveryComplete; step++) Tick(elapsed);
                 Require(_battedBall && _contactFeedbackRemainingSeconds > 0f && !_contactFeedbackIsMiss,
@@ -384,6 +388,7 @@ public partial class Game1
         foreach (var frameRate in new[] { 30, 60, 120 })
         {
             Reset(1);
+            var idealInputDelay = FindInputDelayAtDistance(_deliveryPreset, 1.5f);
             for (var step = 0; step < BatterFootwork.MaximumSteps; step++)
             {
                 Tick(0f, Keys.Q);
@@ -392,7 +397,7 @@ public partial class Game1
             Tick(0.6f);
             var elapsed = 1f / frameRate;
             for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
-            for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < 0.35f; step++) Tick(elapsed);
+            for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < idealInputDelay; step++) Tick(elapsed);
             Tick(elapsed, Keys.S);
             for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
             Require(_battedBall && _deliveryComplete &&
@@ -479,5 +484,26 @@ public partial class Game1
             "a no-ball catch return failed to finish without a caught dismissal");
         Console.WriteLine("PASS: a catch off a no-ball preserves active running through the catch/return sequence.");
         Console.WriteLine("Gameplay review checks passed.");
+    }
+
+    private static float FindInputDelayAtDistance(DeliveryPreset delivery, float targetDistanceMeters)
+    {
+        var flight = new BallFlightSimulator(delivery);
+        var previous = flight.CurrentFrame;
+        while (flight.CurrentFrame.Phase != BallMotionPhase.Settled)
+        {
+            var current = flight.Step();
+            var previousDistance = TimingWindowModel.DistanceToContactPlane(
+                previous, BattingPracticeAnalyzer.BatterWicketLineZ);
+            var currentDistance = TimingWindowModel.DistanceToContactPlane(
+                current, BattingPracticeAnalyzer.BatterWicketLineZ);
+            if (previousDistance > targetDistanceMeters && currentDistance <= targetDistanceMeters)
+            {
+                var fraction = (previousDistance - targetDistanceMeters) / (previousDistance - currentDistance);
+                return previous.TimeSeconds + (current.TimeSeconds - previous.TimeSeconds) * fraction;
+            }
+            previous = current;
+        }
+        throw new InvalidOperationException("The review delivery never reached the selected batting input distance.");
     }
 }

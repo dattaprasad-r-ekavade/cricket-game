@@ -29,7 +29,8 @@ public static partial class BattingPracticeAnalyzer
     public const float MinimumInputDelaySeconds = -0.5f;
     public const float BatterWicketLineZ = -8.72f;
     private const float BatterZ = BatterWicketLineZ;
-    private const float BatterX = -0.48f;
+    public const float BatterStanceX = -0.48f;
+    private const float BatterX = BatterStanceX;
     private const float BatterGroundOffset = -0.025f;
     private const float MissPlaneOffsetMeters = 0.45f;
     private const float ShotTransitionSeconds = 0.12f;

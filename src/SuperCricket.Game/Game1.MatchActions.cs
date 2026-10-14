@@ -11,6 +11,8 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
+using SuperCricket.Simulation.Events;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -77,7 +79,8 @@ public partial class Game1
         float? horizontalAimOverride = null,
         float? forwardAimOverride = null,
         string? animationClipOverride = null,
-        string? controlLabelOverride = null)
+        string? controlLabelOverride = null,
+        StrokeResolution? strokeOutcomeOverride = null)
     {
         if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
@@ -97,7 +100,49 @@ public partial class Game1
         if (!float.IsFinite(forwardAim) || forwardAim is < -1f or > 1f ||
             (MathF.Abs(horizontalAim) < 0.001f && MathF.Abs(forwardAim) < 0.001f))
             throw new ArgumentOutOfRangeException(nameof(forwardAimOverride), "Shot direction must be a finite, non-zero vector between -1 and 1.");
-        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim, forwardAim, animationClipOverride);
+        var leftHanded = _match.StrikerPlayer.Handedness == BatterHandedness.Left;
+        var direction = StrokeDirectionModel.FromAim(horizontalAim, forwardAim);
+        var intent = string.Equals(name, "defence", StringComparison.OrdinalIgnoreCase)
+            ? StrokeIntent.Defend
+            : StrokeIntent.Attack;
+        var loft = string.Equals(name, "loft", StringComparison.OrdinalIgnoreCase);
+        var request = new StrokeRequest(direction, intent, loft, StrokeFoot.Auto);
+        var ballCategory = BallCategoryClassifier.Classify(
+            _deliveryPreset,
+            BattingPracticeAnalyzer.BatterStanceX + _batterFootworkOffsetX,
+            leftHanded);
+        var selectedStroke = strokeOutcomeOverride is { } resolvedStroke
+            ? _strokeTable.Strokes.First(stroke => string.Equals(stroke.Id, resolvedStroke.StrokeId, StringComparison.Ordinal))
+            : StrokeSelector.Select(_strokeTable, request, ballCategory);
+        var profile = CpuDifficultyModel.GetProfile(
+            _cpuDifficulty,
+            IsCpuBattingControlled ? DifficultySide.Cpu : DifficultySide.Human);
+        var timingState = new BatterTimingState(_match.LegalBalls);
+        var idealWidth = TimingWindowModel.IdealWidth(
+            profile,
+            timingState,
+            _match.StrikerPlayer,
+            selectedStroke.Foot,
+            direction,
+            loft);
+        var timingWindow = TimingWindowModel.Build(
+            profile.Timing.CentreMeters,
+            profile.Timing.WindowMeters,
+            idealWidth);
+        _shotInputDistanceMeters = TimingWindowModel.DistanceToContactPlane(
+            _ballFlight.CurrentFrame,
+            BattingPracticeAnalyzer.BatterWicketLineZ);
+        _strokeResolution = strokeOutcomeOverride ?? StrokeOutcomeResolver.Resolve(
+            _strokeTable,
+            request,
+            ballCategory,
+            _shotInputDistanceMeters,
+            timingWindow,
+            leftHanded,
+            profile.Timing.AssistEnabled,
+            new Random(GetStrokeOutcomeSeed(request, _shotInputDistanceMeters)));
+        _match.Events.Publish(new StrokePlayed(_ballFlight.CurrentFrame.TimeSeconds, _strokeResolution.Value.StrokeId));
+        _chosenShot = CopyShotWithAim(authoredShot, horizontalAim, forwardAim, animationClipOverride ?? selectedStroke.AnimationClip);
         RecordShotTiming(name);
         _shotInputDelaySeconds = _bowlerRunUpElapsed + _bowlerActionElapsed -
             (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
@@ -108,6 +153,22 @@ public partial class Game1
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
         _batterAnimations.PlayShot(_chosenShot.AnimationClip);
+    }
+
+    private int GetStrokeOutcomeSeed(StrokeRequest request, float inputDistanceMeters)
+    {
+        unchecked
+        {
+            var seed = 17;
+            seed = seed * 31 + _match.InningsNumber;
+            seed = seed * 31 + _match.LegalBalls;
+            seed = seed * 31 + _match.Runs;
+            seed = seed * 31 + _match.Wickets;
+            seed = seed * 31 + (int)request.Direction;
+            seed = seed * 31 + (int)request.Intent;
+            seed = seed * 31 + (int)MathF.Round(inputDistanceMeters * 10000f);
+            return seed;
+        }
     }
 
     private void AdjustHumanShotAim(float adjustment)

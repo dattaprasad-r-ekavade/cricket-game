@@ -11,6 +11,7 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -137,14 +138,14 @@ public partial class Game1
         if (_fielderThrowReleaseTimeSeconds >= _fielderThrowDurationSeconds)
             throw new InvalidDataException("Fielder throw release event must occur before the end of its animation.");
         RequireAnimation(_bowlerAsset, "practice-stance");
-        var shotSetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "shots.json");
-        _shotSet = BattingShotSet.Load(shotSetPath);
+        _strokeTable = StrokeTableAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "strokes.json"));
+        _shotSet = BuildRuntimeShotSet(_strokeTable);
         _battingTimingCalibration = BattingTimingCalibrationAsset.Load(
             Path.Combine(AppContext.BaseDirectory, "Assets", "Batting", "timing-calibration.json"));
-        foreach (var shot in _shotSet.Shots)
+        foreach (var animationClip in _strokeTable.Strokes.Select(stroke => stroke.AnimationClip).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            if (!_playerAsset.Animations.Exists(clip => string.Equals(clip.Name, shot.AnimationClip, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidDataException($"Shot '{shot.Name}' refers to missing player clip '{shot.AnimationClip}'.");
+            if (!_playerAsset.Animations.Exists(clip => string.Equals(clip.Name, animationClip, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"The stroke table refers to missing player clip '{animationClip}'.");
         }
         RequireAnimation(_playerAsset, "batting-step-offside");
         RequireAnimation(_playerAsset, "batting-step-legside");
@@ -231,5 +232,46 @@ public partial class Game1
         }
     }
 
+    private static BattingShotSet BuildRuntimeShotSet(StrokeTableAsset table)
+    {
+        static BattingShotData BuildShot(
+            StrokeTableAsset strokeTable,
+            string name,
+            StrokeIntent intent,
+            bool loft,
+            float horizontalAim)
+        {
+            var category = new BallCategory(BallLength.Good, BallLine.Stumps, 0.3f);
+            var stroke = StrokeSelector.Select(
+                strokeTable,
+                new StrokeRequest(ShotDirection8.Straight, intent, loft, StrokeFoot.Auto),
+                category);
+            var ideal = stroke.Zones[TimingZone.Ideal];
+            return new BattingShotData
+            {
+                Name = name,
+                AnimationClip = stroke.AnimationClip,
+                LaunchAngleDegrees = ideal.ElevationDegrees,
+                HorizontalAim = horizontalAim,
+                ForwardAim = 1f,
+                SpeedTransfer = Math.Clamp((ideal.MinSpeedMetersPerSecond + ideal.MaxSpeedMetersPerSecond) / 80f, 0.1f, 1.5f)
+            };
+        }
+
+        var result = new BattingShotSet
+        {
+            ContactPaddingMeters = 0.03f,
+            Shots =
+            [
+                BuildShot(table, "defence", StrokeIntent.Defend, loft: false, horizontalAim: 0f),
+                BuildShot(table, "drive", StrokeIntent.Attack, loft: false, horizontalAim: 0.15f),
+                BuildShot(table, "loft", StrokeIntent.Attack, loft: true, horizontalAim: 0.42f)
+            ]
+        };
+        var errors = result.Validate();
+        if (errors.Count > 0)
+            throw new InvalidDataException($"Could not derive runtime batting intents from the stroke table: {string.Join(" ", errors)}");
+        return result;
+    }
 
 }

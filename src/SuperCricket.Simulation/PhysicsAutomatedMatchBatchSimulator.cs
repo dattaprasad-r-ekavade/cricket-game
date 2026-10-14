@@ -23,7 +23,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset noBallDelivery,
         int matchCount,
         int oversPerInnings,
-        int seed)
+        int seed,
+        StrokeTableAsset? strokeTable = null)
     {
         ArgumentNullException.ThrowIfNull(firstTeam);
         ArgumentNullException.ThrowIfNull(secondTeam);
@@ -34,6 +35,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         ArgumentNullException.ThrowIfNull(stockDelivery);
         ArgumentNullException.ThrowIfNull(wideDelivery);
         ArgumentNullException.ThrowIfNull(noBallDelivery);
+        strokeTable ??= StrokeTableAsset.Load(ResolveStrokeTablePath());
         if (matchCount is < 1 or > MaximumMatchesPerBatch)
             throw new ArgumentOutOfRangeException(nameof(matchCount), $"Match count must be between 1 and {MaximumMatchesPerBatch}.");
         if (!LimitedOversMatch.SupportedOversPerInnings.Contains(oversPerInnings))
@@ -54,7 +56,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
             var matchSeed = unchecked(seed + index);
             results[index] = SimulateMatch(
                 firstTeam, secondTeam, fieldPreset, batterAsset, bowlerAsset, shotSet,
-                stockDelivery, wideDelivery, noBallDelivery, oversPerInnings, matchSeed);
+                stockDelivery, wideDelivery, noBallDelivery, oversPerInnings, matchSeed, strokeTable);
         }
         return Array.AsReadOnly(results);
     }
@@ -70,7 +72,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset wideDelivery,
         DeliveryPreset noBallDelivery,
         int oversPerInnings,
-        int seed)
+        int seed,
+        StrokeTableAsset strokeTable)
     {
         var random = new Random(seed);
         var match = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings);
@@ -96,7 +99,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
             SimulateDelivery(
                 match, random, fieldPreset, batterAsset, bowlerAsset, shotSet,
-                stockDelivery, wideDelivery, noBallDelivery, telemetry);
+                stockDelivery, wideDelivery, noBallDelivery, telemetry, strokeTable);
             deliveriesThisInnings++;
             deliveries++;
         }
@@ -116,7 +119,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset stockDelivery,
         DeliveryPreset wideDelivery,
         DeliveryPreset noBallDelivery,
-        PhysicsMatchTelemetry telemetry)
+        PhysicsMatchTelemetry telemetry,
+        StrokeTableAsset strokeTable)
     {
         var striker = match.StrikerPlayer;
         var situation = new BowlingSituation(
@@ -150,7 +154,9 @@ public static class PhysicsAutomatedMatchBatchSimulator
             bowlerAsset,
             shotSet,
             random.Next(),
-            fielding.Positions);
+            fielding.Positions,
+            CpuDifficulty.Standard,
+            strokeTable);
         if (decision.Leave)
         {
             telemetry.Leaves++;
@@ -175,40 +181,53 @@ public static class PhysicsAutomatedMatchBatchSimulator
             CpuShotChoice.Drive => "drive",
             _ => "loft"
         };
-        var trajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
-            batterAsset,
-            bowlerAsset,
-            shotSet,
-            shotName,
-            delivery,
-            decision.InputDelaySeconds,
-            decision.FootworkOffsetMeters,
-            striker,
-            decision.HorizontalAim);
-
-        if (!trajectory.Sample.ContactQuality.HasValue)
+        match.Events.Publish(new StrokePlayed(
+            MathF.Max(0f, decision.InputDelaySeconds),
+            decision.StrokeOutcome?.StrokeId ?? shotName));
+        if (decision.StrokeOutcome is { Missed: true })
         {
-            telemetry.Misses++;
-            match.Events.Publish(new BallBeatBat(MathF.Max(0f, decision.InputDelaySeconds)));
-            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true, match.Events);
-            match.CompleteDelivery();
-            if (session.Dismissal == DismissalKind.Bowled)
-                telemetry.BowledDismissals++;
-            if (session.Extra == DeliveryExtra.Wide)
-                telemetry.WideDeliveries++;
-            if (session.Extra == DeliveryExtra.NoBall)
-                telemetry.NoBallDeliveries++;
+            ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
             return;
         }
+
+        BattingPracticeTrajectory trajectory;
+        if (decision.StrokeOutcome is { } strokeOutcome)
+        {
+            if (!TryBuildOutcomeFirstTrajectory(delivery, shotName, decision, strokeOutcome, out trajectory))
+            {
+                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
+                return;
+            }
+        }
+        else
+        {
+            trajectory = BattingPracticeAnalyzer.AnalyzeShotTrajectory(
+                batterAsset,
+                bowlerAsset,
+                shotSet,
+                shotName,
+                delivery,
+                decision.InputDelaySeconds,
+                decision.FootworkOffsetMeters,
+                striker,
+                decision.HorizontalAim);
+            if (!trajectory.Sample.ContactQuality.HasValue)
+            {
+                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
+                return;
+            }
+        }
+
         if (trajectory.ContactPosition is not { } contactPosition ||
             trajectory.OutgoingVelocity is not { } outgoingVelocity ||
             trajectory.OutgoingFrames.Count < 2)
             throw new InvalidOperationException("A physics batting contact did not include its point, velocity, and flight frames.");
 
+        var resolvedVelocity = decision.StrokeOutcome?.OutgoingVelocity ?? outgoingVelocity;
+
         var contactTimeSeconds = trajectory.Sample.ContactTimeSeconds ?? 0f;
         if (BowlingAimModel.FindFirstBounce(delivery) is { } firstBounce && firstBounce.TimeSeconds <= contactTimeSeconds)
             match.Events.Publish(new BallPitched(firstBounce.TimeSeconds, firstBounce.Position, firstBounce.BounceCount));
-        match.Events.Publish(new StrokePlayed(decision.InputDelaySeconds, shotName));
         match.Events.Publish(new BatContact(contactTimeSeconds, contactPosition));
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
@@ -218,7 +237,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
             decision.AttemptRun,
             delivery,
             contactPosition,
-            outgoingVelocity,
+            resolvedVelocity,
             fielding.Positions,
             fieldingRatings,
             CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
@@ -377,6 +396,114 @@ public static class PhysicsAutomatedMatchBatchSimulator
     {
         if (eventBus is not null && current.BounceCount > previous.BounceCount)
             eventBus.Publish(new BallPitched(current.TimeSeconds, current.Position, current.BounceCount));
+    }
+
+    private static void ResolveMissedShot(
+        LimitedOversMatch match,
+        DeliverySession session,
+        DeliveryPreset delivery,
+        Random random,
+        PhysicsMatchTelemetry telemetry,
+        float inputDelaySeconds)
+    {
+        telemetry.Misses++;
+        match.Events.Publish(new BallBeatBat(MathF.Max(0f, inputDelaySeconds)));
+        ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true, match.Events);
+        match.CompleteDelivery();
+        if (session.Dismissal == DismissalKind.Bowled)
+            telemetry.BowledDismissals++;
+        if (session.Extra == DeliveryExtra.Wide)
+            telemetry.WideDeliveries++;
+        if (session.Extra == DeliveryExtra.NoBall)
+            telemetry.NoBallDeliveries++;
+    }
+
+    private static bool TryBuildOutcomeFirstTrajectory(
+        DeliveryPreset delivery,
+        string shotName,
+        CpuLiveBattingPlan decision,
+        StrokeResolution outcome,
+        out BattingPracticeTrajectory trajectory)
+    {
+        var simulator = new BallFlightSimulator(delivery);
+        var previous = simulator.CurrentFrame;
+        BallFlightFrame crossing = default;
+        var crossed = false;
+        while (simulator.CurrentFrame.Phase != BallMotionPhase.Settled)
+        {
+            var current = simulator.Step();
+            if (ContactPlaneCrossingModel.TryResolve(
+                previous,
+                current,
+                BattingPracticeAnalyzer.BatterWicketLineZ,
+                out crossing,
+                out _))
+            {
+                crossed = true;
+                break;
+            }
+            previous = current;
+        }
+
+        if (!crossed)
+        {
+            trajectory = default;
+            return false;
+        }
+
+        simulator.ApplyBatContact(crossing.Position, outcome.OutgoingVelocity);
+        var frames = new List<BallFlightFrame> { simulator.CurrentFrame };
+        var maximumSteps = (int)MathF.Ceiling(BattedBallFieldingModel.MaximumCollectionWaitSeconds / delivery.FixedTimeStepSeconds) + 1;
+        for (var step = 0; step < maximumSteps && simulator.CurrentFrame.Phase != BallMotionPhase.Settled; step++)
+            frames.Add(simulator.Step(enforceSimulationLimit: false));
+
+        var horizontalSpeed = new Vector2(outcome.OutgoingVelocity.X, outcome.OutgoingVelocity.Z).Length();
+        var launchAngle = MathF.Atan2(outcome.OutgoingVelocity.Y, horizontalSpeed) * (180f / MathF.PI);
+        var contactQuality = outcome.Zone switch
+        {
+            TimingZone.Ideal => 1f,
+            TimingZone.Early or TimingZone.Late => 0.7f,
+            TimingZone.Start or TimingZone.End => 0.45f,
+            _ => 0.3f
+        };
+        var sample = new BattingPracticeSample(
+            shotName,
+            delivery.Name,
+            decision.InputDelaySeconds,
+            "ResolvedStroke",
+            crossing.TimeSeconds,
+            contactQuality,
+            launchAngle,
+            outcome.OutgoingVelocity.Length(),
+            0f,
+            0f,
+            0f,
+            decision.FootworkOffsetMeters);
+        trajectory = new BattingPracticeTrajectory(
+            sample,
+            crossing.Position,
+            outcome.OutgoingVelocity,
+            Array.AsReadOnly(frames.ToArray()));
+        return true;
+    }
+
+    private static string ResolveStrokeTablePath()
+    {
+        var roots = new[] { AppContext.BaseDirectory, Environment.CurrentDirectory }
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in roots)
+        {
+            for (var directory = new DirectoryInfo(root); directory is not null; directory = directory.Parent)
+            {
+                foreach (var assetDirectory in new[] { "Assets/Batting", "assets/batting" })
+                {
+                    var candidate = Path.Combine(directory.FullName, assetDirectory, "strokes.json");
+                    if (File.Exists(candidate))
+                        return candidate;
+                }
+            }
+        }
+        throw new FileNotFoundException("Could not locate assets/batting/strokes.json for physics-match stroke outcomes.");
     }
 
     internal static void SimulateBattedBall(

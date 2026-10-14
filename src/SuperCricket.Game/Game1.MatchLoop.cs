@@ -11,6 +11,7 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Events;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -277,67 +278,112 @@ public partial class Game1
                 var frame = _ballFlight.Step(enforceSimulationLimit: !_battedBall);
                 if (_firstBouncePosition is null && previousFrame.BounceCount == 0 && frame.BounceCount > 0)
                 {
+                    _match.Events.Publish(new BallPitched(frame.TimeSeconds, frame.Position, frame.BounceCount));
                     _firstBouncePosition = ToXna(frame.Position);
                     _bounceSpotFeedbackRemainingSeconds = BounceSpotFeedbackDurationSeconds;
                     _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                 }
                 if (_chosenShot is not null && !_shotResolved &&
-                    TryBatContact(
+                    ContactPlaneCrossingModel.TryResolve(
+                        previousFrame,
+                        frame,
+                        NearBatterZ,
+                        out var contactFrame,
+                        out var contactFraction))
+                {
+                    var batStartWorld = InterpolateBatWorld(GetBatPoseFraction(
+                        physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed));
+                    var batEndWorld = InterpolateBatWorld(GetBatPoseFraction(
+                        physicsElapsedThisFrame + _ballFlight.FixedTimeStepSeconds,
+                        accumulatorBeforeFrame, elapsedSeconds, flightElapsed));
+                    var batAtContactWorld = InterpolateBatWorld(GetBatPoseFraction(
+                        physicsElapsedThisFrame + _ballFlight.FixedTimeStepSeconds * contactFraction,
+                        accumulatorBeforeFrame, elapsedSeconds, flightElapsed));
+                    var sweetSpotLocal = (_batBladeMinimum + _batBladeMaximum) * 0.5f;
+                    var sweetSpotPosition = Vector3.Transform(sweetSpotLocal, batAtContactWorld);
+                    var contactPosition = ToXna(contactFrame.Position);
+                    var sweetSpotOffset = Vector2.Zero;
+                    if (_developerMode && TryBatContact(
                         previousFrame.Position,
                         frame.Position,
-                        InterpolateBatWorld(GetBatPoseFraction(physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed)),
-                        InterpolateBatWorld(GetBatPoseFraction(physicsElapsedThisFrame + _ballFlight.FixedTimeStepSeconds, accumulatorBeforeFrame, elapsedSeconds, flightElapsed)),
+                        batStartWorld,
+                        batEndWorld,
                         GetBatPoseDeltaSeconds(physicsElapsedThisFrame, accumulatorBeforeFrame, elapsedSeconds, flightElapsed),
-                        out var battingContact))
-                {
-                    _contactMarkerPosition = battingContact.Position;
-                    _sweetSpotMarkerPosition = battingContact.SweetSpotPosition;
-                    _contactTimeSeconds = previousFrame.TimeSeconds +
-                        _ballFlight.FixedTimeStepSeconds * battingContact.HitFraction;
-                    _contactSweetSpotOffset = battingContact.NormalizedSweetSpotOffset;
-                    var impact = BattingImpactModel.Calculate(
-                        ToNumerics(frame.Velocity),
-                        ToNumerics(battingContact.BatPointVelocity),
-                        new System.Numerics.Vector2(battingContact.NormalizedSweetSpotOffset.X, battingContact.NormalizedSweetSpotOffset.Y),
-                        _chosenShot,
-                        _match.StrikerPlayer);
-                    _contactQuality = impact.ContactQuality;
-                    _contactFeedbackQuality = impact.ContactQuality;
-                    _contactFeedbackIsMiss = false;
-                    _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
-                    _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
-                    _ballFlight.ApplyBatContact(ToNumerics(battingContact.Position), impact.OutgoingVelocity);
-                    frame = _ballFlight.CurrentFrame;
-                    fieldingPreviousFrame = frame;
-                    fieldingElapsed *= 1f - battingContact.HitFraction;
-                    _shotResolved = true;
-                    _battedBall = true;
-                    _camera.SelectPreset("ball-follow");
-                    _fieldingSide.Reset();
-                    _shotOutcome = $"HIT: {_chosenShot.Name}, {impact.ContactQuality:0.00} quality at {impact.OutgoingVelocity.Length():0.0} m/s";
-                    PlayAudio(CricketAudioCue.BatContact);
-                    if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
+                        out var sweptContact))
                     {
-                        var fieldingPlayers = _match.FieldingPlayers;
-                        var fieldingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Speed).ToArray();
-                        _cpuRunsRemaining = CpuLiveRunningDecisionModel.Choose(
-                            cpuPlan.AttemptRun,
-                            _deliveryPreset,
-                            ToNumerics(battingContact.Position),
-                            impact.OutgoingVelocity,
-                            _fieldingSide.Positions,
-                            fieldingRatings,
-                            _runDurationSeconds,
-                            _fielderPickupDurationSeconds,
-                            _fielderThrowDurationSeconds,
-                            catchAnimationDurationSeconds: _fielderCatchDurationSeconds).PlannedRuns;
-                        _runRequestedPending = _cpuRunsRemaining > 0;
+                        sweetSpotOffset = sweptContact.NormalizedSweetSpotOffset;
                     }
-                    if (_runRequestedPending)
+
+                    _contactMarkerPosition = contactPosition;
+                    _sweetSpotMarkerPosition = sweetSpotPosition;
+                    _contactTimeSeconds = contactFrame.TimeSeconds;
+                    _contactSweetSpotOffset = sweetSpotOffset;
+                    if (_strokeResolution is not { } strokeOutcome)
+                        throw new InvalidOperationException("A committed batting input must have a resolved stroke outcome.");
+
+                    if (strokeOutcome.Missed)
                     {
-                        StartRun();
-                        if (_isRunning)
-                            UpdateRun(_ballFlight.FixedTimeStepSeconds * (1f - battingContact.HitFraction));
+                        _contactQuality = 0f;
+                        _contactFeedbackQuality = null;
+                        _contactFeedbackIsMiss = true;
+                        _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
+                        _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
+                        _shotResolved = true;
+                        _shotOutcome = $"BEATEN: {_chosenShot.Name} was outside the {strokeOutcome.Zone} zone";
+                        _match.Events.Publish(new BallBeatBat(_contactTimeSeconds.Value));
+                    }
+                    else
+                    {
+                        var contactQuality = strokeOutcome.Zone switch
+                        {
+                            TimingZone.Ideal => 1f,
+                            TimingZone.Early or TimingZone.Late => 0.7f,
+                            TimingZone.Start or TimingZone.End => 0.45f,
+                            _ => 0.3f
+                        };
+                        var outgoingVelocity = ToXna(strokeOutcome.OutgoingVelocity);
+                        var resolvedContactPosition = Vector3.Distance(contactPosition, sweetSpotPosition) <= 0.35f
+                            ? sweetSpotPosition
+                            : contactPosition;
+                        _contactQuality = contactQuality;
+                        _contactFeedbackQuality = contactQuality;
+                        _contactFeedbackIsMiss = false;
+                        _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
+                        _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
+                        _ballFlight.ApplyBatContact(ToNumerics(resolvedContactPosition), strokeOutcome.OutgoingVelocity);
+                        _match.Events.Publish(new BatContact(_contactTimeSeconds.Value, ToNumerics(resolvedContactPosition)));
+                        frame = _ballFlight.CurrentFrame;
+                        fieldingPreviousFrame = frame;
+                        fieldingElapsed *= 1f - contactFraction;
+                        _shotResolved = true;
+                        _battedBall = true;
+                        _camera.SelectPreset("ball-follow");
+                        _fieldingSide.Reset();
+                        _shotOutcome = $"HIT: {_chosenShot.Name} {strokeOutcome.Zone}, {contactQuality:0.00} quality at {outgoingVelocity.Length():0.0} m/s";
+                        PlayAudio(CricketAudioCue.BatContact);
+                        if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
+                        {
+                            var fieldingPlayers = _match.FieldingPlayers;
+                            var fieldingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Speed).ToArray();
+                            _cpuRunsRemaining = CpuLiveRunningDecisionModel.Choose(
+                                cpuPlan.AttemptRun,
+                                _deliveryPreset,
+                                ToNumerics(resolvedContactPosition),
+                                strokeOutcome.OutgoingVelocity,
+                                _fieldingSide.Positions,
+                                fieldingRatings,
+                                _runDurationSeconds,
+                                _fielderPickupDurationSeconds,
+                                _fielderThrowDurationSeconds,
+                                catchAnimationDurationSeconds: _fielderCatchDurationSeconds).PlannedRuns;
+                            _runRequestedPending = _cpuRunsRemaining > 0;
+                        }
+                        if (_runRequestedPending)
+                        {
+                            StartRun();
+                            if (_isRunning)
+                                UpdateRun(_ballFlight.FixedTimeStepSeconds * (1f - contactFraction));
+                        }
                     }
                 }
                 else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < NearBatterZ - 0.45f && frame.Velocity.Z < 0f)
@@ -348,6 +394,7 @@ public partial class Game1
                     _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
                     _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
+                    _match.Events.Publish(new BallBeatBat(frame.TimeSeconds));
                 }
 
                 if (!_deliveryComplete && !_battedBall && IncomingDeliveryModel.TryResolve(

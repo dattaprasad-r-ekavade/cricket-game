@@ -11,6 +11,7 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -86,6 +87,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private CpuDifficulty _cpuDifficulty = CpuDifficulty.Standard;
     private DeliveryPreset _deliveryPreset = null!;
     private BattingShotSet _shotSet = null!;
+    private StrokeTableAsset _strokeTable = null!;
     private BallFlightSimulator _ballFlight = null!;
     private PlayerAsset _playerAsset = null!;
     private BatterAnimationController _batterAnimations = null!;
@@ -136,6 +138,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private float? _contactQuality;
     private Vector2? _contactSweetSpotOffset;
     private BattingShotData? _chosenShot;
+    private StrokeResolution? _strokeResolution;
+    private float _shotInputDistanceMeters;
     private bool _shotResolved;
     private bool _deliveryComplete => _match.CurrentDelivery?.IsComplete == true;
     private bool IsCpuBattingControlled => _match.InningsNumber == 2 && !_verifyGameplay;

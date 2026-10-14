@@ -34,8 +34,9 @@
     <None Include="..\..\assets\teams\highland-xi.json" Link="Assets\Teams\highland-xi.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\characters\practice-batter-humanoid.glb" Link="Assets\Characters\practice-batter-humanoid.glb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\characters\practice-bowler-humanoid.glb" Link="Assets\Characters\practice-bowler-humanoid.glb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\batting\strokes.json" Link="Assets\Batting\strokes.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\timing-calibration.json" Link="Assets\Batting\timing-calibration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\characters\practice-batter.animation-contract.json" Link="Assets\Characters\practice-batter.animation-contract.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\difficulty\*.json" Link="Assets\Difficulty\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\outfield-grass.png" Link="Assets\Textures\outfield-grass.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\cricket-pitch-clay.png" Link="Assets\Textures\cricket-pitch-clay.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

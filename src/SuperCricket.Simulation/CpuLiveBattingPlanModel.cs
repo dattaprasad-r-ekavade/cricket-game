@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Simulation.Batting;
 
 namespace SuperCricket.Simulation;
 
@@ -10,7 +11,8 @@ public readonly record struct CpuLiveBattingPlan(
     bool AttemptRun,
     float? PredictedContactQuality,
     float HorizontalAim,
-    bool Leave = false);
+    bool Leave = false,
+    StrokeResolution? StrokeOutcome = null);
 
 /// <summary>Chooses a repeatable live shot, timing, footwork, placement, and running intent.</summary>
 public static class CpuLiveBattingPlanModel
@@ -29,7 +31,8 @@ public static class CpuLiveBattingPlanModel
         BattingShotSet shotSet,
         int seed,
         IReadOnlyList<Vector3>? fieldingPositions = null,
-        CpuDifficulty difficulty = CpuDifficulty.Standard)
+        CpuDifficulty difficulty = CpuDifficulty.Standard,
+        StrokeTableAsset? strokeTable = null)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(batterAsset);
@@ -71,7 +74,7 @@ public static class CpuLiveBattingPlanModel
         var authoredShot = shotSet.Get(shotName);
         var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, difficulty);
         if (fieldingPositions is null)
-            return plan;
+            return WithStrokeOutcome(plan, striker, situation, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed);
 
         var fieldingRatings = fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray();
         var horizontalAim = CpuShotPlacementModel.ChooseHorizontalAim(
@@ -86,7 +89,101 @@ public static class CpuLiveBattingPlanModel
             striker.Power,
             seed ^ unchecked((int)0x4cf5ad43),
             difficulty);
-        return plan with { HorizontalAim = executedAim };
+        plan = plan with { HorizontalAim = executedAim };
+        return WithStrokeOutcome(plan, striker, situation, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed);
+    }
+
+    private static CpuLiveBattingPlan WithStrokeOutcome(
+        CpuLiveBattingPlan plan,
+        TeamPlayerData striker,
+        BowlingSituation situation,
+        DeliveryPreset delivery,
+        IReadOnlyList<BattingPracticeSample> samples,
+        float forwardAim,
+        StrokeTableAsset? strokeTable,
+        CpuDifficulty difficulty,
+        int seed)
+    {
+        if (strokeTable is null || plan.Leave)
+            return plan;
+
+        var leftHanded = striker.Handedness == BatterHandedness.Left;
+        var ball = BallCategoryClassifier.Classify(delivery, BattingPracticeAnalyzer.BatterStanceX, leftHanded);
+        var direction = StrokeDirectionModel.FromAim(plan.HorizontalAim, forwardAim);
+        var shot = plan.Shot;
+        var request = new StrokeRequest(
+            direction,
+            shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack,
+            shot == CpuShotChoice.Loft,
+            StrokeFoot.Auto);
+        var selectedStroke = StrokeSelector.Select(strokeTable, request, ball);
+        var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
+        if (profile.Cpu is not { } cpuProfile)
+            throw new InvalidOperationException($"The {difficulty} CPU profile has no commit-timing settings.");
+        var timingState = new BatterTimingState(situation.LegalBalls);
+        var idealWidth = TimingWindowModel.IdealWidth(
+            profile, timingState, striker, selectedStroke.Foot, direction, request.Loft);
+        var window = TimingWindowModel.Build(
+            profile.Timing.CentreMeters,
+            profile.Timing.WindowMeters,
+            idealWidth);
+        var liveSamples = samples
+            .Where(sample => sample.InputDelaySeconds >= 0f && sample.InputDelaySeconds < BattingPracticeAnalyzer.GetWicketLineTimeSeconds(delivery))
+            .ToArray();
+        if (liveSamples.Length > 0)
+        {
+            var random = new Random(seed ^ unchecked((int)0x165667b1));
+            var referenceSpeed = FrameAtInput(delivery, plan.InputDelaySeconds).Velocity.Length();
+            var desiredDistance = Math.Clamp(
+                window.CentreMeters + SampleStandardNormal(random) * cpuProfile.CommitSigmaSeconds * referenceSpeed,
+                window.CentreMeters - window.WindowMeters * 0.5f,
+                window.CentreMeters + window.WindowMeters * 0.5f);
+            var selectedSample = liveSamples
+                .Select(sample => (Sample: sample, Distance: DistanceAtInput(delivery, sample.InputDelaySeconds)))
+                .OrderBy(candidate => MathF.Abs(candidate.Distance - desiredDistance))
+                .ThenBy(candidate => MathF.Abs(candidate.Sample.InputDelaySeconds - plan.InputDelaySeconds))
+                .First().Sample;
+            plan = plan with
+            {
+                InputDelaySeconds = selectedSample.InputDelaySeconds,
+                FootworkOffsetMeters = selectedSample.FootworkOffsetMeters,
+                PredictedContactQuality = selectedSample.ContactQuality
+            };
+        }
+        var inputDistance = DistanceAtInput(delivery, plan.InputDelaySeconds);
+        var outcome = CpuBattingOutcomeModel.ResolveStrokeOutcome(
+            shot,
+            plan.HorizontalAim,
+            forwardAim,
+            ball,
+            inputDistance,
+            window,
+            leftHanded,
+            profile.Timing.AssistEnabled,
+            strokeTable,
+            new Random(seed ^ unchecked((int)0x27d4eb2d)));
+        return plan with { StrokeOutcome = outcome };
+    }
+
+    private static float DistanceAtInput(DeliveryPreset delivery, float inputDelaySeconds)
+    {
+        var frame = FrameAtInput(delivery, inputDelaySeconds);
+        return TimingWindowModel.DistanceToContactPlane(frame, BattingPracticeAnalyzer.BatterWicketLineZ);
+    }
+
+    private static BallFlightFrame FrameAtInput(DeliveryPreset delivery, float inputDelaySeconds)
+    {
+        var flight = new BallFlightSimulator(delivery);
+        while (flight.CurrentFrame.TimeSeconds < inputDelaySeconds && flight.CurrentFrame.Phase != BallMotionPhase.Settled)
+            flight.Step();
+        return flight.CurrentFrame;
+    }
+
+    private static float SampleStandardNormal(Random random)
+    {
+        var first = Math.Max(1e-12, random.NextDouble());
+        var second = random.NextDouble();
+        return (float)(Math.Sqrt(-2d * Math.Log(first)) * Math.Cos(2d * Math.PI * second));
     }
 
     internal static CpuLiveBattingPlan ChooseFromSamples(

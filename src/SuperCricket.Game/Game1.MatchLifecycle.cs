@@ -77,6 +77,8 @@ public partial class Game1
         _simulationAccumulator = 0f;
         _simulationPaused = false;
         _chosenShot = null;
+        _strokeResolution = null;
+        _shotInputDistanceMeters = 0f;
         _shotControlLabel = null;
         _humanShotAimOffset = 0f;
         _humanForwardShotAim = 1f;
@@ -153,7 +155,8 @@ public partial class Game1
                 _shotSet,
                 _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
                 _fieldingSide.Positions,
-                _cpuDifficulty);
+                _cpuDifficulty,
+                _strokeTable);
             _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
             _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
@@ -182,7 +185,7 @@ public partial class Game1
             CpuShotChoice.Defence => "defence",
             CpuShotChoice.Drive => "drive",
             _ => "loft"
-        }, plan.HorizontalAim);
+        }, plan.HorizontalAim, strokeOutcomeOverride: plan.StrokeOutcome);
         _cpuShotStarted = true;
     }
 
