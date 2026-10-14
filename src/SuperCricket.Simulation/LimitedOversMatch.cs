@@ -190,7 +190,7 @@ public sealed class LimitedOversMatch
     private static TeamPlayerData[] GetBowlingOptions(TeamRosterAsset team) => team.Players
         .Where(player => string.Equals(player.Role, "Bowler", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(player.Role, "AllRounder", StringComparison.OrdinalIgnoreCase))
-        .OrderByDescending(player => player.Bowling)
+        .OrderByDescending(player => player.BowlingAttributes.Accuracy)
         .ThenBy(player => player.BattingOrder)
         .ToArray();
 }

@@ -1,4 +1,5 @@
 using System.Numerics;
+using SuperCricket.Content;
 
 namespace SuperCricket.Simulation;
 
@@ -168,6 +169,19 @@ public static class TimingWindowModel
         skillBonus = Math.Clamp(skillBonus, -0.2f * profile.IdealBase, 0.2f * profile.IdealBase);
         var width = profile.IdealBase * modeFactor * settleFactor * confidenceFactor + skillBonus;
         return MathF.Max(profile.IdealMinimum, width);
+    }
+
+    public static float IdealWidth(
+        TimingDifficulty profile,
+        BatterTimingState state,
+        TeamPlayerData batter,
+        StrokeFoot foot,
+        ShotDirection8 direction,
+        bool loft)
+    {
+        ArgumentNullException.ThrowIfNull(batter);
+        return IdealWidth(profile, state, loft,
+            PlayerBattingRatingModel.GetStrokeRating(batter, foot, direction, loft));
     }
 
     public static TimingZone ApplyAssist(TimingZone zone, bool assist)

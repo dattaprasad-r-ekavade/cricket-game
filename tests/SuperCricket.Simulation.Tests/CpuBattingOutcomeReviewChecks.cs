@@ -49,23 +49,23 @@ public static class CpuBattingOutcomeReviewChecks
             rookieDefensive.WicketChance > defensive.WicketChance && defensive.WicketChance > proDefensive.WicketChance,
             "CPU difficulty did not tune dismissal risk while preserving a defensive shot");
 
-        bowler.Bowling = 100;
+        bowler.BowlingAttributes.Accuracy = 100;
         var strongBowling = CpuBattingOutcomeModel.Choose(
             striker, bowler, fielders, situation, FieldingTactic.Balanced);
-        bowler.Bowling = 0;
+        bowler.BowlingAttributes.Accuracy = 0;
         var weakBowling = CpuBattingOutcomeModel.Choose(
             striker, bowler, fielders, situation, FieldingTactic.Balanced);
         Require(strongBowling.WicketChance > weakBowling.WicketChance &&
             strongBowling.BoundaryChance < weakBowling.BoundaryChance,
             "bowling skill did not change the simulated batting outcome chances");
 
-        bowler.Bowling = 50;
+        bowler.BowlingAttributes.Accuracy = 50;
         foreach (var fielder in fielders)
-            fielder.Fielding = 100;
+            fielder.FieldingAttributes.Accuracy = 100;
         var strongFielding = CpuBattingOutcomeModel.Choose(
             striker, bowler, fielders, situation, FieldingTactic.ProtectBoundary);
         foreach (var fielder in fielders)
-            fielder.Fielding = 0;
+            fielder.FieldingAttributes.Accuracy = 0;
         var weakFielding = CpuBattingOutcomeModel.Choose(
             striker, bowler, fielders, situation, FieldingTactic.Balanced);
         Require(strongFielding.BoundaryChance < weakFielding.BoundaryChance &&
@@ -87,12 +87,12 @@ public static class CpuBattingOutcomeReviewChecks
         RequireThrows(() => CpuBattingOutcomeModel.Choose(
                 invalidStriker, bowler, fielders, situation, FieldingTactic.Balanced),
             "an invalid striker rating was accepted");
-        bowler.Bowling = -1;
+        bowler.BowlingAttributes.Accuracy = -1;
         RequireThrows(() => CpuBattingOutcomeModel.Choose(
                 striker, bowler, fielders, situation, FieldingTactic.Balanced),
             "an invalid bowler rating was accepted");
-        bowler.Bowling = 50;
-        fielders[0].Fielding = 101;
+        bowler.BowlingAttributes.Accuracy = 50;
+        fielders[0].FieldingAttributes.Accuracy = 101;
         RequireThrows(() => CpuBattingOutcomeModel.Choose(
                 striker, bowler, fielders, situation, FieldingTactic.Balanced),
             "an invalid fielder rating was accepted");

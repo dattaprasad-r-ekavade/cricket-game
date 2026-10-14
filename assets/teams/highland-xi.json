@@ -1,20 +1,383 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "Highland XI",
   "shortName": "HIG",
   "primaryKitColorHex": "#8F2443",
   "accentKitColorHex": "#F1E4C2",
   "players": [
-    { "id": "highland-01", "name": "Asha Balan", "battingOrder": 1, "role": "Wicketkeeper", "timing": 70, "power": 58, "bowling": 32, "fielding": 96 },
-    { "id": "highland-02", "name": "Naren Gill", "battingOrder": 2, "role": "Batter", "timing": 75, "power": 74, "bowling": 29, "fielding": 72 },
-    { "id": "highland-03", "name": "Veer Sethi", "battingOrder": 3, "role": "Batter", "timing": 68, "power": 82, "bowling": 34, "fielding": 68 },
-    { "id": "highland-04", "name": "Lina Khurana", "battingOrder": 4, "role": "Batter", "timing": 78, "power": 63, "bowling": 30, "fielding": 74 },
-    { "id": "highland-05", "name": "Omi Kapoor", "battingOrder": 5, "role": "AllRounder", "timing": 66, "power": 72, "bowling": 76, "fielding": 80 },
-    { "id": "highland-06", "name": "Rhea Bedi", "battingOrder": 6, "role": "AllRounder", "timing": 63, "power": 67, "bowling": 70, "fielding": 75 },
-    { "id": "highland-07", "name": "Tanish Rao", "battingOrder": 7, "role": "AllRounder", "timing": 59, "power": 64, "bowling": 68, "fielding": 71 },
-    { "id": "highland-08", "name": "Eshan Lal", "battingOrder": 8, "role": "Bowler", "timing": 50, "power": 62, "bowling": 83, "fielding": 62 },
-    { "id": "highland-09", "name": "Ira Vora", "battingOrder": 9, "role": "Bowler", "timing": 44, "power": 56, "bowling": 92, "fielding": 65 },
-    { "id": "highland-10", "name": "Mahir Dev", "battingOrder": 10, "role": "Bowler", "timing": 40, "power": 52, "bowling": 85, "fielding": 59 },
-    { "id": "highland-11", "name": "Sana Jaiswal", "battingOrder": 11, "role": "Bowler", "timing": 36, "power": 48, "bowling": 89, "fielding": 63 }
+    {
+      "id": "highland-01",
+      "name": "Asha Balan",
+      "battingOrder": 1,
+      "role": "Wicketkeeper",
+      "timing": 70,
+      "power": 58,
+      "bowling": 32,
+      "fielding": 96,
+      "battingRatings": {
+        "frontFoot": 71,
+        "backFoot": 68,
+        "offSide": 71,
+        "legSide": 71,
+        "lofted": 65,
+        "concentration": 70
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 65,
+        "movement": 61,
+        "variation": 64,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 96,
+        "throwing": 96,
+        "accuracy": 96,
+        "speed": 96
+      },
+      "battingStyle": "anchor",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-02",
+      "name": "Naren Gill",
+      "battingOrder": 2,
+      "role": "Batter",
+      "timing": 75,
+      "power": 74,
+      "bowling": 29,
+      "fielding": 72,
+      "battingRatings": {
+        "frontFoot": 76,
+        "backFoot": 73,
+        "offSide": 77,
+        "legSide": 76,
+        "lofted": 75,
+        "concentration": 75
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 64,
+        "movement": 60,
+        "variation": 62,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 72,
+        "throwing": 72,
+        "accuracy": 72,
+        "speed": 72
+      },
+      "battingStyle": "balanced",
+      "handedness": "left"
+    },
+    {
+      "id": "highland-03",
+      "name": "Veer Sethi",
+      "battingOrder": 3,
+      "role": "Batter",
+      "timing": 68,
+      "power": 82,
+      "bowling": 34,
+      "fielding": 68,
+      "battingRatings": {
+        "frontFoot": 69,
+        "backFoot": 66,
+        "offSide": 68,
+        "legSide": 69,
+        "lofted": 74,
+        "concentration": 68
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 66,
+        "movement": 62,
+        "variation": 64,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 68,
+        "throwing": 68,
+        "accuracy": 68,
+        "speed": 68
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-04",
+      "name": "Lina Khurana",
+      "battingOrder": 4,
+      "role": "Batter",
+      "timing": 78,
+      "power": 63,
+      "bowling": 30,
+      "fielding": 74,
+      "battingRatings": {
+        "frontFoot": 79,
+        "backFoot": 76,
+        "offSide": 79,
+        "legSide": 79,
+        "lofted": 72,
+        "concentration": 78
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 64,
+        "movement": 60,
+        "variation": 63,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 74,
+        "throwing": 74,
+        "accuracy": 74,
+        "speed": 74
+      },
+      "battingStyle": "anchor",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-05",
+      "name": "Omi Kapoor",
+      "battingOrder": 5,
+      "role": "AllRounder",
+      "timing": 66,
+      "power": 72,
+      "bowling": 76,
+      "fielding": 80,
+      "battingRatings": {
+        "frontFoot": 67,
+        "backFoot": 64,
+        "offSide": 68,
+        "legSide": 67,
+        "lofted": 68,
+        "concentration": 66
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 76,
+        "pace": 81,
+        "movement": 78,
+        "variation": 79,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 80,
+        "throwing": 80,
+        "accuracy": 80,
+        "speed": 80
+      },
+      "battingStyle": "balanced",
+      "handedness": "left"
+    },
+    {
+      "id": "highland-06",
+      "name": "Rhea Bedi",
+      "battingOrder": 6,
+      "role": "AllRounder",
+      "timing": 63,
+      "power": 67,
+      "bowling": 70,
+      "fielding": 75,
+      "battingRatings": {
+        "frontFoot": 64,
+        "backFoot": 61,
+        "offSide": 63,
+        "legSide": 64,
+        "lofted": 65,
+        "concentration": 63
+      },
+      "bowlingAttributes": {
+        "style": "offSpin",
+        "accuracy": 70,
+        "pace": 78,
+        "movement": 76,
+        "variation": 77,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 75,
+        "throwing": 75,
+        "accuracy": 75,
+        "speed": 75
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-07",
+      "name": "Tanish Rao",
+      "battingOrder": 7,
+      "role": "AllRounder",
+      "timing": 59,
+      "power": 64,
+      "bowling": 68,
+      "fielding": 71,
+      "battingRatings": {
+        "frontFoot": 60,
+        "backFoot": 57,
+        "offSide": 60,
+        "legSide": 60,
+        "lofted": 61,
+        "concentration": 59
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 68,
+        "pace": 78,
+        "movement": 75,
+        "variation": 76,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 71,
+        "throwing": 71,
+        "accuracy": 71,
+        "speed": 71
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-08",
+      "name": "Eshan Lal",
+      "battingOrder": 8,
+      "role": "Bowler",
+      "timing": 50,
+      "power": 62,
+      "bowling": 83,
+      "fielding": 62,
+      "battingRatings": {
+        "frontFoot": 51,
+        "backFoot": 48,
+        "offSide": 52,
+        "legSide": 51,
+        "lofted": 55,
+        "concentration": 50
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 83,
+        "pace": 83,
+        "movement": 81,
+        "variation": 82,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 62,
+        "throwing": 62,
+        "accuracy": 62,
+        "speed": 62
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-09",
+      "name": "Ira Vora",
+      "battingOrder": 9,
+      "role": "Bowler",
+      "timing": 44,
+      "power": 56,
+      "bowling": 92,
+      "fielding": 65,
+      "battingRatings": {
+        "frontFoot": 45,
+        "backFoot": 42,
+        "offSide": 44,
+        "legSide": 45,
+        "lofted": 49,
+        "concentration": 44
+      },
+      "bowlingAttributes": {
+        "style": "offSpin",
+        "accuracy": 92,
+        "pace": 86,
+        "movement": 85,
+        "variation": 85,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 65,
+        "throwing": 65,
+        "accuracy": 65,
+        "speed": 65
+      },
+      "battingStyle": "aggressor",
+      "handedness": "left"
+    },
+    {
+      "id": "highland-10",
+      "name": "Mahir Dev",
+      "battingOrder": 10,
+      "role": "Bowler",
+      "timing": 40,
+      "power": 52,
+      "bowling": 85,
+      "fielding": 59,
+      "battingRatings": {
+        "frontFoot": 41,
+        "backFoot": 40,
+        "offSide": 41,
+        "legSide": 41,
+        "lofted": 45,
+        "concentration": 40
+      },
+      "bowlingAttributes": {
+        "style": "legSpin",
+        "accuracy": 85,
+        "pace": 84,
+        "movement": 82,
+        "variation": 83,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 60,
+        "throwing": 60,
+        "accuracy": 60,
+        "speed": 60
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    },
+    {
+      "id": "highland-11",
+      "name": "Sana Jaiswal",
+      "battingOrder": 11,
+      "role": "Bowler",
+      "timing": 36,
+      "power": 48,
+      "bowling": 89,
+      "fielding": 63,
+      "battingRatings": {
+        "frontFoot": 40,
+        "backFoot": 40,
+        "offSide": 40,
+        "legSide": 40,
+        "lofted": 41,
+        "concentration": 40
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 89,
+        "pace": 85,
+        "movement": 84,
+        "variation": 84,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 63,
+        "throwing": 63,
+        "accuracy": 63,
+        "speed": 63
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    }
   ]
 }

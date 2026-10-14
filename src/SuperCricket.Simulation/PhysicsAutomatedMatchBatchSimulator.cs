@@ -127,7 +127,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
         var formation = FieldPlacementModel.Choose(fieldPreset, situation, striker.Power);
         var tactic = formation.Tactic;
         var fieldingPlayers = match.FieldingPlayers;
-        var fieldingRatings = fieldingPlayers.Select(player => player.Fielding).ToArray();
+        var fieldingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Speed).ToArray();
+        var catchingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Catching).ToArray();
+        var throwingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Throwing).ToArray();
+        var throwingAccuracyRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Accuracy).ToArray();
         var fielding = new FieldingSide();
         fielding.ConfigureStartingPositions(formation.StartingPositions);
         fielding.ConfigureFieldingRatings(fieldingRatings);
@@ -229,7 +232,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
             telemetry,
             fieldingRatings,
             random,
-            catchDuration);
+            catchDuration,
+            catchingRatings,
+            throwingRatings,
+            throwingAccuracyRatings);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
         if (session.Extra == DeliveryExtra.NoBall)
@@ -252,7 +258,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
         return BowlingDecisionModel.ChooseDelivery(
             stockDelivery,
-            bowler.Bowling,
+            bowler.BowlingAttributes.Accuracy,
             striker.Power,
             situation,
             random.Next()).Delivery;
@@ -360,10 +366,13 @@ public static class PhysicsAutomatedMatchBatchSimulator
         PhysicsMatchTelemetry telemetry,
         IReadOnlyList<int> fieldingRatings,
         Random random,
-        float? catchDuration = null) =>
+        float? catchDuration = null,
+        IReadOnlyList<int>? catchingRatings = null,
+        IReadOnlyList<int>? throwingRatings = null,
+        IReadOnlyList<int>? throwingAccuracyRatings = null) =>
         SimulateBattedBallCore(match, session, delivery, trajectory, fielding, plannedRuns,
             pickupDuration, telemetry, fieldingRatings, random, useThrowModel: true,
-            legacyThrowDuration: 0f, catchDuration);
+            legacyThrowDuration: 0f, catchDuration, catchingRatings, throwingRatings, throwingAccuracyRatings);
 
     // Existing focused fielding tests use fixed animation timings; production batches use ThrowModel.
     internal static void SimulateBattedBall(
@@ -379,7 +388,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         float? catchDuration = null) =>
         SimulateBattedBallCore(match, session, delivery, trajectory, fielding, plannedRuns,
             pickupDuration, telemetry, Enumerable.Repeat(70, FieldingSide.FielderCount).ToArray(),
-            new Random(0), useThrowModel: false, throwDuration, catchDuration);
+            new Random(0), useThrowModel: false, throwDuration, catchDuration,
+            catchingRatings: Enumerable.Repeat(100, FieldingSide.FielderCount).ToArray());
 
     private static void SimulateBattedBallCore(
         LimitedOversMatch match,
@@ -394,7 +404,10 @@ public static class PhysicsAutomatedMatchBatchSimulator
         Random random,
         bool useThrowModel,
         float legacyThrowDuration,
-        float? catchDuration)
+        float? catchDuration,
+        IReadOnlyList<int>? catchingRatings = null,
+        IReadOnlyList<int>? throwingRatings = null,
+        IReadOnlyList<int>? throwingAccuracyRatings = null)
     {
         var frames = trajectory.OutgoingFrames;
         var contactTime = trajectory.Sample.ContactTimeSeconds
@@ -419,7 +432,11 @@ public static class PhysicsAutomatedMatchBatchSimulator
             if (BattedBallFieldingModel.TryAdvance(fielding, previous, current, deltaTime, out var fieldingContact))
             {
                 var collectionAction = BattedBallFieldingModel.ResolveCollection(
-                    session, fieldingContact.Kind, completedRuns < plannedRuns);
+                    session,
+                    fieldingContact.Kind,
+                    completedRuns < plannedRuns,
+                    catchingRatings?[fieldingContact.FielderIndex] ?? 100,
+                    fieldingContact.Kind == FieldingContactKind.Catch ? random.Next() : 0);
                 if (fieldingContact.Kind == FieldingContactKind.Catch)
                     telemetry.Catches++;
                 else
@@ -438,8 +455,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
                         var throwOutcome = ThrowModel.Create(
                             fieldingContact.Position,
                             target,
-                            fieldingRatings[fieldingContact.FielderIndex],
-                            fieldingRatings[fieldingContact.FielderIndex],
+                            throwingRatings?[fieldingContact.FielderIndex] ?? fieldingRatings[fieldingContact.FielderIndex],
+                            throwingAccuracyRatings?[fieldingContact.FielderIndex] ?? fieldingRatings[fieldingContact.FielderIndex],
                             random.Next());
                         throwArrivalTime += throwOutcome.TravelSeconds + throwOutcome.GatherDelaySeconds;
                     }

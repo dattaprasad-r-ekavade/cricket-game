@@ -10,10 +10,10 @@ public static class LimitedOversMatchReviewChecks
         firstTeam.PrimaryKitColorHex = "#1575B8";
         var secondTeam = TeamRosterAsset.CreatePlaceholder("Highland XI");
         secondTeam.PrimaryKitColorHex = "#8F2443";
-        secondTeam.Players[7].Bowling = 82;
-        secondTeam.Players[8].Bowling = 94;
-        secondTeam.Players[9].Bowling = 77;
-        secondTeam.Players[10].Bowling = 88;
+        secondTeam.Players[7].BowlingAttributes.Accuracy = 82;
+        secondTeam.Players[8].BowlingAttributes.Accuracy = 94;
+        secondTeam.Players[9].BowlingAttributes.Accuracy = 77;
+        secondTeam.Players[10].BowlingAttributes.Accuracy = 88;
         var chase = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings: 2);
         Require(chase.FirstTeamName == "Coastal XI" && chase.BattingTeamName == "Coastal XI",
             "the match did not begin with the first fictional team batting");

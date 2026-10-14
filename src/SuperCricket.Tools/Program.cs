@@ -150,8 +150,10 @@ static int Run(string[] arguments)
         {
             var team = TeamRosterAsset.Load(arguments[1]);
             Console.WriteLine($"Valid team roster: {team.Name} ({team.ShortName}), {team.Players.Count} players; kit {team.PrimaryKitColorHex}/{team.AccentKitColorHex}.");
+            foreach (var warning in team.Validate().Where(TeamRosterAsset.IsWarning))
+                Console.WriteLine($"  {warning}");
             foreach (var player in team.Players.OrderBy(player => player.BattingOrder))
-                Console.WriteLine($"  {player.BattingOrder,2}. {player.Name} ({player.Role}) — timing {player.Timing}, power {player.Power}, bowling {player.Bowling}, fielding {player.Fielding}");
+                Console.WriteLine($"  {player.BattingOrder,2}. {player.Name} ({player.Role}, {player.BattingStyle}, {player.Handedness}) — bat {player.BattingRatings.FrontFoot}/{player.BattingRatings.BackFoot}/{player.BattingRatings.OffSide}/{player.BattingRatings.LegSide}/{player.BattingRatings.Lofted}/{player.BattingRatings.Concentration}; bowl {player.BowlingAttributes.Style} {player.BowlingAttributes.Accuracy}/{player.BowlingAttributes.Pace}/{player.BowlingAttributes.Movement}/{player.BowlingAttributes.Variation}/{player.BowlingAttributes.Stamina}; field {player.FieldingAttributes.Catching}/{player.FieldingAttributes.Throwing}/{player.FieldingAttributes.Accuracy}/{player.FieldingAttributes.Speed}");
             return 0;
         }
 

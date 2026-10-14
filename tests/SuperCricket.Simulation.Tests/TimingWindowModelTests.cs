@@ -1,4 +1,5 @@
 using System.Numerics;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
 
 namespace SuperCricket.Simulation.Tests;
@@ -70,6 +71,36 @@ public sealed class TimingWindowModelTests
 
         var narrowProfile = new TimingDifficulty { IdealBase = 0.5f, IdealMinimum = 0.4f, LoftReduction = 0.9f };
         Assert.Equal(0.4f, TimingWindowModel.IdealWidth(narrowProfile, new BatterTimingState(confidence: 0f), loft: true, strokeRating: 80f));
+    }
+
+    [Fact]
+    public void IdealWidth_UsesFootSideAndLoftSpecificPlayerRatings()
+    {
+        var profile = new TimingDifficulty { IdealBase = 1f, IdealMinimum = 0.1f };
+        var batter = new TeamPlayerData
+        {
+            BattingRatings = new BattingRatingsData
+            {
+                FrontFoot = 98,
+                BackFoot = 42,
+                OffSide = 90,
+                LegSide = 58,
+                Lofted = 94,
+                Concentration = 70
+            }
+        };
+        var state = new BatterTimingState(36, confidence: 1f);
+
+        var frontFootOffSide = TimingWindowModel.IdealWidth(
+            profile, state, batter, StrokeFoot.Front, ShotDirection8.OffDrive, loft: false);
+        var backFootLegSideLoft = TimingWindowModel.IdealWidth(
+            profile, state, batter, StrokeFoot.Back, ShotDirection8.MidWicket, loft: true);
+
+        Assert.True(frontFootOffSide > backFootLegSideLoft);
+        Assert.Equal(94f, PlayerBattingRatingModel.GetStrokeRating(
+            batter, StrokeFoot.Front, ShotDirection8.OffDrive, loft: true));
+        Assert.Throws<ArgumentOutOfRangeException>(() => PlayerBattingRatingModel.GetStrokeRating(
+            batter, StrokeFoot.Auto, ShotDirection8.Straight, loft: false));
     }
 
     [Fact]

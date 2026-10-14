@@ -1,20 +1,383 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "Coastal XI",
   "shortName": "COA",
   "primaryKitColorHex": "#1575B8",
   "accentKitColorHex": "#F2BB46",
   "players": [
-    { "id": "coastal-01", "name": "Mira Sen", "battingOrder": 1, "role": "Wicketkeeper", "timing": 76, "power": 52, "bowling": 28, "fielding": 94 },
-    { "id": "coastal-02", "name": "Rian Das", "battingOrder": 2, "role": "Batter", "timing": 82, "power": 65, "bowling": 31, "fielding": 66 },
-    { "id": "coastal-03", "name": "Ishaan Rao", "battingOrder": 3, "role": "Batter", "timing": 74, "power": 70, "bowling": 27, "fielding": 70 },
-    { "id": "coastal-04", "name": "Tara Nair", "battingOrder": 4, "role": "Batter", "timing": 72, "power": 78, "bowling": 32, "fielding": 64 },
-    { "id": "coastal-05", "name": "Dev Malik", "battingOrder": 5, "role": "AllRounder", "timing": 65, "power": 73, "bowling": 74, "fielding": 76 },
-    { "id": "coastal-06", "name": "Neel Dutta", "battingOrder": 6, "role": "AllRounder", "timing": 62, "power": 69, "bowling": 68, "fielding": 73 },
-    { "id": "coastal-07", "name": "Anika Bose", "battingOrder": 7, "role": "AllRounder", "timing": 60, "power": 58, "bowling": 65, "fielding": 79 },
-    { "id": "coastal-08", "name": "Kabir Shah", "battingOrder": 8, "role": "Bowler", "timing": 48, "power": 61, "bowling": 84, "fielding": 57 },
-    { "id": "coastal-09", "name": "Zoya Iyer", "battingOrder": 9, "role": "Bowler", "timing": 42, "power": 54, "bowling": 91, "fielding": 63 },
-    { "id": "coastal-10", "name": "Arin Roy", "battingOrder": 10, "role": "Bowler", "timing": 38, "power": 50, "bowling": 80, "fielding": 60 },
-    { "id": "coastal-11", "name": "Kavi Menon", "battingOrder": 11, "role": "Bowler", "timing": 35, "power": 47, "bowling": 86, "fielding": 58 }
+    {
+      "id": "coastal-01",
+      "name": "Mira Sen",
+      "battingOrder": 1,
+      "role": "Wicketkeeper",
+      "timing": 76,
+      "power": 52,
+      "bowling": 28,
+      "fielding": 94,
+      "battingRatings": {
+        "frontFoot": 77,
+        "backFoot": 74,
+        "offSide": 77,
+        "legSide": 77,
+        "lofted": 66,
+        "concentration": 76
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 64,
+        "movement": 59,
+        "variation": 62,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 94,
+        "throwing": 94,
+        "accuracy": 94,
+        "speed": 94
+      },
+      "battingStyle": "anchor",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-02",
+      "name": "Rian Das",
+      "battingOrder": 2,
+      "role": "Batter",
+      "timing": 82,
+      "power": 65,
+      "bowling": 31,
+      "fielding": 66,
+      "battingRatings": {
+        "frontFoot": 83,
+        "backFoot": 80,
+        "offSide": 84,
+        "legSide": 83,
+        "lofted": 75,
+        "concentration": 82
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 65,
+        "movement": 60,
+        "variation": 63,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 66,
+        "throwing": 66,
+        "accuracy": 66,
+        "speed": 66
+      },
+      "battingStyle": "anchor",
+      "handedness": "left"
+    },
+    {
+      "id": "coastal-03",
+      "name": "Ishaan Rao",
+      "battingOrder": 3,
+      "role": "Batter",
+      "timing": 74,
+      "power": 70,
+      "bowling": 27,
+      "fielding": 70,
+      "battingRatings": {
+        "frontFoot": 75,
+        "backFoot": 72,
+        "offSide": 74,
+        "legSide": 75,
+        "lofted": 72,
+        "concentration": 74
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 63,
+        "movement": 59,
+        "variation": 62,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 70,
+        "throwing": 70,
+        "accuracy": 70,
+        "speed": 70
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-04",
+      "name": "Tara Nair",
+      "battingOrder": 4,
+      "role": "Batter",
+      "timing": 72,
+      "power": 78,
+      "bowling": 32,
+      "fielding": 64,
+      "battingRatings": {
+        "frontFoot": 73,
+        "backFoot": 70,
+        "offSide": 73,
+        "legSide": 73,
+        "lofted": 74,
+        "concentration": 72
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 40,
+        "pace": 65,
+        "movement": 61,
+        "variation": 64,
+        "stamina": 70
+      },
+      "fieldingAttributes": {
+        "catching": 64,
+        "throwing": 64,
+        "accuracy": 64,
+        "speed": 64
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-05",
+      "name": "Dev Malik",
+      "battingOrder": 5,
+      "role": "AllRounder",
+      "timing": 65,
+      "power": 73,
+      "bowling": 74,
+      "fielding": 76,
+      "battingRatings": {
+        "frontFoot": 66,
+        "backFoot": 63,
+        "offSide": 67,
+        "legSide": 66,
+        "lofted": 68,
+        "concentration": 65
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 74,
+        "pace": 80,
+        "movement": 78,
+        "variation": 79,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 76,
+        "throwing": 76,
+        "accuracy": 76,
+        "speed": 76
+      },
+      "battingStyle": "aggressor",
+      "handedness": "left"
+    },
+    {
+      "id": "coastal-06",
+      "name": "Neel Dutta",
+      "battingOrder": 6,
+      "role": "AllRounder",
+      "timing": 62,
+      "power": 69,
+      "bowling": 68,
+      "fielding": 73,
+      "battingRatings": {
+        "frontFoot": 63,
+        "backFoot": 60,
+        "offSide": 62,
+        "legSide": 63,
+        "lofted": 65,
+        "concentration": 62
+      },
+      "bowlingAttributes": {
+        "style": "offSpin",
+        "accuracy": 68,
+        "pace": 78,
+        "movement": 75,
+        "variation": 76,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 73,
+        "throwing": 73,
+        "accuracy": 73,
+        "speed": 73
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-07",
+      "name": "Anika Bose",
+      "battingOrder": 7,
+      "role": "AllRounder",
+      "timing": 60,
+      "power": 58,
+      "bowling": 65,
+      "fielding": 79,
+      "battingRatings": {
+        "frontFoot": 61,
+        "backFoot": 58,
+        "offSide": 61,
+        "legSide": 61,
+        "lofted": 59,
+        "concentration": 60
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 65,
+        "pace": 77,
+        "movement": 74,
+        "variation": 75,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 79,
+        "throwing": 79,
+        "accuracy": 79,
+        "speed": 79
+      },
+      "battingStyle": "balanced",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-08",
+      "name": "Kabir Shah",
+      "battingOrder": 8,
+      "role": "Bowler",
+      "timing": 48,
+      "power": 61,
+      "bowling": 84,
+      "fielding": 57,
+      "battingRatings": {
+        "frontFoot": 49,
+        "backFoot": 46,
+        "offSide": 50,
+        "legSide": 49,
+        "lofted": 53,
+        "concentration": 48
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 84,
+        "pace": 83,
+        "movement": 82,
+        "variation": 82,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 60,
+        "throwing": 60,
+        "accuracy": 60,
+        "speed": 60
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-09",
+      "name": "Zoya Iyer",
+      "battingOrder": 9,
+      "role": "Bowler",
+      "timing": 42,
+      "power": 54,
+      "bowling": 91,
+      "fielding": 63,
+      "battingRatings": {
+        "frontFoot": 43,
+        "backFoot": 40,
+        "offSide": 42,
+        "legSide": 43,
+        "lofted": 47,
+        "concentration": 42
+      },
+      "bowlingAttributes": {
+        "style": "offSpin",
+        "accuracy": 91,
+        "pace": 86,
+        "movement": 84,
+        "variation": 85,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 63,
+        "throwing": 63,
+        "accuracy": 63,
+        "speed": 63
+      },
+      "battingStyle": "aggressor",
+      "handedness": "left"
+    },
+    {
+      "id": "coastal-10",
+      "name": "Arin Roy",
+      "battingOrder": 10,
+      "role": "Bowler",
+      "timing": 38,
+      "power": 50,
+      "bowling": 80,
+      "fielding": 60,
+      "battingRatings": {
+        "frontFoot": 40,
+        "backFoot": 40,
+        "offSide": 40,
+        "legSide": 40,
+        "lofted": 43,
+        "concentration": 40
+      },
+      "bowlingAttributes": {
+        "style": "legSpin",
+        "accuracy": 80,
+        "pace": 82,
+        "movement": 80,
+        "variation": 81,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 60,
+        "throwing": 60,
+        "accuracy": 60,
+        "speed": 60
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    },
+    {
+      "id": "coastal-11",
+      "name": "Kavi Menon",
+      "battingOrder": 11,
+      "role": "Bowler",
+      "timing": 35,
+      "power": 47,
+      "bowling": 86,
+      "fielding": 58,
+      "battingRatings": {
+        "frontFoot": 40,
+        "backFoot": 40,
+        "offSide": 40,
+        "legSide": 40,
+        "lofted": 40,
+        "concentration": 40
+      },
+      "bowlingAttributes": {
+        "style": "pace",
+        "accuracy": 86,
+        "pace": 84,
+        "movement": 82,
+        "variation": 83,
+        "stamina": 77
+      },
+      "fieldingAttributes": {
+        "catching": 60,
+        "throwing": 60,
+        "accuracy": 60,
+        "speed": 60
+      },
+      "battingStyle": "aggressor",
+      "handedness": "right"
+    }
   ]
 }

@@ -319,7 +319,7 @@ public partial class Game1
                     if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
                     {
                         var fieldingPlayers = _match.FieldingPlayers;
-                        var fieldingRatings = fieldingPlayers.Select(player => player.Fielding).ToArray();
+                        var fieldingRatings = fieldingPlayers.Select(player => player.FieldingAttributes.Speed).ToArray();
                         _cpuRunsRemaining = CpuLiveRunningDecisionModel.Choose(
                             cpuPlan.AttemptRun,
                             _deliveryPreset,

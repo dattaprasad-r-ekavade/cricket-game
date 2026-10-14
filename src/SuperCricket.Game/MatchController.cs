@@ -54,7 +54,7 @@ internal sealed class MatchController
         ArgumentNullException.ThrowIfNull(stockDelivery);
         return BowlingDecisionModel.ChooseDelivery(
             stockDelivery,
-            Match.CurrentBowler.Bowling,
+            Match.CurrentBowler.BowlingAttributes.Accuracy,
             Match.StrikerPlayer.Power,
             CurrentBowlingSituation,
             CreateBowlingDecisionSeed(),
@@ -76,7 +76,7 @@ internal sealed class MatchController
         var players = Match.FieldingPlayers;
         var ratings = new int[players.Count];
         for (var index = 0; index < players.Count; index++)
-            ratings[index] = players[index].Fielding;
+            ratings[index] = players[index].FieldingAttributes.Speed;
         fieldingSide.ConfigureFieldingRatings(ratings);
         return placement;
     }

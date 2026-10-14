@@ -180,7 +180,7 @@ public sealed class MatchControllerTests
             .OrderBy(index => FieldingSide.EstimateReachTime(
                 placement.StartingPositions[index],
                 target,
-                controller.Match.FieldingPlayers[index].Fielding))
+                controller.Match.FieldingPlayers[index].FieldingAttributes.Speed))
             .First();
         Assert.Equal(placement.StartingPositions, fieldingSide.Positions);
         Assert.Equal(expectedChaserIndex, fieldingSide.ActiveChaserIndex);

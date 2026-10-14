@@ -1,5 +1,7 @@
 namespace SuperCricket.Simulation;
 
+using SuperCricket.Simulation.Fielding;
+
 public enum FieldingCollectionAction { CaughtDismissal, ReturnThrow, Held }
 
 /// <summary>Ball rest stops movement, while fielders and runners continue until collection.</summary>
@@ -11,14 +13,15 @@ public static class BattedBallFieldingModel
         !deliveryComplete && !returnThrowActive && (phase != BallMotionPhase.Settled || battedBall);
 
     public static FieldingCollectionAction ResolveCollection(
-        DeliverySession delivery, FieldingContactKind kind, bool runnersMoving)
+        DeliverySession delivery, FieldingContactKind kind, bool runnersMoving,
+        int catchingRating = 100, int seed = 0)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         if (!Enum.IsDefined(kind))
             throw new ArgumentOutOfRangeException(nameof(kind));
         if (delivery.IsComplete)
             throw new InvalidOperationException("A completed delivery cannot receive another fielder collection.");
-        if (kind == FieldingContactKind.Catch && delivery.ResolveCatch())
+        if (kind == FieldingContactKind.Catch && CatchingModel.IsHeld(catchingRating, seed) && delivery.ResolveCatch())
             return FieldingCollectionAction.CaughtDismissal;
         return runnersMoving ? FieldingCollectionAction.ReturnThrow : FieldingCollectionAction.Held;
     }

@@ -37,7 +37,7 @@ public static class CpuBattingOutcomeModel
         ArgumentNullException.ThrowIfNull(fielders);
         ValidateSituation(situation);
         ValidatePlayerRatings(striker, "striker");
-        if (bowler.Bowling is < 0 or > 100)
+        if (bowler.BowlingAttributes.Accuracy is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(bowler), "Bowling rating must be between 0 and 100.");
         if (fielders.Count != FieldingSide.FielderCount)
             throw new ArgumentException($"A CPU batting decision requires exactly {FieldingSide.FielderCount} fielders.", nameof(fielders));
@@ -46,9 +46,9 @@ public static class CpuBattingOutcomeModel
         foreach (var fielder in fielders)
         {
             ArgumentNullException.ThrowIfNull(fielder);
-            if (fielder.Fielding is < 0 or > 100)
+            if (fielder.FieldingAttributes.Accuracy is < 0 or > 100)
                 throw new ArgumentOutOfRangeException(nameof(fielders), "Fielding ratings must be between 0 and 100.");
-            totalFielding += fielder.Fielding;
+            totalFielding += fielder.FieldingAttributes.Accuracy;
         }
 
         var ballsRemaining = Math.Max(1, situation.OversPerInnings * OverScoreboard.BallsPerOver - situation.LegalBalls);
@@ -75,7 +75,7 @@ public static class CpuBattingOutcomeModel
             _ => 0.13f
         };
         wicketChance *= 1.12f - timing * 0.24f;
-        wicketChance += pressure * 0.025f + bowler.Bowling / 100f * 0.025f + fielding * 0.012f;
+        wicketChance += pressure * 0.025f + bowler.BowlingAttributes.Accuracy / 100f * 0.025f + fielding * 0.012f;
         if (fieldingTactic == FieldingTactic.AttackWickets)
             wicketChance += 0.02f;
         wicketChance *= difficultyTuning.BattingWicketChanceMultiplier;
@@ -87,7 +87,7 @@ public static class CpuBattingOutcomeModel
             _ => 0.18f
         };
         boundaryChance += power * 0.08f + pressure * 0.04f;
-        boundaryChance -= bowler.Bowling / 100f * 0.015f + fielding * 0.05f;
+        boundaryChance -= bowler.BowlingAttributes.Accuracy / 100f * 0.015f + fielding * 0.05f;
         if (fieldingTactic == FieldingTactic.ProtectBoundary)
             boundaryChance -= 0.055f;
         boundaryChance *= difficultyTuning.BattingBoundaryChanceMultiplier;

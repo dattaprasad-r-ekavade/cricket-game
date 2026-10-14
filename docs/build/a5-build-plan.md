@@ -305,7 +305,7 @@ Replace the shot choice in `CpuBattingOutcomeModel` / `CpuLiveBattingPlanModel` 
 
 **Accept:** tests: normalisation; each term in isolation; the pacing table shifts aggression; determinism. Batch report over 50 seeded T20s per difficulty: runs per over and wickets per innings by phase (target shape: death overs faster than the middle; harder CPU scores more).
 
-### WP14 — Player ratings and identity (M) · E1
+### WP14 — Player ratings and identity (M) · E1 [x]
 
 - Extend `TeamPlayerData` (version 2, with a migration that fills new fields from `Timing`/`Power`): batting `FrontFoot`, `BackFoot`, `OffSide`, `LegSide`, `Lofted`, `Concentration`; bowling `Style`, `Accuracy`, `Pace`, `Movement` (swing or spin), `Variation`, `Stamina`; fielding `Catching`, `Throwing` (arm), `Accuracy`, `Speed`; plus `BattingStyle` (anchor / balanced / aggressor) and `Handedness`.
 - Rating band rules (validator warns): values 40–98; a player's batting ratings spread under 20 points except for one or two signature strengths; fielding 60–90 for everyone except specialists.

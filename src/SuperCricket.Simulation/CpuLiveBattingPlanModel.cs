@@ -73,7 +73,7 @@ public static class CpuLiveBattingPlanModel
         if (fieldingPositions is null)
             return plan;
 
-        var fieldingRatings = fielders.Select(fielder => fielder.Fielding).ToArray();
+        var fieldingRatings = fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray();
         var horizontalAim = CpuShotPlacementModel.ChooseHorizontalAim(
             authoredShot,
             striker.Power,

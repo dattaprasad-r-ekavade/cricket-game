@@ -121,7 +121,7 @@ public static class CpuLiveBattingPlanReviewChecks
                             striker.Power,
                             delivery,
                             formation.StartingPositions,
-                            fielders.Select(fielder => fielder.Fielding).ToArray());
+                            fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray());
                         var expectedExecutedAim = CpuShotPlacementModel.ApplyExecutionError(
                             expectedAim,
                             striker.Timing,
@@ -135,14 +135,14 @@ public static class CpuLiveBattingPlanReviewChecks
                             striker.Power,
                             delivery,
                             formation.StartingPositions,
-                            fielders.Select(fielder => fielder.Fielding).ToArray(),
+                            fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray(),
                             placedShot.HorizontalAim);
                         var bestGapScore = CpuShotPlacementModel.EvaluateGapScore(
                             placedShot,
                             striker.Power,
                             delivery,
                             formation.StartingPositions,
-                            fielders.Select(fielder => fielder.Fielding).ToArray(),
+                            fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray(),
                             expectedAim);
                         Require(bestGapScore + 0.0001f >= authoredGapScore,
                             "field-aware shot placement selected a worse intended lane than the authored aim");
