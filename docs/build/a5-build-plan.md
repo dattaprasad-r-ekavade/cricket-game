@@ -104,7 +104,7 @@ Also add `src/SuperCricket.Simulation/Events/MatchEvent.cs` with an empty `abstr
 
 ---
 
-### WP2 — Timing-window model (M) · A5.3
+### WP2 — Timing-window model (M) · A5.3 [x]
 
 **Create** `src/SuperCricket.Simulation/Batting/TimingWindowModel.cs`:
 
