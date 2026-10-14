@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Simulation.Fielding;
 using SuperCricket.Simulation.Umpiring;
 
 namespace SuperCricket.Simulation;
@@ -212,20 +213,22 @@ public static class PhysicsAutomatedMatchBatchSimulator
             pickupDuration,
             throwDuration,
             catchAnimationDurationSeconds: catchDuration);
+        var plannedRuns = runDecision.PlannedRuns;
         telemetry.Contacts++;
-        if (runDecision.PlannedRuns > 1)
+        if (plannedRuns > 1)
             telemetry.TwoRunPlans++;
-        telemetry.SafeRunAttempts += runDecision.PlannedRuns;
+        telemetry.SafeRunAttempts += plannedRuns;
         SimulateBattedBall(
             match,
             session,
             delivery,
             trajectory,
             fielding,
-            runDecision.PlannedRuns,
+            plannedRuns,
             pickupDuration,
-            throwDuration,
             telemetry,
+            fieldingRatings,
+            random,
             catchDuration);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
@@ -354,9 +357,44 @@ public static class PhysicsAutomatedMatchBatchSimulator
         FieldingSide fielding,
         int plannedRuns,
         float pickupDuration,
+        PhysicsMatchTelemetry telemetry,
+        IReadOnlyList<int> fieldingRatings,
+        Random random,
+        float? catchDuration = null) =>
+        SimulateBattedBallCore(match, session, delivery, trajectory, fielding, plannedRuns,
+            pickupDuration, telemetry, fieldingRatings, random, useThrowModel: true,
+            legacyThrowDuration: 0f, catchDuration);
+
+    // Existing focused fielding tests use fixed animation timings; production batches use ThrowModel.
+    internal static void SimulateBattedBall(
+        LimitedOversMatch match,
+        DeliverySession session,
+        DeliveryPreset delivery,
+        BattingPracticeTrajectory trajectory,
+        FieldingSide fielding,
+        int plannedRuns,
+        float pickupDuration,
         float throwDuration,
         PhysicsMatchTelemetry telemetry,
-        float? catchDuration = null)
+        float? catchDuration = null) =>
+        SimulateBattedBallCore(match, session, delivery, trajectory, fielding, plannedRuns,
+            pickupDuration, telemetry, Enumerable.Repeat(70, FieldingSide.FielderCount).ToArray(),
+            new Random(0), useThrowModel: false, throwDuration, catchDuration);
+
+    private static void SimulateBattedBallCore(
+        LimitedOversMatch match,
+        DeliverySession session,
+        DeliveryPreset delivery,
+        BattingPracticeTrajectory trajectory,
+        FieldingSide fielding,
+        int plannedRuns,
+        float pickupDuration,
+        PhysicsMatchTelemetry telemetry,
+        IReadOnlyList<int> fieldingRatings,
+        Random random,
+        bool useThrowModel,
+        float legacyThrowDuration,
+        float? catchDuration)
     {
         var frames = trajectory.OutgoingFrames;
         var contactTime = trajectory.Sample.ContactTimeSeconds
@@ -390,7 +428,23 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 {
                     var collectionDuration = fieldingContact.Kind == FieldingContactKind.Catch
                         ? catchDuration ?? pickupDuration : pickupDuration;
-                    var throwArrivalTime = elapsedSinceContact + collectionDuration + throwDuration;
+                    var targetEnd = WicketEnd.Near;
+                    var throwArrivalTime = elapsedSinceContact + collectionDuration;
+                    if (useThrowModel)
+                    {
+                        targetEnd = RunOutModel.ChooseThreatenedEnd(fieldingContact.Position);
+                        var targetZ = targetEnd == WicketEnd.Near ? CricketPitchGeometry.NearWicketZ : CricketPitchGeometry.FarWicketZ;
+                        var target = new Vector3(0f, fieldingContact.Position.Y, targetZ);
+                        var throwOutcome = ThrowModel.Create(
+                            fieldingContact.Position,
+                            target,
+                            fieldingRatings[fieldingContact.FielderIndex],
+                            fieldingRatings[fieldingContact.FielderIndex],
+                            random.Next());
+                        throwArrivalTime += throwOutcome.TravelSeconds + throwOutcome.GatherDelaySeconds;
+                    }
+                    else
+                        throwArrivalTime += legacyThrowDuration;
                     while (completedRuns < plannedRuns &&
                         throwArrivalTime >= (completedRuns + 1) * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds)
                     {
@@ -406,7 +460,20 @@ public static class PhysicsAutomatedMatchBatchSimulator
                         runners.StartRun();
                         runners.Advance(throwArrivalTime - completedRuns * CpuLiveRunningDecisionModel.DefaultRunDurationSeconds,
                             CpuLiveRunningDecisionModel.DefaultRunDurationSeconds);
-                        if (runners.TryResolveRunOut(WicketEnd.Near, wicketBroken: true, out var runOut))
+                        var closestCreaseDistance = MathF.Min(runners.Progress, 1f - runners.Progress) * CricketPitchGeometry.PitchLengthMeters;
+                        if (useThrowModel)
+                        {
+                            var runOut = RunOutModel.ResolveAtBrokenWicket(
+                                runners, targetEnd, wicketBroken: true, closestCreaseDistance);
+                            if (runOut.IsOut)
+                            {
+                                session.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
+                                telemetry.RunOuts++;
+                            }
+                            else if (runOut.NearRunOut)
+                                telemetry.NearRunOuts++;
+                        }
+                        else if (runners.TryResolveRunOut(WicketEnd.Near, wicketBroken: true, out var runOut))
                         {
                             session.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
                             telemetry.RunOuts++;
@@ -464,6 +531,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         public int TwoRunScores { get; set; }
         public int CompletedRuns { get; set; }
         public int RunOuts { get; set; }
+        public int NearRunOuts { get; set; }
         public int BowledDismissals { get; set; }
         public int LbwDismissals { get; set; }
         public int WideDeliveries { get; set; }
@@ -487,7 +555,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             WideDeliveries,
             NoBallDeliveries,
             Leaves,
-            LbwDismissals);
+            LbwDismissals,
+            NearRunOuts);
     }
 
     private static void ValidateDelivery(

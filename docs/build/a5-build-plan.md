@@ -256,7 +256,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 **Accept:** geometry tests on constructed trajectories for each band and rule; seeded umpire's-call frequency within ±5% of `p` over 1,000 trials; the batch simulator produces LBWs at a sane rate (report: LBW share of dismissals over 50 seeded matches; target 8–18%).
 
-### WP10 — Throws and run-outs (M, sim) · A5.11
+### WP10 — Throws and run-outs (M, sim) · A5.11 [x]
 
 - `ThrowModel`: speed = lerp(19 m/s at 5 m, 28 m/s at 30 m+) × (0.85 + 0.15 × armRating/100); flat trajectory (apex under 2 m for throws under 25 m); target the end the CPU judges closer to a run-out.
 - Direct-hit chance = `base(distance) × (0.6 + 0.4 × accuracyRating/100)`, with `base` 0.55 at 5 m falling to 0.15 at 30 m. A miss goes to the keeper/bowler who gathers and breaks the wicket after 0.35 s.

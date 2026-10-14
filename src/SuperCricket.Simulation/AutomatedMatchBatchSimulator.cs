@@ -27,7 +27,8 @@ public readonly record struct PhysicsMatchMetrics(
     int WideDeliveries,
     int NoBallDeliveries,
     int Leaves,
-    int LbwDismissals = 0);
+    int LbwDismissals = 0,
+    int NearRunOuts = 0);
 
 /// <summary>Runs seeded, renderer-free matches through the production innings and delivery rules.</summary>
 public static class AutomatedMatchBatchSimulator

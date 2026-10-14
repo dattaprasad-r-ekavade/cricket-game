@@ -200,12 +200,18 @@ try {
     $physicsBalancePickups = ($physicsBalanceRows | Measure-Object -Property ground_pickups -Sum).Sum
     $physicsBalanceBoundaries = ($physicsBalanceRows | Measure-Object -Property boundaries -Sum).Sum
     $physicsBalanceRunOuts = ($physicsBalanceRows | Measure-Object -Property run_outs -Sum).Sum
+    $physicsBalanceDismissals =
+        ($physicsBalanceRows | Measure-Object -Property first_wickets -Sum).Sum +
+        ($physicsBalanceRows | Measure-Object -Property second_wickets -Sum).Sum
     $physicsBalanceTwoRunPlans = ($physicsBalanceRows | Measure-Object -Property two_run_plans -Sum).Sum
     $physicsBalanceTwoRunScores = ($physicsBalanceRows | Measure-Object -Property two_run_scores -Sum).Sum
     $physicsBalanceCombinedRuns =
         ($physicsBalanceRows | Measure-Object -Property first_runs -Sum).Sum +
         ($physicsBalanceRows | Measure-Object -Property second_runs -Sum).Sum
     $physicsAverageRunsPerInnings = $physicsBalanceCombinedRuns / ($physicsBalanceRows.Count * 2)
+    $physicsBalanceRunOutShare = if ($physicsBalanceDismissals -gt 0) {
+        $physicsBalanceRunOuts / $physicsBalanceDismissals
+    } else { 0 }
     $physicsInningsScores = @($physicsBalanceRows | ForEach-Object { [int]$_.first_runs; [int]$_.second_runs })
     if ($physicsBalancePlans -ne ($physicsBalanceContacts + $physicsBalanceMisses) -or
         $physicsBalancePlans + $physicsBalanceLeaves -ne $physicsBalanceDeliveries -or
@@ -214,13 +220,14 @@ try {
         $physicsBalanceTwoRunPlans -le 0 -or
         $physicsBalanceTwoRunPlans -gt $physicsBalanceContacts -or
         $physicsBalanceTwoRunScores -gt ($physicsBalanceTwoRunPlans + $physicsBalanceBoundaries) -or
-        $physicsBalanceRunOuts -ne 0 -or
+        $physicsBalanceDismissals -le 0 -or
+        $physicsBalanceRunOutShare -lt 0.05 -or $physicsBalanceRunOutShare -gt 0.12 -or
         $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 120 -or
         ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 40 -or
         ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 150) {
         throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
     }
-    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, and $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans; catches and run-outs remain covered by the focused fielding checks."
+    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans, and a $([math]::Round(100 * $physicsBalanceRunOutShare, 1))% run-out share across $physicsBalanceDismissals dismissals."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')
