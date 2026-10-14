@@ -12,8 +12,9 @@ public static class MatchControllerInputReviewChecks
             playerButtons, MatchControllerButtons.None, isCpuBattingControlled: false, isMatchComplete: false);
         Require(HasAll(battingActions,
                 MatchControllerActions.Exit | MatchControllerActions.Pause |
-                MatchControllerActions.Defend | MatchControllerActions.Loft |
-                MatchControllerActions.Run | MatchControllerActions.NextBall |
+                MatchControllerActions.Attack | MatchControllerActions.Defend |
+                MatchControllerActions.Loft | MatchControllerActions.Leave |
+                MatchControllerActions.Run | MatchControllerActions.Advance | MatchControllerActions.NextBall |
                 MatchControllerActions.AimOffSide | MatchControllerActions.AimLegSide |
                 MatchControllerActions.CycleCamera) &&
             !HasAny(battingActions, MatchControllerActions.SelectStandardDelivery |
@@ -21,7 +22,7 @@ public static class MatchControllerInputReviewChecks
                 MatchControllerActions.SelectYorkerDelivery | MatchControllerActions.Drive |
                 MatchControllerActions.CancelRun | MatchControllerActions.StepOffSide |
                 MatchControllerActions.StepLegSide),
-            "normal controller batting input did not map to the directional two-shot controls");
+            "normal controller batting input did not map the split attack/defend/loft/leave/advance controls");
 
         var heldActions = MatchControllerInputModel.ReadPressedActions(
             playerButtons, playerButtons, isCpuBattingControlled: false, isMatchComplete: false);

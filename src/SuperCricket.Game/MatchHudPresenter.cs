@@ -21,7 +21,9 @@ internal enum MatchHudPhase
 internal readonly record struct MatchHudState(
     bool IsGamePad,
     MatchHudPhase Phase,
-    string NextDeliveryName);
+    string NextDeliveryName,
+    BattingInputScheme InputScheme = BattingInputScheme.Directional,
+    BattingFootSelection FootSelection = BattingFootSelection.Automatic);
 
 internal readonly record struct MatchHudConditions(
     bool IsMatchComplete,
@@ -74,7 +76,9 @@ internal readonly record struct MatchPauseMenuState(
     bool LargeText,
     float EffectsVolume,
     string? SettingsStatusMessage,
-    bool AudioUnavailable);
+    bool AudioUnavailable,
+    BattingInputScheme InputScheme = BattingInputScheme.Directional,
+    BattingFootSelection FootSelection = BattingFootSelection.Automatic);
 
 internal readonly record struct PauseMenuLayout(
     Rectangle OverlayBounds,
@@ -102,7 +106,8 @@ internal readonly record struct LiveFeedbackBannerState(
     bool HasPredictedBounce,
     CpuDifficulty Difficulty,
     float BatterWicketLineZ,
-    string? ShotControlLabel = null);
+    string? ShotControlLabel = null,
+    BattingInputScheme InputScheme = BattingInputScheme.Directional);
 
 internal readonly record struct HudActionHint(string Input, string Action);
 
@@ -203,7 +208,9 @@ internal static class MatchHudPresenter
                 BattingTimingCueState.SwingNow => "SWING NOW",
                 _ => "LATE SHOT POSSIBLE"
             };
-            var shotButtons = state.IsGamePad ? "A / Y" : "S, S+D or W+D";
+            var shotButtons = state.IsGamePad
+                ? "A / X"
+                : state.InputScheme == BattingInputScheme.Directional ? "S / W" : "S, S+D or W+D";
             var loftModifier = state.IsGamePad ? string.Empty : "; Shift adds loft";
             var detail = state.IsGamePad
                 ? cue.State switch
@@ -328,13 +335,20 @@ internal static class MatchHudPresenter
 
     public static IReadOnlyList<string> BuildPauseMenuLines(MatchPauseMenuState state)
     {
+        var battingControls = state.InputScheme == BattingInputScheme.Directional
+            ? "Batting: arrows choose direction | S attack | W defend | Shift lofts | A leave | D advances before release"
+            : "Batting: arrows aim | S block | S+D front drive | W+D back drive | Shift adds loft | chords record for 220 ms";
+        var keyboardFoot = state.FootSelection == BattingFootSelection.Automatic
+            ? "automatic"
+            : "manual (W back foot, S front foot)";
         var lines = new List<string>
         {
             "SUPER CRICKET  /  PAUSED",
             state.ScoreLine,
             $"CPU difficulty: {state.Difficulty}",
-            "Batting: arrows aim | S block | S+D forward | W+D hit behind | Shift+S loft/six | Shift+W+D extra loft; chords record for 220 ms",
-            "GamePad batting: left stick choose lane | A: centre defend / aimed drive | Y loft",
+            battingControls,
+            $"Keyboard: I toggles Directional / Classic chords | F toggles {keyboardFoot}",
+            "GamePad batting: left stick direction | A attack | X defend | RB loft | B leave/run | LB advance",
             "Running: D/B starts or repeats; tap A to run back (GamePad: hold B to turn back)",
             "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
             "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
@@ -543,8 +557,10 @@ internal static class MatchHudPresenter
                 ? $"B: run    {pause}"
                 : $"D: run    {pause}"),
             MatchHudPhase.Batting => WithCamera(state.IsGamePad
-            ? $"Left stick: choose direction    A: centre defend / aimed drive    Y: loft    {pause}"
-                : $"Arrows: aim    S: defend    S+D: front drive    W+D: back drive    Shift adds loft    {pause}"),
+                ? $"Left stick: direction    A: attack    X: defend    RB: loft    {pause}"
+                : state.InputScheme == BattingInputScheme.Directional
+                    ? $"Arrows: direction    S: attack    W: defend    Shift: loft    {pause}"
+                    : $"Arrows: aim    S / S+D / W+D: classic chords    Shift: loft    {pause}"),
             _ => throw new ArgumentOutOfRangeException(nameof(state), state.Phase, "Unsupported match HUD phase.")
         };
     }
@@ -553,20 +569,24 @@ internal static class MatchHudPresenter
     {
         MatchHudPhase.Batting => state.IsGamePad
             ? [
-                new("LEFT STICK", "Aim left / straight / right"),
-                new("A", "Centre = defend  |  aimed = drive"),
-                new("Y", "Loft the shot"),
-                new("B", "Run after contact  |  hold to turn back")
+                new("LEFT STICK", "Choose one of 8 directions"),
+                new("A / X", "Attack / defend"),
+                new("RB / B", "Loft / leave"),
+                new("LB / B", "Advance / run after contact")
             ]
-            : [
-                new("ARROWS", "Aim left / right and downfield / behind"),
-                new("S", "Defend / play a block"),
-                new("S + D", "Front-foot ground drive"),
-                new("W + D", "Back-foot hit behind"),
-                new("SHIFT + S", "Lofted hit / six attempt"),
-                new("SHIFT + W + D", "Extra back-foot loft variant"),
-                new("D  /  A", "D = run  |  A = run back")
-            ],
+            : state.InputScheme == BattingInputScheme.Directional
+                ? [
+                    new("ARROWS", "Choose one of 8 directions"),
+                    new("S / W", $"Attack / defend ({(state.FootSelection == BattingFootSelection.Automatic ? "auto" : "manual")} foot)"),
+                    new("SHIFT", "Add loft to attack or defend"),
+                    new("A / D", "Leave / advance before release; D runs after contact")
+                ]
+                : [
+                    new("ARROWS", "Aim left / right and downfield / behind"),
+                    new("S / S+D / W+D", "Block / front drive / back drive"),
+                    new("SHIFT", "Add loft to the chord stroke"),
+                    new("D / A", "Run after contact / turn back")
+                ],
         MatchHudPhase.BallBatted or MatchHudPhase.Running => state.IsGamePad
             ? [new("B", "Run again  |  hold to turn back")]
             : [new("D  /  A", "D runs again  |  A turns back")],
@@ -602,13 +622,16 @@ internal static class MatchHudPresenter
         _ => throw new ArgumentOutOfRangeException(nameof(state), state.Phase, "Unsupported match HUD phase.")
     };
 
-    public static string GetShotControlLabel(string shotName, bool isGamePad) =>
+    public static string GetShotControlLabel(
+        string shotName,
+        bool isGamePad,
+        BattingInputScheme inputScheme = BattingInputScheme.Directional) =>
         shotName.ToLowerInvariant() switch
         {
-            "defence" => isGamePad ? "A at centre aim" : "S (block)",
-            "drive" => isGamePad ? "left stick + A" : "S + D (forward) / W + D (behind)",
-            "loft" => isGamePad ? "Y" : "SHIFT + S (loft / six attempt)",
-            _ => isGamePad ? "A / Y" : "S / S + D / W + D"
+            "defence" => isGamePad ? "X (defend)" : inputScheme == BattingInputScheme.Directional ? "W (defend)" : "S (block)",
+            "drive" => isGamePad ? "A (attack)" : inputScheme == BattingInputScheme.Directional ? "S (attack)" : "S + D / W + D",
+            "loft" => isGamePad ? "RB (loft)" : inputScheme == BattingInputScheme.Directional ? "SHIFT + S (loft)" : "SHIFT chord",
+            _ => isGamePad ? "A / X / RB" : inputScheme == BattingInputScheme.Directional ? "S / W / SHIFT" : "S / S + D / W + D"
         };
 
     public static Rectangle CalculateFeedbackBannerBounds(

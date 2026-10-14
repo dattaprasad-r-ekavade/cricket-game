@@ -89,6 +89,8 @@ public partial class Game1
         _battedBall = false;
         _batterFootworkOffsetX = 0f;
         _targetBatterFootworkOffsetX = 0f;
+        _batterAdvanceOffsetMeters = 0f;
+        _targetBatterAdvanceOffsetMeters = 0f;
         _footworkTransitionActive = false;
         _runners.Reset();
         _runRequestedPending = false;

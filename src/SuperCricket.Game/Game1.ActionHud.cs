@@ -25,7 +25,9 @@ public partial class Game1
         var hudState = new MatchHudState(
             _lastInputWasGamePad,
             phase,
-            _deliveryPresets[_nextDeliveryPresetIndex].Name);
+            _deliveryPresets[_nextDeliveryPresetIndex].Name,
+            _gameSettings.BattingInputScheme,
+            _gameSettings.BattingFootSelection);
         var hints = MatchHudPresenter.BuildActionHints(hudState);
         var controlsWidth = Math.Clamp(viewport.Width / 2 - HudMargin * 2, 280, 520);
         var scoreWidth = Math.Min(600, viewport.Width - controlsWidth - HudMargin * 3);

@@ -80,7 +80,8 @@ public partial class Game1
         float? forwardAimOverride = null,
         string? animationClipOverride = null,
         string? controlLabelOverride = null,
-        StrokeResolution? strokeOutcomeOverride = null)
+        StrokeResolution? strokeOutcomeOverride = null,
+        StrokeRequest? strokeRequestOverride = null)
     {
         if (_simulationPaused || _shotResolved || _ballFlight.CurrentFrame.Phase == BallMotionPhase.Settled)
             return;
@@ -106,7 +107,7 @@ public partial class Game1
             ? StrokeIntent.Defend
             : StrokeIntent.Attack;
         var loft = string.Equals(name, "loft", StringComparison.OrdinalIgnoreCase);
-        var request = new StrokeRequest(direction, intent, loft, StrokeFoot.Auto);
+        var request = strokeRequestOverride ?? new StrokeRequest(direction, intent, loft, StrokeFoot.Auto);
         var ballCategory = BallCategoryClassifier.Classify(
             _deliveryPreset,
             BattingPracticeAnalyzer.BatterStanceX + _batterFootworkOffsetX,
@@ -131,7 +132,7 @@ public partial class Game1
             idealWidth);
         _shotInputDistanceMeters = TimingWindowModel.DistanceToContactPlane(
             _ballFlight.CurrentFrame,
-            BattingPracticeAnalyzer.BatterWicketLineZ);
+            BatterContactPlaneZ);
         _strokeResolution = strokeOutcomeOverride ?? StrokeOutcomeResolver.Resolve(
             _strokeTable,
             request,
@@ -148,7 +149,10 @@ public partial class Game1
             (_bowlerRunUpDurationSeconds + _bowlerReleaseTimeSeconds);
         _shotControlLabel = IsCpuBattingControlled
             ? null
-            : controlLabelOverride ?? MatchHudPresenter.GetShotControlLabel(name, _lastInputWasGamePad);
+            : controlLabelOverride ?? MatchHudPresenter.GetShotControlLabel(
+                name,
+                _lastInputWasGamePad,
+                _gameSettings.BattingInputScheme);
         _battingStepRecoveryActive = false;
         _shotResolved = false;
         _shotOutcome = $"Swinging {_chosenShot.Name}; timing and placement decide contact.";
@@ -260,6 +264,11 @@ public partial class Game1
             _batterFootworkOffsetX,
             _targetBatterFootworkOffsetX,
             deltaTime);
+        if (!_bowlerReleased)
+            _batterAdvanceOffsetMeters = BatterFootwork.Advance(
+                _batterAdvanceOffsetMeters,
+                _targetBatterAdvanceOffsetMeters,
+                deltaTime);
         if (_footworkTransitionActive)
         {
             if (MathF.Abs(_targetBatterFootworkOffsetX - _batterFootworkOffsetX) > 0.0001f)
@@ -280,6 +289,25 @@ public partial class Game1
 
         _battingStepRecoveryActive = false;
         _playerAnimator.Play("practice-stance", 0.12f);
+    }
+
+    private void AdvanceBatterDownPitch()
+    {
+        if (_simulationPaused || _bowlerReleased || _deliveryComplete || _battedBall || _shotResolved)
+            return;
+        _targetBatterAdvanceOffsetMeters = Math.Clamp(
+            _targetBatterAdvanceOffsetMeters + BatterAdvanceStepMeters,
+            0f,
+            MaximumBatterAdvanceMeters);
+    }
+
+    private void CommitLeave()
+    {
+        if (_simulationPaused || _deliveryComplete || _battedBall || _shotResolved || _chosenShot is not null)
+            return;
+        _shotResolved = true;
+        _strokeResolution = null;
+        _shotOutcome = "LEAVE: letting the delivery pass.";
     }
 
     private void StartRun()
@@ -309,6 +337,7 @@ public partial class Game1
             _cpuRunsRemaining--;
         }
         _targetBatterFootworkOffsetX = 0f;
+        _targetBatterAdvanceOffsetMeters = 0f;
         _footworkTransitionActive = MathF.Abs(_batterFootworkOffsetX) > 0.0001f;
         _runners.StartRun();
         _runHoldElapsed = 0f;

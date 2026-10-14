@@ -180,19 +180,22 @@ public partial class Game1
             "keyboard aim could not adjust a selected shot before contact");
 
         Reset();
+        var developerModeForAimCheck = _developerMode;
+        _developerMode = false;
         UpdateMatch(
             new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.4)),
             new KeyboardState(),
             MatchControllerActions.None,
             controllerAimAxis: 1f);
-        Require(MathF.Abs(_humanShotAimOffset - 0.5f) < 0.001f,
-            "GamePad right-stick aim did not scale continuously with elapsed time");
+        Require(MathF.Abs(_humanShotAimOffset - 1f) < 0.001f,
+            "GamePad left-stick direction did not select its full-width lane");
         StartShot("drive");
-        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 0.5f) < 0.001f,
+        Require(_chosenShot is { } rightAim && MathF.Abs(rightAim.HorizontalAim - 1f) < 0.001f,
             "GamePad right-stick aim was not applied as the next shot lane");
         Reset();
         Require(MathF.Abs(_humanShotAimOffset) < 0.001f,
             "shot aim adjustment was not cleared for the next delivery");
+        _developerMode = developerModeForAimCheck;
         Console.WriteLine("PASS: keyboard and GamePad shot aiming select and adjust direct human shot lanes.");
 
         Reset();

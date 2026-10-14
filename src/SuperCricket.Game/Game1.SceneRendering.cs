@@ -147,8 +147,13 @@ public partial class Game1
         return Texture2D.FromStream(GraphicsDevice, stream);
     }
 
-    private (Matrix Striker, Matrix NonStriker) GetBatterWorlds() =>
-        BatterRunningPresenter.GetWorlds(_runners, NearBatterZ, FarBatterZ, _batterFootworkOffsetX);
+    private (Matrix Striker, Matrix NonStriker) GetBatterWorlds()
+    {
+        var worlds = BatterRunningPresenter.GetWorlds(_runners, NearBatterZ, FarBatterZ, _batterFootworkOffsetX);
+        return _runners.IsMoving
+            ? worlds
+            : (BatterWorld(BatterContactPlaneZ, true, _batterFootworkOffsetX), worlds.NonStriker);
+    }
 
     private static Matrix BatterWorld(float z, bool atNearEnd, float lateralOffsetX = 0f) =>
         BatterRunningPresenter.CreateWorld(z, atNearEnd, lateralOffsetX);
@@ -264,7 +269,7 @@ public partial class Game1
     private Matrix GetBatWorldTransform()
     {
         var skinMatrices = _playerAnimator.GetSkinMatrices();
-        return skinMatrices[_batBoneIndex] * BatterWorld(NearBatterZ, true, _batterFootworkOffsetX);
+        return skinMatrices[_batBoneIndex] * BatterWorld(BatterContactPlaneZ, true, _batterFootworkOffsetX);
     }
 
     private float GetBatPoseFraction(float physicsElapsed, float accumulatorBeforeFrame, float elapsedSeconds, float flightElapsed)

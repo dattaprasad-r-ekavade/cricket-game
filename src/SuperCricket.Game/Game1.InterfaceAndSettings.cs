@@ -50,7 +50,9 @@ public partial class Game1
         return MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(
             _lastInputWasGamePad,
             phase,
-            _deliveryPresets[_nextDeliveryPresetIndex].Name));
+            _deliveryPresets[_nextDeliveryPresetIndex].Name,
+            _gameSettings.BattingInputScheme,
+            _gameSettings.BattingFootSelection));
     }
 
     private void DrawDebugOverlay()
@@ -117,7 +119,9 @@ public partial class Game1
             _gameSettings.LargeText,
             _gameSettings.EffectsVolume,
             _settingsStatusMessage,
-            _audioUnavailable));
+            _audioUnavailable,
+            _gameSettings.BattingInputScheme,
+            _gameSettings.BattingFootSelection));
         var layout = MatchHudPresenter.CalculatePauseMenuLayout(
             viewport.Width,
             viewport.Height,

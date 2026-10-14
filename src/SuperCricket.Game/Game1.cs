@@ -116,6 +116,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _selectedOversPerInnings = 1;
     private float _batterFootworkOffsetX;
     private float _targetBatterFootworkOffsetX;
+    private float _batterAdvanceOffsetMeters;
+    private float _targetBatterAdvanceOffsetMeters;
     private float _humanShotAimOffset;
     private float _humanForwardShotAim = 1f;
     private bool _humanForwardShotAimSelected;
@@ -183,6 +185,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private NumericsVector3 _fielderThrowTarget;
     private int _fielderThrowerIndex;
     private const float NearBatterZ = BattingPracticeAnalyzer.BatterWicketLineZ;
+    private const float BatterAdvanceStepMeters = 0.4f;
+    private const float MaximumBatterAdvanceMeters = 0.8f;
+    private float BatterContactPlaneZ => NearBatterZ - _batterAdvanceOffsetMeters;
     private const float FarBatterZ = 8.72f;
     private const float BowlerReleaseHandOffsetXMeters = 0.197f;
     private const float BowlerHandForwardMeters = 0.39f;

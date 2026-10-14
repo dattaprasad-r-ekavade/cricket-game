@@ -53,39 +53,48 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(expectedEventLine, lines[3]);
     }
 
-    [Theory]
-    [InlineData(true, "LEFT STICK", "A", "Y", "B")]
-    public void GamePadBattingPanelKeepsItsExistingShotMapping(bool isGamePad, string aim, string ground, string loft, string run)
+    [Fact]
+    public void GamePadBattingPanelShowsTheSplitShotControls()
     {
-        var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(
-            isGamePad, MatchHudPhase.Batting, "Standard pace"));
+        var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(true, MatchHudPhase.Batting, "Standard pace"));
 
-        Assert.Equal(new HudActionHint(aim, "Aim left / straight / right"), hints[0]);
-        Assert.Equal(new HudActionHint(ground, "Centre = defend  |  aimed = drive"), hints[1]);
-        Assert.Equal(new HudActionHint(loft, "Loft the shot"), hints[2]);
-        Assert.Equal(new HudActionHint(run, "Run after contact  |  hold to turn back"), hints[3]);
+        Assert.Equal(4, hints.Count);
+        Assert.Equal(new HudActionHint("LEFT STICK", "Choose one of 8 directions"), hints[0]);
+        Assert.Equal(new HudActionHint("A / X", "Attack / defend"), hints[1]);
+        Assert.Equal(new HudActionHint("RB / B", "Loft / leave"), hints[2]);
+        Assert.Equal(new HudActionHint("LB / B", "Advance / run after contact"), hints[3]);
     }
 
     [Fact]
-    public void KeyboardBattingPanelListsRecordedCricket07StrokeChords()
+    public void KeyboardBattingPanelShowsFourDirectionalControlRows()
     {
         var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(false, MatchHudPhase.Batting, "Standard pace"));
 
-        Assert.Equal(new HudActionHint("S", "Defend / play a block"), hints[1]);
-        Assert.Equal(new HudActionHint("S + D", "Front-foot ground drive"), hints[2]);
-        Assert.Equal(new HudActionHint("W + D", "Back-foot hit behind"), hints[3]);
-        Assert.Equal(new HudActionHint("SHIFT + S", "Lofted hit / six attempt"), hints[4]);
-        Assert.Equal(new HudActionHint("SHIFT + W + D", "Extra back-foot loft variant"), hints[5]);
-        Assert.Equal(new HudActionHint("D  /  A", "D = run  |  A = run back"), hints[6]);
+        Assert.Equal(4, hints.Count);
+        Assert.Equal(new HudActionHint("ARROWS", "Choose one of 8 directions"), hints[0]);
+        Assert.Equal(new HudActionHint("S / W", "Attack / defend (auto foot)"), hints[1]);
+        Assert.Equal(new HudActionHint("SHIFT", "Add loft to attack or defend"), hints[2]);
+        Assert.Equal(new HudActionHint("A / D", "Leave / advance before release; D runs after contact"), hints[3]);
+    }
+
+    [Fact]
+    public void ClassicChordSchemeRemainsAnAlternativeWithFourHudRows()
+    {
+        var hints = MatchHudPresenter.BuildActionHints(new MatchHudState(
+            false, MatchHudPhase.Batting, "Standard pace", BattingInputScheme.ClassicChords));
+
+        Assert.Equal(4, hints.Count);
+        Assert.Equal(new HudActionHint("S / S+D / W+D", "Block / front drive / back drive"), hints[1]);
+        Assert.Equal(new HudActionHint("SHIFT", "Add loft to the chord stroke"), hints[2]);
     }
 
     [Theory]
-    [InlineData("defence", false, "S (block)")]
-    [InlineData("drive", false, "S + D (forward) / W + D (behind)")]
-    [InlineData("loft", false, "SHIFT + S (loft / six attempt)")]
-    [InlineData("defence", true, "A at centre aim")]
-    [InlineData("drive", true, "left stick + A")]
-    [InlineData("loft", true, "Y")]
+    [InlineData("defence", false, "W (defend)")]
+    [InlineData("drive", false, "S (attack)")]
+    [InlineData("loft", false, "SHIFT + S (loft)")]
+    [InlineData("defence", true, "X (defend)")]
+    [InlineData("drive", true, "A (attack)")]
+    [InlineData("loft", true, "RB (loft)")]
     public void ShotResultCanNameTheInputThatSelectedTheAction(string shot, bool gamePad, string expected) =>
         Assert.Equal(expected, MatchHudPresenter.GetShotControlLabel(shot, gamePad));
 
@@ -159,7 +168,7 @@ public sealed class MatchHudPresenterTests
 
         Assert.NotNull(content);
         Assert.Equal("SWING NOW", content.Value.Title);
-        Assert.Equal("Press A / Y now for on-time contact | ring = projected bounce", content.Value.Detail);
+        Assert.Equal("Press A / X now for on-time contact | ring = projected bounce", content.Value.Detail);
         Assert.Equal(Color.Yellow, content.Value.Accent);
         Assert.Equal(1f, content.Value.RemainingSeconds);
     }
@@ -316,8 +325,9 @@ public sealed class MatchHudPresenterTests
             AudioUnavailable: false));
 
         Assert.Equal("SUPER CRICKET  /  PAUSED", lines[0]);
-        Assert.Contains("Batting: arrows aim | S block | S+D forward | W+D hit behind | Shift+S loft/six | Shift+W+D extra loft; chords record for 220 ms", lines);
-        Assert.Contains("GamePad batting: left stick choose lane | A: centre defend / aimed drive | Y loft", lines);
+        Assert.Contains("Batting: arrows choose direction | S attack | W defend | Shift lofts | A leave | D advances before release", lines);
+        Assert.Contains("Keyboard: I toggles Directional / Classic chords | F toggles automatic", lines);
+        Assert.Contains("GamePad batting: left stick direction | A attack | X defend | RB loft | B leave/run | LB advance", lines);
         Assert.Contains("Running: D/B starts or repeats; tap A to run back (GamePad: hold B to turn back)", lines);
         Assert.Contains("Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls", lines);
         Assert.Contains("Paused: P/Start resumes | Esc/Back quits | H/Y contrast ON", lines);
@@ -506,8 +516,8 @@ public sealed class MatchHudPresenterTests
     }
 
     [Theory]
-    [InlineData(false, "Arrows: aim    S: defend    S+D: front drive    W+D: back drive    Shift adds loft    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
-    [InlineData(true, "Left stick: choose direction    A: centre defend / aimed drive    Y: loft    Start: pause    L3: camera")]
+    [InlineData(false, "Arrows: direction    S: attack    W: defend    Shift: loft    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
+    [InlineData(true, "Left stick: direction    A: attack    X: defend    RB: loft    Start: pause    L3: camera")]
     public void BattingHintShowsOnlyTheActiveDeviceControls(bool isGamePad, string expected) =>
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.Batting));
 

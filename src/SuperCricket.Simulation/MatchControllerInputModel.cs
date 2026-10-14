@@ -49,7 +49,10 @@ public enum MatchControllerActions
     AimLegSide = 1 << 23,
     AimLong = 1 << 24,
     AimShort = 1 << 25,
-    CycleCamera = 1 << 26
+    CycleCamera = 1 << 26,
+    Attack = 1 << 27,
+    Leave = 1 << 28,
+    Advance = 1 << 29
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -86,10 +89,21 @@ public static class MatchControllerInputModel
             return actions;
         }
 
-        if (Has(pressed, MatchControllerButtons.A)) actions |= MatchControllerActions.Defend;
-        if (developerMode && Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.Drive;
-        if (Has(pressed, MatchControllerButtons.Y)) actions |= MatchControllerActions.Loft;
-        if (Has(pressed, MatchControllerButtons.B)) actions |= MatchControllerActions.Run;
+        if (developerMode)
+        {
+            if (Has(pressed, MatchControllerButtons.A)) actions |= MatchControllerActions.Defend;
+            if (Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.Drive;
+            if (Has(pressed, MatchControllerButtons.Y)) actions |= MatchControllerActions.Loft;
+            if (Has(pressed, MatchControllerButtons.B)) actions |= MatchControllerActions.Run;
+        }
+        else
+        {
+            if (Has(pressed, MatchControllerButtons.A)) actions |= MatchControllerActions.Attack;
+            if (Has(pressed, MatchControllerButtons.X)) actions |= MatchControllerActions.Defend;
+            if (Has(pressed, MatchControllerButtons.RightShoulder)) actions |= MatchControllerActions.Loft;
+            if (Has(pressed, MatchControllerButtons.B))
+                actions |= MatchControllerActions.Leave | MatchControllerActions.Run;
+        }
         if (Has(pressed, MatchControllerButtons.RightShoulder)) actions |= MatchControllerActions.NextBall;
 
         if (isCpuBattingControlled)
@@ -115,6 +129,8 @@ public static class MatchControllerInputModel
         }
         else
         {
+            if (!developerMode && Has(pressed, MatchControllerButtons.LeftShoulder))
+                actions |= MatchControllerActions.Advance;
             if (Has(pressed, MatchControllerButtons.DPadLeft))
                 actions |= developerMode ? MatchControllerActions.StepOffSide : MatchControllerActions.AimOffSide;
             if (Has(pressed, MatchControllerButtons.DPadRight))

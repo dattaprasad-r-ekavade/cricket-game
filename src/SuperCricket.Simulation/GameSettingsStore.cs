@@ -4,6 +4,18 @@ using System.Text.Json.Serialization;
 
 namespace SuperCricket.Simulation;
 
+public enum BattingInputScheme
+{
+    Directional,
+    ClassicChords
+}
+
+public enum BattingFootSelection
+{
+    Automatic,
+    Manual
+}
+
 public sealed class GameSettings
 {
     public const int CurrentVersion = 1;
@@ -14,6 +26,8 @@ public sealed class GameSettings
     public bool HighContrast { get; set; }
     public bool LargeText { get; set; }
     public float EffectsVolume { get; set; } = 0.5f;
+    public BattingInputScheme BattingInputScheme { get; set; } = BattingInputScheme.Directional;
+    public BattingFootSelection BattingFootSelection { get; set; } = BattingFootSelection.Automatic;
 
     public List<string> Validate()
     {
@@ -26,6 +40,10 @@ public sealed class GameSettings
             errors.Add("Overs per innings must be 1, 2, 5, or 10.");
         if (!float.IsFinite(EffectsVolume) || EffectsVolume is < 0f or > 1f)
             errors.Add("Effects volume must be between 0 and 1.");
+        if (!Enum.IsDefined(BattingInputScheme))
+            errors.Add("Batting input scheme is not supported.");
+        if (!Enum.IsDefined(BattingFootSelection))
+            errors.Add("Batting foot selection is not supported.");
         return errors;
     }
 }

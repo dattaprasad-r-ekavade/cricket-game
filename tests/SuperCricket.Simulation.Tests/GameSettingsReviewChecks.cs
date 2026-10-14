@@ -11,7 +11,9 @@ public static class GameSettingsReviewChecks
         {
             var defaults = GameSettingsStore.Load(missingPath);
             Require(defaults.Difficulty == CpuDifficulty.Standard && defaults.OversPerInnings == 1 &&
-                !defaults.HighContrast && !defaults.LargeText && defaults.EffectsVolume == 0.5f,
+                !defaults.HighContrast && !defaults.LargeText && defaults.EffectsVolume == 0.5f &&
+                defaults.BattingInputScheme == BattingInputScheme.Directional &&
+                defaults.BattingFootSelection == BattingFootSelection.Automatic,
                 "a missing settings file did not return the documented defaults");
 
             var saved = new GameSettings
@@ -20,13 +22,17 @@ public static class GameSettingsReviewChecks
                 OversPerInnings = 5,
                 HighContrast = true,
                 LargeText = true,
-                EffectsVolume = 0.8f
+                EffectsVolume = 0.8f,
+                BattingInputScheme = BattingInputScheme.ClassicChords,
+                BattingFootSelection = BattingFootSelection.Manual
             };
             GameSettingsStore.Save(settingsPath, saved);
             var loaded = GameSettingsStore.Load(settingsPath);
             Require(loaded.Difficulty == saved.Difficulty && loaded.OversPerInnings == saved.OversPerInnings &&
                 loaded.HighContrast == saved.HighContrast && loaded.LargeText == saved.LargeText &&
-                loaded.EffectsVolume == saved.EffectsVolume,
+                loaded.EffectsVolume == saved.EffectsVolume &&
+                loaded.BattingInputScheme == saved.BattingInputScheme &&
+                loaded.BattingFootSelection == saved.BattingFootSelection,
                 "saved match and accessibility preferences did not round-trip");
             Require(!File.Exists(settingsPath + ".tmp"), "a successful save left its temporary file behind");
 
@@ -42,10 +48,16 @@ public static class GameSettingsReviewChecks
                 "a negative effects volume was accepted on save");
             ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { EffectsVolume = 1.1f }),
                 "an effects volume above 1 was accepted on save");
+            ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { BattingInputScheme = (BattingInputScheme)99 }),
+                "an unsupported batting input scheme was accepted on save");
+            ExpectInvalidData(() => GameSettingsStore.Save(settingsPath, new GameSettings { BattingFootSelection = (BattingFootSelection)99 }),
+                "an unsupported batting foot choice was accepted on save");
             var unchanged = GameSettingsStore.Load(settingsPath);
             Require(unchanged.Difficulty == saved.Difficulty && unchanged.OversPerInnings == saved.OversPerInnings &&
                 unchanged.HighContrast == saved.HighContrast && unchanged.LargeText == saved.LargeText &&
-                unchanged.EffectsVolume == saved.EffectsVolume,
+                unchanged.EffectsVolume == saved.EffectsVolume &&
+                unchanged.BattingInputScheme == saved.BattingInputScheme &&
+                unchanged.BattingFootSelection == saved.BattingFootSelection,
                 "a rejected save changed the previously saved settings");
 
             File.WriteAllText(settingsPath, "{\"version\":99}");
@@ -59,8 +71,10 @@ public static class GameSettingsReviewChecks
                 "{\"version\":1,\"difficulty\":\"pro\",\"oversPerInnings\":5,\"highContrast\":true,\"largeText\":true}");
             var upgraded = GameSettingsStore.Load(settingsPath);
             Require(upgraded.Difficulty == CpuDifficulty.Pro && upgraded.OversPerInnings == 5 &&
-                upgraded.HighContrast && upgraded.LargeText && upgraded.EffectsVolume == 0.5f,
-                "a saved settings file from before audio controls did not load with the default volume");
+                upgraded.HighContrast && upgraded.LargeText && upgraded.EffectsVolume == 0.5f &&
+                upgraded.BattingInputScheme == BattingInputScheme.Directional &&
+                upgraded.BattingFootSelection == BattingFootSelection.Automatic,
+                "a saved settings file from before batting controls did not load with the default batting scheme");
 
             File.WriteAllText(settingsPath, "{ invalid json");
             ExpectInvalidData(() => GameSettingsStore.Load(settingsPath),

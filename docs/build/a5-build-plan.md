@@ -164,7 +164,7 @@ The window centre and size are in metres of ball travel. **Starting values to tu
 
 ---
 
-### WP4 — Batting input scheme (M, wave 2, owns `MatchInputRouter.cs`) · A5.4
+### WP4 — Batting input scheme (M, wave 2, owns `MatchInputRouter.cs`) · A5.4 [x]
 
 **Default keyboard scheme** (based on the Cricket 07 PC layout the owner knows; our wording):
 

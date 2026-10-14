@@ -28,7 +28,8 @@ public partial class Game1
             _predictedBouncePosition is not null,
             _cpuDifficulty,
             NearBatterZ,
-            _shotControlLabel));
+            _shotControlLabel,
+            _gameSettings.BattingInputScheme));
         if (feedback is not { } banner)
             return;
 

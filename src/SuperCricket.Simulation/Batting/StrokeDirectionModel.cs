@@ -21,9 +21,6 @@ public static class StrokeDirectionModel
             !float.IsFinite(forwardAim) || forwardAim is < -1f or > 1f ||
             (MathF.Abs(horizontalAim) < 0.001f && MathF.Abs(forwardAim) < 0.001f))
             throw new ArgumentOutOfRangeException(nameof(horizontalAim), "Aim must be a finite, non-zero vector within [-1, 1].");
-        if (MathF.Abs(horizontalAim) < 0.001f)
-            return ShotDirection8.Straight;
-
         var yaw = MathF.Atan2(horizontalAim, forwardAim) * (180f / MathF.PI);
         return Directions
             .OrderBy(candidate => AngularDistance(yaw, candidate.YawDegrees))

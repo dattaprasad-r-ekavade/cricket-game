@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Game;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
 
 namespace SuperCricket.Game.Tests;
 
@@ -68,7 +69,7 @@ public sealed class MatchInputRouterTests
             isPaused: false,
             developerMode: false);
 
-        Assert.Equal(MatchControllerActions.Defend | MatchControllerActions.Run, pressed.Actions);
+        Assert.Equal(MatchControllerActions.Attack | MatchControllerActions.Leave | MatchControllerActions.Run, pressed.Actions);
         Assert.Equal(-0.35f, pressed.AimAxis);
         Assert.Equal(0.6f, pressed.AimLengthAxis);
         Assert.True(pressed.RunHeld);
@@ -102,7 +103,56 @@ public sealed class MatchInputRouterTests
             isMatchComplete: false,
             isPaused: false,
             developerMode: false);
-        Assert.Equal(MatchControllerActions.Defend, pressedAgain.Actions);
+        Assert.Equal(MatchControllerActions.Attack, pressedAgain.Actions);
+    }
+
+    [Theory]
+    [InlineData(Keys.Up, Keys.None, ShotDirection8.Straight)]
+    [InlineData(Keys.Up, Keys.Left, ShotDirection8.OffDrive)]
+    [InlineData(Keys.Left, Keys.None, ShotDirection8.Cover)]
+    [InlineData(Keys.Down, Keys.Left, ShotDirection8.Square)]
+    [InlineData(Keys.Down, Keys.None, ShotDirection8.Fine)]
+    [InlineData(Keys.Down, Keys.Right, ShotDirection8.LegFine)]
+    [InlineData(Keys.Right, Keys.None, ShotDirection8.LegSquare)]
+    [InlineData(Keys.Up, Keys.Right, ShotDirection8.MidWicket)]
+    public void DirectionalKeyboardInputsMapEveryArrowDirectionToAStrokeRequest(
+        Keys firstDirection, Keys secondDirection, ShotDirection8 expected) =>
+        AssertKeyboardDirection([firstDirection, secondDirection, Keys.S], expected);
+
+    [Fact]
+    public void AttackAndDefendPressesCreateRequestsWithAutoOrManualFoot()
+    {
+        var attackRouter = new MatchInputRouter();
+        attackRouter.BeginKeyboardFrame(new KeyboardState(Keys.Right, Keys.Up, Keys.S, Keys.LeftShift));
+        var attack = attackRouter.ReadBattingInput(BattingInputScheme.Directional, BattingFootSelection.Automatic);
+        Assert.Equal(new StrokeRequest(ShotDirection8.MidWicket, StrokeIntent.Attack, true, StrokeFoot.Auto), attack.Stroke);
+
+        var manualAttackRouter = new MatchInputRouter();
+        manualAttackRouter.BeginKeyboardFrame(new KeyboardState(Keys.S));
+        Assert.Equal(StrokeFoot.Front, manualAttackRouter.ReadBattingInput(
+            BattingInputScheme.Directional, BattingFootSelection.Manual).Stroke?.Foot);
+
+        var defendRouter = new MatchInputRouter();
+        defendRouter.BeginKeyboardFrame(new KeyboardState(Keys.W));
+        Assert.Equal(new StrokeRequest(ShotDirection8.Straight, StrokeIntent.Defend, false, StrokeFoot.Back),
+            defendRouter.ReadBattingInput(BattingInputScheme.Directional, BattingFootSelection.Manual).Stroke);
+    }
+
+    [Fact]
+    public void LeaveAndAdvanceAreSeparateKeyboardActionsAndClassicChordsStayAvailable()
+    {
+        var directional = new MatchInputRouter();
+        directional.BeginKeyboardFrame(new KeyboardState(Keys.A, Keys.D));
+        var input = directional.ReadBattingInput(BattingInputScheme.Directional, BattingFootSelection.Automatic);
+        Assert.True(input.LeavePressed);
+        Assert.True(input.AdvancePressed);
+        Assert.Null(input.Stroke);
+
+        var classic = new MatchInputRouter();
+        classic.BeginKeyboardFrame(new KeyboardState(Keys.S, Keys.D));
+        Assert.Null(classic.ReadBattingInput(BattingInputScheme.ClassicChords, BattingFootSelection.Automatic).Stroke);
+        var recorder = new BattingInputRecorder();
+        Assert.Equal(RecordedBattingStroke.FrontFootDrive, recorder.Update(0f, [Keys.S, Keys.D])?.Stroke);
     }
 
     [Fact]
@@ -119,5 +169,14 @@ public sealed class MatchInputRouterTests
         Assert.Equal(0f, input.AimAxis);
         Assert.Equal(0f, input.AimLengthAxis);
         Assert.False(input.RunHeld);
+    }
+
+    private static void AssertKeyboardDirection(Keys[] keys, ShotDirection8 expected)
+    {
+        var router = new MatchInputRouter();
+        router.BeginKeyboardFrame(new KeyboardState(keys));
+        var input = router.ReadBattingInput(BattingInputScheme.Directional, BattingFootSelection.Automatic);
+        Assert.Equal(expected, input.Stroke?.Direction);
+        Assert.Equal(StrokeIntent.Attack, input.Stroke?.Intent);
     }
 }

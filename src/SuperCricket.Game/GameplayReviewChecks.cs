@@ -58,29 +58,29 @@ public partial class Game1
             MathF.Abs(_camera.Position.X - _camera.Target.X) < 0.001f &&
             _camera.Position.Z < _camera.Target.Z,
             "the batting delivery did not start with the focused behind-striker view");
-        Require(GetPrimaryControlHint().Contains("Arrows: aim", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("S+D: front drive", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("W+D: back drive", StringComparison.Ordinal) &&
-            GetPrimaryControlHint().Contains("Shift adds loft", StringComparison.Ordinal) &&
+        Require(GetPrimaryControlHint().Contains("Arrows: direction", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("S: attack", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("W: defend", StringComparison.Ordinal) &&
+            GetPrimaryControlHint().Contains("Shift: loft", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("V: camera", StringComparison.Ordinal) &&
             GetPrimaryControlHint().Contains("PgDn: zoom in / PgUp: out", StringComparison.Ordinal) &&
             !GetPrimaryControlHint().Contains("A/S/D", StringComparison.Ordinal),
             "the normal batting HUD did not show compact shot controls and the camera shortcut");
         var keyboardActions = MatchHudPresenter.BuildActionHints(new MatchHudState(false, MatchHudPhase.Batting, "Standard pace"));
-        Require(keyboardActions.Count == 7 && keyboardActions[1].Input == "S" &&
-            keyboardActions[2].Input == "S + D" && keyboardActions[3].Input == "W + D" &&
-            keyboardActions[4].Input == "SHIFT + S" && keyboardActions[5].Input == "SHIFT + W + D",
-            "the keyboard control panel did not map the recorded Cricket 07 batting chords");
+        Require(keyboardActions.Count == 4 && keyboardActions[1].Input == "S / W" &&
+            keyboardActions[2].Input == "SHIFT" && keyboardActions[3].Input == "A / D",
+            "the keyboard control panel did not fit the directional batting controls into four rows");
         _lastInputWasGamePad = true;
         Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
             "the normal GamePad HUD did not show the camera shortcut");
         _lastInputWasGamePad = false;
         Tick(0f, Keys.S);
-        Require(_chosenShot?.Name == "defence" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
-            _playerAnimator.CurrentClipName == "defensive-block" &&
-            _shotControlLabel == "DOWNFIELD | S",
-            "S did not immediately select and animate a straight defensive block");
+        Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
+            _playerAnimator.CurrentClipName == "front-foot-drive" &&
+            _shotControlLabel == "S: ATTACK",
+            "S did not immediately select and animate a straight attack");
 
+        _gameSettings.BattingInputScheme = BattingInputScheme.ClassicChords;
         Reset();
         Tick(0.04f, Keys.S);
         Tick(0.04f, Keys.S, Keys.D);
@@ -123,11 +123,12 @@ public partial class Game1
         UpdateMatch(
             new GameTime(TimeSpan.Zero, TimeSpan.FromSeconds(0.4)),
             new KeyboardState(),
-            MatchControllerActions.Defend,
+            MatchControllerActions.Attack,
             controllerAimAxis: -1f);
         Require(_lastInputWasGamePad && _chosenShot?.Name == "drive" && _chosenShot.HorizontalAim < 0f &&
-            GetPrimaryControlHint().Contains("Left stick: choose direction", StringComparison.Ordinal),
+            GetPrimaryControlHint().Contains("Left stick: direction", StringComparison.Ordinal),
             "GamePad direction and shot buttons did not drive the compact, device-specific batting controls");
+        _gameSettings.BattingInputScheme = BattingInputScheme.Directional;
 
         Reset();
         _battedBall = true;

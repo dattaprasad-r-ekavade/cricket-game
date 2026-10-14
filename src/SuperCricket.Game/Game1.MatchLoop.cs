@@ -11,6 +11,7 @@ using SuperCricket.Content;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
 using SuperCricket.Simulation.Events;
 using NumericsVector3 = System.Numerics.Vector3;
 
@@ -47,6 +48,8 @@ public partial class Game1
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
         bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
         var pressedKeys = keyboard.GetPressedKeys();
+        var keyboardBattingInput = default(KeyboardBattingInputFrame);
+        var hasKeyboardBattingInput = false;
         if (pressedKeys.Length > 0)
             _lastInputWasGamePad = false;
         if (controllerActions != MatchControllerActions.None || MathF.Abs(controllerAimAxis) > 0.2f ||
@@ -134,24 +137,64 @@ public partial class Game1
             (KeyPressed(Keys.OemPlus) ||
              ControllerPressed(MatchControllerActions.IncreaseEffectsVolume)))
             AdjustEffectsVolume(0.1f);
+        if (_simulationPaused && KeyPressed(Keys.I))
+        {
+            _gameSettings.BattingInputScheme = _gameSettings.BattingInputScheme == BattingInputScheme.Directional
+                ? BattingInputScheme.ClassicChords
+                : BattingInputScheme.Directional;
+            SaveGameSettings();
+        }
+        if (_simulationPaused && KeyPressed(Keys.F))
+        {
+            _gameSettings.BattingFootSelection = _gameSettings.BattingFootSelection == BattingFootSelection.Automatic
+                ? BattingFootSelection.Manual
+                : BattingFootSelection.Automatic;
+            SaveGameSettings();
+        }
         if (!IsCpuBattingControlled && !_simulationPaused && !_deliveryComplete &&
             !_battedBall && !_shotResolved && !_isRunning)
         {
-            var aimStep = _developerMode ? 0.12f : 0.5f;
-            if (KeyPressed(_developerMode ? Keys.J : Keys.Left) ||
-                ControllerPressed(MatchControllerActions.AimOffSide))
-                AdjustHumanShotAim(-aimStep);
-            if (KeyPressed(_developerMode ? Keys.L : Keys.Right) ||
-                ControllerPressed(MatchControllerActions.AimLegSide))
-                AdjustHumanShotAim(aimStep);
-            if (!_developerMode && KeyPressed(Keys.Up))
-                SetHumanForwardShotAim(1f);
-            if (!_developerMode && KeyPressed(Keys.Down))
-                SetHumanForwardShotAim(-1f);
+            if (_developerMode)
+            {
+                var aimStep = 0.12f;
+                if (KeyPressed(Keys.J) || ControllerPressed(MatchControllerActions.AimOffSide))
+                    AdjustHumanShotAim(-aimStep);
+                if (KeyPressed(Keys.L) || ControllerPressed(MatchControllerActions.AimLegSide))
+                    AdjustHumanShotAim(aimStep);
+            }
+            else
+            {
+                keyboardBattingInput = _inputRouter.ReadBattingInput(
+                    _gameSettings.BattingInputScheme,
+                    _gameSettings.BattingFootSelection);
+                hasKeyboardBattingInput = true;
+                if (_gameSettings.BattingInputScheme == BattingInputScheme.Directional)
+                {
+                    _humanShotAimOffset = keyboardBattingInput.HorizontalAim;
+                    _humanForwardShotAim = keyboardBattingInput.ForwardAim;
+                    _humanForwardShotAimSelected = keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.Down);
+                }
+                else
+                {
+                    var aimStep = 0.5f;
+                    if (KeyPressed(Keys.Left) || ControllerPressed(MatchControllerActions.AimOffSide))
+                        AdjustHumanShotAim(-aimStep);
+                    if (KeyPressed(Keys.Right) || ControllerPressed(MatchControllerActions.AimLegSide))
+                        AdjustHumanShotAim(aimStep);
+                    if (KeyPressed(Keys.Up)) SetHumanForwardShotAim(1f);
+                    if (KeyPressed(Keys.Down)) SetHumanForwardShotAim(-1f);
+                }
 
-            var stickIntent = MatchInputRouter.NormalizeAimAxis(controllerAimAxis);
-            if (stickIntent != 0f)
-                AdjustHumanShotAim(stickIntent * 1.25f * elapsedSeconds);
+                var stickIntent = MatchInputRouter.NormalizeAimAxis(controllerAimAxis);
+                var stickDepth = MatchInputRouter.NormalizeAimAxis(controllerAimLengthAxis);
+                if (stickIntent != 0f)
+                    _humanShotAimOffset = stickIntent;
+                if (stickDepth != 0f)
+                {
+                    _humanForwardShotAim = stickDepth;
+                    _humanForwardShotAimSelected = true;
+                }
+            }
         }
         else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused && !_match.IsInningsComplete)
         {
@@ -197,18 +240,52 @@ public partial class Game1
             }
             else
             {
-                if (ControllerPressed(MatchControllerActions.Defend))
-                    StartShot(MathF.Abs(_humanShotAimOffset) < 0.08f ? "defence" : "drive");
-                if (ControllerPressed(MatchControllerActions.Loft)) StartShot("loft");
+                var controllerIntent = ControllerPressed(MatchControllerActions.Attack)
+                    ? StrokeIntent.Attack
+                    : ControllerPressed(MatchControllerActions.Defend)
+                        ? StrokeIntent.Defend
+                        : ControllerPressed(MatchControllerActions.Loft)
+                            ? StrokeIntent.Attack
+                            : (StrokeIntent?)null;
+                if (controllerIntent is { } intent)
+                {
+                    var loft = ControllerPressed(MatchControllerActions.Loft);
+                    var request = new StrokeRequest(
+                        StrokeDirectionModel.FromAim(_humanShotAimOffset, _humanForwardShotAim),
+                        intent,
+                        loft,
+                        StrokeFoot.Auto);
+                    var name = intent == StrokeIntent.Defend ? "defence" : loft ? "loft" : "drive";
+                    StartShot(name, _humanShotAimOffset, _humanForwardShotAim,
+                        controlLabelOverride: MatchHudPresenter.GetShotControlLabel(name, isGamePad: true),
+                        strokeRequestOverride: request);
+                }
 
-                var pressedStyleKeys = pressedKeys.Where(KeyPressed).ToArray();
+                if (ControllerPressed(MatchControllerActions.Leave)) CommitLeave();
+                if (ControllerPressed(MatchControllerActions.Advance)) AdvanceBatterDownPitch();
+
+                if (hasKeyboardBattingInput)
+                {
+                    if (keyboardBattingInput.LeavePressed) CommitLeave();
+                    if (keyboardBattingInput.AdvancePressed) AdvanceBatterDownPitch();
+                    if (keyboardBattingInput.Stroke is { } stroke && !_deliveryComplete && !_shotResolved)
+                    {
+                        var name = stroke.Intent == StrokeIntent.Defend ? "defence" : stroke.Loft ? "loft" : "drive";
+                        StartShot(name, keyboardBattingInput.HorizontalAim, keyboardBattingInput.ForwardAim,
+                            controlLabelOverride: stroke.Intent == StrokeIntent.Defend ? "W: DEFEND" : "S: ATTACK",
+                            strokeRequestOverride: stroke);
+                    }
+                }
+
                 if (_battedBall || _isRunning)
                 {
                     _battingInputRecorder.Reset();
-                    if (pressedStyleKeys.Contains(Keys.D)) StartRun();
+                    if (KeyPressed(Keys.D)) StartRun();
                 }
-                else if (!_deliveryComplete && !_shotResolved)
+                else if (!_deliveryComplete && !_shotResolved &&
+                    _gameSettings.BattingInputScheme == BattingInputScheme.ClassicChords)
                 {
+                    var pressedStyleKeys = pressedKeys.Where(KeyPressed).ToArray();
                     var command = _battingInputRecorder.Update(elapsedSeconds, pressedStyleKeys);
                     if (command is { } stroke)
                     {
@@ -217,10 +294,20 @@ public partial class Game1
                         var forwardAim = isBackFootStroke && !_humanForwardShotAimSelected
                                 ? -1f
                                 : _humanForwardShotAim;
+                        var request = new StrokeRequest(
+                            StrokeDirectionModel.FromAim(_humanShotAimOffset, forwardAim),
+                            stroke.ShotName == "defence" ? StrokeIntent.Defend : StrokeIntent.Attack,
+                            stroke.ShotName == "loft",
+                            isBackFootStroke ? StrokeFoot.Back : StrokeFoot.Front);
                         StartShot(stroke.ShotName, _humanShotAimOffset, forwardAim,
                             stroke.AnimationClip,
-                            FormatKeyboardShotControlLabel(stroke.ControlLabel, _humanShotAimOffset, forwardAim));
+                            FormatKeyboardShotControlLabel(stroke.ControlLabel, _humanShotAimOffset, forwardAim),
+                            strokeRequestOverride: request);
                     }
+                }
+                else if (_gameSettings.BattingInputScheme == BattingInputScheme.Directional)
+                {
+                    _battingInputRecorder.Reset();
                 }
             }
             if ((_developerMode && KeyPressed(Keys.Enter)) || ControllerPressed(MatchControllerActions.Run)) StartRun();
@@ -287,7 +374,7 @@ public partial class Game1
                     ContactPlaneCrossingModel.TryResolve(
                         previousFrame,
                         frame,
-                        NearBatterZ,
+                        BatterContactPlaneZ,
                         out var contactFrame,
                         out var contactFraction))
                 {
@@ -386,7 +473,7 @@ public partial class Game1
                         }
                     }
                 }
-                else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < NearBatterZ - 0.45f && frame.Velocity.Z < 0f)
+                else if (_chosenShot is not null && !_shotResolved && frame.Position.Z < BatterContactPlaneZ - 0.45f && frame.Velocity.Z < 0f)
                 {
                     _shotResolved = true;
                     _contactFeedbackQuality = null;
