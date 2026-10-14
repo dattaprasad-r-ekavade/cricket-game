@@ -36,6 +36,7 @@ try {
     & python 'tools/blender/validate_humanoid_glb.py' $bowlerPath --role bowler --animation-contract $bowlerContractPath
     if ($LASTEXITCODE -ne 0) { throw 'The humanoid bowler GLB validation failed.' }
     $shotsPath = 'assets/batting/shots.json'
+    $strokesPath = 'assets/batting/strokes.json'
     foreach ($playerPath in @($batterPath, $bowlerPath)) {
         Invoke-CheckedDotNet @($toolsDll, 'validate-player', $playerPath)
     }
@@ -79,6 +80,7 @@ try {
     }
     Write-Output 'PASS: invalid team accent kit color rejected.'
     Invoke-CheckedDotNet @($toolsDll, 'validate-shots', $shotsPath)
+    Invoke-CheckedDotNet @($toolsDll, 'validate-strokes', $strokesPath)
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'verify-match')

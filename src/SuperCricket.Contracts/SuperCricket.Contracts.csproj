@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SuperCricket.Simulation\Batting\StrokeContracts.cs" Link="Batting\StrokeContracts.cs" />
+    <Compile Include="..\SuperCricket.Simulation\Events\MatchEvent.cs" Link="Events\MatchEvent.cs" />
+  </ItemGroup>
+
+</Project>

@@ -7,7 +7,7 @@ The research it builds on: [cricket07-data-analysis.md](../reviews/cricket07-dat
 ## 1. Rules for every agent
 
 1. **Originality.** Cricket 07 is a design reference only. Never copy its data, code, tables, strings, audio or assets into the repo, and never transcribe its stroke or delivery tables. The numbers quoted in this plan are *design targets and sanity ranges* (e.g. "Ideal is the narrowest band; window/ideal ratio about 14:6 on Normal"); author our own values from our own physics and tune them by playtest.
-2. **Layering.** `SuperCricket.Simulation` and `SuperCricket.Content` stay graphics-free (`System.Numerics` only). Gameplay rules live there; `SuperCricket.Game` only reads inputs, calls Simulation, and presents results.
+2. **Layering.** `SuperCricket.Simulation`, `SuperCricket.Content`, and any small shared `SuperCricket.Contracts` assembly stay graphics-free (`System.Numerics` only). Gameplay rules live in Simulation; Content owns assets and validation; `SuperCricket.Game` only reads inputs, calls Simulation, and presents results.
 3. **Determinism.** All randomness takes an explicit seed or a `Random` passed in. The same inputs and seed give the same result. Every new model gets a repeatability test.
 4. **Data, not constants.** Tunables go into JSON under `assets/` with a `Validate()` method returning `List<string>` errors, like `BattingShotSet` and `DeliveryPreset`. Add a `validate-*` CLI command in `src/SuperCricket.Tools/Program.cs` and route it through `tools/review.ps1`.
 5. **Tests.** Graphics-free behaviour gets xUnit tests in `tests/SuperCricket.Simulation.Tests`, `tests/SuperCricket.Content.Tests` or `tests/SuperCricket.Game.Tests` (presenters, routers). Host-dependent checks go in the existing `*ReviewChecks.cs` files only when unavoidable.
@@ -81,7 +81,7 @@ Also add `src/SuperCricket.Simulation/Events/MatchEvent.cs` with an empty `abstr
 
 ---
 
-### WP1 — Zone-based stroke table (M) · A5.1
+### WP1 — Zone-based stroke table (M) · A5.1 [x]
 
 **Goal:** replace the three-shot `assets/batting/shots.json` model with an authored stroke table.
 
@@ -93,6 +93,7 @@ Also add `src/SuperCricket.Simulation/Events/MatchEvent.cs` with an empty `abstr
 **Authoring rules** (shape targets from the research, values ours):
 - Ideal is the fastest and lowest band: attack Ideal elevation −5°…+3°, defend Ideal speed under 12 m/s.
 - Early and Late lose about 15–25% speed and gain 5–12° elevation; Late deflects *finer* (towards the keeper side), Early deflects *squarer/across*.
+- For the right-hander reference table, positive yaw moves through the off side toward fine and negative yaw through the leg side toward leg fine; author Early offsets toward square and Late offsets toward the finer/keeper side, then mirror yaw for a left-hander.
 - Start/End: elevation 15–30°, speed 60–75% of Ideal: catchable.
 - Loft strokes: Ideal elevation 25–40°, Start/End elevation over 40° (skied).
 - Off-side strokes on leg-stump balls and vice versa must exist only where cricket allows (validator warns, doesn't fail).

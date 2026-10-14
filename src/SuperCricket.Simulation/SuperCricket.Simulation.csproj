@@ -2,6 +2,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SuperCricket.Content\SuperCricket.Content.csproj" />
+    <ProjectReference Include="..\SuperCricket.Contracts\SuperCricket.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Batting\StrokeContracts.cs" />
+    <Compile Remove="Events\MatchEvent.cs" />
   </ItemGroup>
 
   <ItemGroup>

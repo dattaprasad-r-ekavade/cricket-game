@@ -49,6 +49,15 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "validate-strokes")
+        {
+            var strokeTable = StrokeTableAsset.Load(arguments[1]);
+            Console.WriteLine($"Valid stroke table: {strokeTable.Strokes.Count} strokes.");
+            foreach (var warning in strokeTable.Validate().Where(StrokeTableAsset.IsWarning))
+                Console.WriteLine($"  {warning}");
+            return 0;
+        }
+
         if (arguments[0] == "analyze-batting")
         {
             var outputPath = arguments.Length > 2
@@ -776,6 +785,7 @@ static void PrintUsage()
     Console.WriteLine("  validate-player <player-asset>");
     Console.WriteLine("  validate-team <team.json>");
     Console.WriteLine("  validate-shots <shots.json>");
+    Console.WriteLine("  validate-strokes <strokes.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
     Console.WriteLine("  verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");

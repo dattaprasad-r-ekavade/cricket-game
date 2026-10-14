@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuperCricket.Game.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuperCricket.Content.Tests", "tests\SuperCricket.Content.Tests\SuperCricket.Content.Tests.csproj", "{58B33B9B-842C-4AB1-AE8A-D717E9D31156}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuperCricket.Contracts", "src\SuperCricket.Contracts\SuperCricket.Contracts.csproj", "{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{58B33B9B-842C-4AB1-AE8A-D717E9D31156}.Release|x64.Build.0 = Release|Any CPU
 		{58B33B9B-842C-4AB1-AE8A-D717E9D31156}.Release|x86.ActiveCfg = Release|Any CPU
 		{58B33B9B-842C-4AB1-AE8A-D717E9D31156}.Release|x86.Build.0 = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|x64.Build.0 = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Debug|x86.Build.0 = Debug|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|x64.ActiveCfg = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|x64.Build.0 = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|x86.ActiveCfg = Release|Any CPU
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{F1EDCD00-8AF7-4692-97A9-8741F20B8154} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{3F58AE90-9682-4ABF-894B-88B90C7A0343} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{58B33B9B-842C-4AB1-AE8A-D717E9D31156} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{9D0F0356-2854-4CF9-97FD-C7AF6AECCEAE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
