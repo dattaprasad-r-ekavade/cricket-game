@@ -14,7 +14,8 @@ public enum DismissalKind
     None,
     Bowled,
     Caught,
-    RunOut
+    RunOut,
+    Lbw
 }
 
 public enum DismissedEnd
@@ -60,10 +61,10 @@ public readonly record struct DeliveryResult(
             return "Byes and leg-byes cannot be credited as batter runs.";
         if (Extra == DeliveryExtra.Wide && BatterRuns != 0)
             return "Wide runs cannot be credited as batter runs.";
-        if (Dismissal is DismissalKind.Bowled or DismissalKind.Caught && !IsLegal)
-            return "A batter cannot be bowled or caught from a wide or no-ball.";
-        if (Dismissal == DismissalKind.Bowled && (BatterRuns != 0 || ExtraRuns != 0))
-            return "A bowled dismissal cannot score runs.";
+        if (Dismissal is DismissalKind.Bowled or DismissalKind.Caught or DismissalKind.Lbw && !IsLegal)
+            return "A batter cannot be bowled, caught, or given LBW from a wide or no-ball.";
+        if (Dismissal is DismissalKind.Bowled or DismissalKind.Lbw && (BatterRuns != 0 || ExtraRuns != 0))
+            return "A bowled or LBW dismissal cannot score runs.";
         return null;
     }
 }

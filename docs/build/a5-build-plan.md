@@ -244,7 +244,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 ---
 
-### WP9 — LBW (M, sim) · A5.11
+### WP9 — LBW (M, sim) · A5.11 [x]
 
 **Create** `src/SuperCricket.Simulation/Umpiring/LbwModel.cs`:
 1. Triggered when the ball's first contact after pitching is the batter's pad/body (needs a pad hit volume: a capsule per leg from the batter's pose, or a fixed stance capsule in the batch simulator).

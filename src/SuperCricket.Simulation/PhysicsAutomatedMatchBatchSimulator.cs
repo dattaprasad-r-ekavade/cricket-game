@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Simulation.Umpiring;
 
 namespace SuperCricket.Simulation;
 
@@ -148,7 +149,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         if (decision.Leave)
         {
             telemetry.Leaves++;
-            ResolveMissedDelivery(session, delivery);
+            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: false);
             match.CompleteDelivery();
             if (session.Dismissal == DismissalKind.Bowled)
                 telemetry.BowledDismissals++;
@@ -182,7 +183,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         if (!trajectory.Sample.ContactQuality.HasValue)
         {
             telemetry.Misses++;
-            ResolveMissedDelivery(session, delivery);
+            ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true);
             match.CompleteDelivery();
             if (session.Dismissal == DismissalKind.Bowled)
                 telemetry.BowledDismissals++;
@@ -266,6 +267,83 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 return;
             previous = current;
         }
+    }
+
+    internal static void ResolveMissedDeliveryWithPad(
+        DeliverySession session,
+        DeliveryPreset delivery,
+        Random random,
+        PhysicsMatchTelemetry? telemetry,
+        bool shotOffered)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(delivery);
+        ArgumentNullException.ThrowIfNull(random);
+        var ball = new BallFlightSimulator(delivery);
+        var previous = ball.CurrentFrame;
+        var firstBounce = BowlingAimModel.FindFirstBounce(delivery);
+        var maximumSteps = (int)MathF.Ceiling(delivery.MaximumSimulationSeconds / delivery.FixedTimeStepSeconds) + 1;
+        for (var step = 0; step < maximumSteps && previous.Phase != BallMotionPhase.Settled; step++)
+        {
+            var current = ball.Step();
+            if (!session.IsNoBall && session.Extra != DeliveryExtra.Wide &&
+                TryFindPadContact(previous, current, delivery, out var contact))
+            {
+                var decision = LbwModel.Evaluate(new LbwContact(
+                    contact.Position,
+                    contact.Velocity,
+                    delivery.BallRadiusMeters,
+                    delivery.PitchSurfaceHeightMeters,
+                    delivery.GravityMetersPerSecondSquared,
+                    delivery.PitchBounceRestitution,
+                    HasPitched: contact.BounceCount > 0,
+                    PitchedOutsideLeg: firstBounce is { } bounce && bounce.Position.X < -CricketPitchGeometry.WicketHalfWidthMeters,
+                    ImpactOutsideOffStump: contact.Position.X > CricketPitchGeometry.WicketHalfWidthMeters,
+                    ShotOffered: shotOffered),
+                    umpiresCallProbability: 0.35f,
+                    seed: random.Next());
+                if (decision.IsOut)
+                {
+                    session.ResolveLbw();
+                    if (telemetry is not null) telemetry.LbwDismissals++;
+                }
+                return;
+            }
+            if (IncomingDeliveryModel.TryResolve(session, previous.Position, current.Position, delivery, out _, out _))
+                return;
+            previous = current;
+        }
+    }
+
+    private static bool TryFindPadContact(
+        BallFlightFrame previous,
+        BallFlightFrame current,
+        DeliveryPreset delivery,
+        out BallFlightFrame contact)
+    {
+        const float batterX = -0.48f;
+        const float padCenterZ = BattingPracticeAnalyzer.BatterWicketLineZ;
+        const float padRadiusMeters = 0.52f;
+        const float padTopMeters = 0.98f;
+        contact = default;
+        if (previous.Position.Z <= padCenterZ || current.Position.Z > padCenterZ ||
+            current.Position.Z >= previous.Position.Z)
+            return false;
+
+        var fraction = (padCenterZ - previous.Position.Z) / (current.Position.Z - previous.Position.Z);
+        var position = Vector3.Lerp(previous.Position, current.Position, fraction);
+        var minimumHeight = delivery.PitchSurfaceHeightMeters + delivery.BallRadiusMeters;
+        if (MathF.Abs(position.X - batterX) > padRadiusMeters ||
+            position.Y < minimumHeight || position.Y > padTopMeters)
+            return false;
+
+        contact = new BallFlightFrame(
+            previous.TimeSeconds + (current.TimeSeconds - previous.TimeSeconds) * fraction,
+            position,
+            Vector3.Lerp(previous.Velocity, current.Velocity, fraction),
+            current.BounceCount,
+            current.Phase);
+        return true;
     }
 
     internal static void SimulateBattedBall(
@@ -387,6 +465,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         public int CompletedRuns { get; set; }
         public int RunOuts { get; set; }
         public int BowledDismissals { get; set; }
+        public int LbwDismissals { get; set; }
         public int WideDeliveries { get; set; }
         public int NoBallDeliveries { get; set; }
         public int Leaves { get; set; }
@@ -407,7 +486,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             BowledDismissals,
             WideDeliveries,
             NoBallDeliveries,
-            Leaves);
+            Leaves,
+            LbwDismissals);
     }
 
     private static void ValidateDelivery(

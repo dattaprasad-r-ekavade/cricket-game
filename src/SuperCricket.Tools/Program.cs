@@ -711,7 +711,7 @@ static void WriteMatchBatchCsv(
 
     using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
     {
-        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries,leaves");
+        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries,leaves,lbw_dismissals");
         foreach (var result in results)
         {
             var physics = result.PhysicsMetrics ?? default;
@@ -742,7 +742,8 @@ static void WriteMatchBatchCsv(
                 physics.BowledDismissals.ToString(CultureInfo.InvariantCulture),
                 physics.WideDeliveries.ToString(CultureInfo.InvariantCulture),
                 physics.NoBallDeliveries.ToString(CultureInfo.InvariantCulture),
-                physics.Leaves.ToString(CultureInfo.InvariantCulture)));
+                physics.Leaves.ToString(CultureInfo.InvariantCulture),
+                physics.LbwDismissals.ToString(CultureInfo.InvariantCulture)));
         }
     }
 

@@ -111,6 +111,16 @@ public sealed class DeliverySession
         _swapEndsOnRunOut = swapEnds;
     }
 
+    /// <summary>Applies an LBW dismissal without crediting batter or extra runs.</summary>
+    public void ResolveLbw()
+    {
+        EnsureActive();
+        if (IsNoBall || _extra == DeliveryExtra.Wide)
+            throw new InvalidOperationException("A batter cannot be given out LBW from a no-ball or wide.");
+        _dismissal = DismissalKind.Lbw;
+        _dismissedEnd = DismissedEnd.Striker;
+    }
+
     internal DeliveryResult Complete()
     {
         if (_isComplete)
