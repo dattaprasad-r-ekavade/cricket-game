@@ -202,7 +202,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 ---
 
-### WP6 — Timing gauge and feedback channels (M, wave 2, owns `MatchHudPresenter.cs`) · A5.6
+### WP6 — Timing gauge and feedback channels (M, wave 2, owns `MatchHudPresenter.cs`) · A5.6 [x]
 
 - Drive the existing live timing gauge (Step 62) from `TimingWindow`: seven coloured bands scaled to window width, a marker moving with the ball's distance; the Ideal band visibly narrows as difficulty rises and widens as the batter settles in. Hidden above the "Pro" difficulty, as now.
 - On commit, show the zone label (EARLY / PERFECT / LATE / VERY EARLY / VERY LATE / BEATEN) in a small inset near the batter for about 1 s, and put it on the result card.

@@ -186,7 +186,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
             decision.StrokeOutcome?.StrokeId ?? shotName));
         if (decision.StrokeOutcome is { Missed: true })
         {
-            ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
+            ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
+                decision.StrokeOutcome?.Zone);
             return;
         }
 
@@ -195,7 +196,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         {
             if (!TryBuildOutcomeFirstTrajectory(delivery, shotName, decision, strokeOutcome, out trajectory))
             {
-                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
+                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
+                    decision.StrokeOutcome?.Zone);
                 return;
             }
         }
@@ -213,7 +215,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 decision.HorizontalAim);
             if (!trajectory.Sample.ContactQuality.HasValue)
             {
-                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds);
+                ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
+                    decision.StrokeOutcome?.Zone);
                 return;
             }
         }
@@ -228,7 +231,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         var contactTimeSeconds = trajectory.Sample.ContactTimeSeconds ?? 0f;
         if (BowlingAimModel.FindFirstBounce(delivery) is { } firstBounce && firstBounce.TimeSeconds <= contactTimeSeconds)
             match.Events.Publish(new BallPitched(firstBounce.TimeSeconds, firstBounce.Position, firstBounce.BounceCount));
-        match.Events.Publish(new BatContact(contactTimeSeconds, contactPosition));
+        match.Events.Publish(new BatContact(contactTimeSeconds, contactPosition,
+            decision.StrokeOutcome?.Zone.ToString() ?? TimingZone.Ideal.ToString()));
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
         var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
@@ -404,10 +408,11 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset delivery,
         Random random,
         PhysicsMatchTelemetry telemetry,
-        float inputDelaySeconds)
+        float inputDelaySeconds,
+        TimingZone? timingZone = null)
     {
         telemetry.Misses++;
-        match.Events.Publish(new BallBeatBat(MathF.Max(0f, inputDelaySeconds)));
+        match.Events.Publish(new BallBeatBat(MathF.Max(0f, inputDelaySeconds), timingZone?.ToString()));
         ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: true, match.Events);
         match.CompleteDelivery();
         if (session.Dismissal == DismissalKind.Bowled)

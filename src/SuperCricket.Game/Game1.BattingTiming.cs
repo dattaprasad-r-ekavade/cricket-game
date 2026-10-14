@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
@@ -5,6 +7,8 @@ namespace SuperCricket.Game;
 public partial class Game1
 {
     private readonly BattingTimingCoordinator _battingTiming = new();
+    private readonly Dictionary<string, BatterTimingState> _batterTimingStates = new(StringComparer.Ordinal);
+    private int _batterTimingInningsNumber;
     private BattingTimingRequest? _shotBattingTimingRequest;
     private float? _shotIdealInputDelaySeconds;
 
@@ -42,4 +46,24 @@ public partial class Game1
     }
 
     private void CancelBattingTiming() => _battingTiming.Clear();
+
+    private BatterTimingState GetCurrentBatterTimingState()
+    {
+        if (_batterTimingInningsNumber != _match.InningsNumber)
+        {
+            _batterTimingStates.Clear();
+            _batterTimingInningsNumber = _match.InningsNumber;
+        }
+
+        var strikerId = _match.StrikerPlayer.Id;
+        if (!_batterTimingStates.TryGetValue(strikerId, out var state))
+            _batterTimingStates.Add(strikerId, state = new BatterTimingState());
+        return state;
+    }
+
+    private void ResetBatterTimingStates()
+    {
+        _batterTimingStates.Clear();
+        _batterTimingInningsNumber = _match.InningsNumber;
+    }
 }

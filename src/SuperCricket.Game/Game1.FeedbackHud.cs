@@ -10,7 +10,8 @@ public partial class Game1
 {
     private void DrawLiveFeedbackBanner()
     {
-        var timingCue = GetLiveBattingTimingCue();
+        var timingGauge = GetLiveBattingTimingGauge();
+        var timingCue = GetLiveBattingTimingCue(timingGauge);
         var hasContactFeedback = !IsHumanBowling && _liveFeedbackBannerRemainingSeconds > 0f &&
             (_contactFeedbackQuality is not null || _contactFeedbackIsMiss) && _chosenShot is not null;
         var feedback = MatchHudPresenter.BuildLiveFeedbackBanner(new LiveFeedbackBannerState(
@@ -29,7 +30,10 @@ public partial class Game1
             _cpuDifficulty,
             NearBatterZ,
             _shotControlLabel,
-            _gameSettings.BattingInputScheme));
+            _gameSettings.BattingInputScheme,
+            timingGauge,
+            _umpireSignalText,
+            _umpireSignalRemainingSeconds));
         if (feedback is not { } banner)
             return;
 
@@ -67,24 +71,64 @@ public partial class Game1
         for (var index = 0; index < detailLines.Count; index++)
             DrawOverlayText(detailLines[index], new Vector2(panel.X + 22, panel.Y + 46 + index * lineSpacing),
                 Color.White, detailScale);
-        if (timingCue is { } gauge)
-            DrawBattingTimingGauge(new Rectangle(panel.X + 22, panel.Bottom - 13, panel.Width - 44, 7), gauge);
+        if (timingGauge is { } gauge)
+            DrawBattingTimingGauge(new Rectangle(panel.X + 22, panel.Bottom - 14, panel.Width - 44, 9), gauge);
         _spriteBatch.End();
     }
 
-    private void DrawBattingTimingGauge(Rectangle bounds, BattingTimingCue cue)
+    private void DrawBattingTimingGauge(Rectangle bounds, TimingGaugePresentation gauge)
     {
-        _spriteBatch.Draw(_feedbackMapPixel, bounds, _gameSettings.HighContrast
-            ? new Color(72, 72, 72)
-            : new Color(60, 74, 80));
-        var targetStart = bounds.X + (int)MathF.Round(cue.WindowStart * bounds.Width);
-        var targetEnd = bounds.X + (int)MathF.Round(cue.WindowEnd * bounds.Width);
-        _spriteBatch.Draw(_feedbackMapPixel,
-            new Rectangle(targetStart, bounds.Y, Math.Max(2, targetEnd - targetStart), bounds.Height),
-            _gameSettings.HighContrast ? Color.Yellow : new Color(85, 208, 126));
-        var markerX = bounds.X + (int)MathF.Round(cue.Progress * (bounds.Width - 3));
+        foreach (var band in gauge.Bands)
+        {
+            var start = bounds.X + (int)MathF.Round(band.Start * bounds.Width);
+            var end = bounds.X + (int)MathF.Round(band.End * bounds.Width);
+            if (end <= start)
+                continue;
+            _spriteBatch.Draw(_feedbackMapPixel,
+                new Rectangle(start, bounds.Y, end - start, bounds.Height),
+                MatchHudPresenter.GetTimingGaugeBandColor(band.Zone, _gameSettings.HighContrast));
+        }
+        var markerX = bounds.X + (int)MathF.Round(gauge.Progress * (bounds.Width - 3));
         _spriteBatch.Draw(_feedbackMapPixel,
             new Rectangle(markerX, bounds.Y - 3, 3, bounds.Height + 6), Color.White);
+    }
+
+    private void DrawTimingZoneInset()
+    {
+        if (_timingZoneFeedbackText is not { } label || _timingZoneFeedbackRemainingSeconds <= 0f)
+            return;
+
+        var striker = GetBatterWorlds().Striker.Translation + Vector3.UnitY * 2.35f;
+        var projected = GraphicsDevice.Viewport.Project(
+            striker,
+            _worldEffect.Projection,
+            _worldEffect.View,
+            Matrix.Identity);
+        if (projected.Z is < 0f or > 1f)
+            return;
+
+        var scale = _gameSettings.LargeText ? 0.86f : 0.76f;
+        var textSize = _debugFont.MeasureString(label) * scale;
+        var bounds = MatchHudPresenter.CalculateTimingZoneInsetBounds(
+            GraphicsDevice.Viewport.Width,
+            GraphicsDevice.Viewport.Height,
+            new Point((int)MathF.Round(projected.X), (int)MathF.Round(projected.Y)),
+            (int)MathF.Ceiling(textSize.X) + 24,
+            (int)MathF.Ceiling(textSize.Y) + 12);
+        var alpha = Math.Clamp(_timingZoneFeedbackRemainingSeconds / 0.18f, 0f, 1f);
+        var background = WithAlpha(_gameSettings.HighContrast ? Color.Black : new Color(5, 12, 16), 0.96f * alpha);
+        var accent = WithAlpha(MatchHudPresenter.GetTimingGaugeBandColor(
+            _strokeResolution?.Zone ?? TimingZone.Ideal,
+            _gameSettings.HighContrast), alpha);
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
+        _spriteBatch.Draw(_feedbackMapPixel, bounds, background);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 3), accent);
+        DrawOverlayText(label,
+            new Vector2(bounds.X + (bounds.Width - textSize.X) * 0.5f, bounds.Y + 5),
+            accent,
+            scale);
+        _spriteBatch.End();
     }
 
     private void DrawDeliveryFeedbackCard()

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Batting;
 
 namespace SuperCricket.Game;
 
@@ -201,37 +203,58 @@ public partial class Game1
     private static Color WithAlpha(Color color, float alpha) =>
         new(color.R, color.G, color.B, (byte)MathF.Round(color.A * Math.Clamp(alpha, 0f, 1f)));
 
-    private BattingTimingCue? GetLiveBattingTimingCue()
+    private TimingGaugePresentation? GetLiveBattingTimingGauge()
     {
         if (IsCpuBattingControlled || IsHumanBowling || !_bowlerReleased || _deliveryComplete ||
             _battedBall || _chosenShot is not null || _shotResolved || _footworkTransitionActive ||
+            _cpuDifficulty == CpuDifficulty.Legend ||
             (_simulationPaused && _captureTarget is null))
             return null;
 
-        var possibleShots = MathF.Abs(_humanShotAimOffset) < 0.08f
-            ? new[] { "defence", "loft" }
-            : new[] { "drive", "loft" };
-        var safeWindowStart = float.NegativeInfinity;
-        var safeWindowEnd = float.PositiveInfinity;
-        foreach (var shotName in possibleShots)
-        {
-            var idealInputDelay = FindCurrentIdealInputDelaySeconds(shotName);
-            if (idealInputDelay is not { } ideal)
-                return null;
-            safeWindowStart = MathF.Max(safeWindowStart,
-                ideal - _battingTimingCalibration.OnTimeWindowSeconds);
-            safeWindowEnd = MathF.Min(safeWindowEnd,
-                ideal + _battingTimingCalibration.OnTimeWindowSeconds);
-        }
+        var horizontalAim = Math.Clamp(_humanShotAimOffset, -1f, 1f);
+        var forwardAim = Math.Clamp(_humanForwardShotAim, -1f, 1f);
+        if (MathF.Abs(horizontalAim) < 0.001f && MathF.Abs(forwardAim) < 0.001f)
+            forwardAim = 1f;
+        var direction = StrokeDirectionModel.FromAim(horizontalAim, forwardAim);
+        var leftHanded = _match.StrikerPlayer.Handedness == BatterHandedness.Left;
+        var ballCategory = BallCategoryClassifier.Classify(
+            _deliveryPreset,
+            BattingPracticeAnalyzer.BatterStanceX + _batterFootworkOffsetX,
+            leftHanded);
+        var requestedFoot = _gameSettings.BattingFootSelection == BattingFootSelection.Manual
+            ? StrokeFoot.Front
+            : StrokeFoot.Auto;
+        var selectedStroke = StrokeSelector.Select(
+            _strokeTable,
+            new StrokeRequest(direction, StrokeIntent.Attack, false, requestedFoot),
+            ballCategory);
+        var profile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        var idealWidth = TimingWindowModel.IdealWidth(
+            profile,
+            GetCurrentBatterTimingState(),
+            _match.StrikerPlayer,
+            selectedStroke.Foot,
+            direction,
+            loft: false);
+        var window = TimingWindowModel.Build(
+            profile.Timing.CentreMeters,
+            profile.Timing.WindowMeters,
+            idealWidth);
+        var distance = TimingWindowModel.DistanceToContactPlane(_ballFlight.CurrentFrame, BatterContactPlaneZ);
+        return MatchHudPresenter.BuildTimingGauge(window, distance);
+    }
 
-        if (safeWindowEnd <= safeWindowStart)
+    private BattingTimingCue? GetLiveBattingTimingCue(TimingGaugePresentation? gauge)
+    {
+        if (gauge is null)
             return null;
-        var safeIdealInputDelay = (safeWindowStart + safeWindowEnd) * 0.5f;
-        var safeWindowHalfWidth = (safeWindowEnd - safeWindowStart) * 0.5f;
-        return BattingTimingFeedbackModel.EvaluateCue(
-            _ballFlight.CurrentFrame.TimeSeconds,
-            safeIdealInputDelay,
-            safeWindowHalfWidth);
+        var idealBand = gauge.Bands.Single(band => band.Zone == TimingZone.Ideal);
+        var state = gauge.Progress < idealBand.Start
+            ? BattingTimingCueState.Waiting
+            : gauge.Progress <= idealBand.End
+                ? BattingTimingCueState.SwingNow
+                : BattingTimingCueState.WindowPassed;
+        return new BattingTimingCue(state, gauge.Progress, idealBand.Start, idealBand.End, 0f);
     }
 
 

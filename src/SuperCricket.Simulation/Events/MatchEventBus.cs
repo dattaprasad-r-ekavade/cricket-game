@@ -61,6 +61,8 @@ public sealed class MatchEventBus
             throw new ArgumentException(validationError, nameof(result));
 
         var totalRuns = result.BatterRuns + result.ExtraRuns;
+        if (result.Extra is DeliveryExtra.Wide or DeliveryExtra.NoBall)
+            Publish(new DeliveryExtraSignalled(0f, result.Extra.ToString()));
         if (totalRuns > 0)
             Publish(new RunCompleted(0f, totalRuns, result.BatterRuns, result.ExtraRuns, result.CompletedRuns));
         if (result.Dismissal is DismissalKind.Bowled or DismissalKind.RunOut)

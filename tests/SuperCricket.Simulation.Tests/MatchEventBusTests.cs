@@ -60,6 +60,21 @@ public sealed class MatchEventBusTests
         Assert.Equal(6, match.LegalBalls);
     }
 
+    [Theory]
+    [InlineData(DeliveryExtra.Wide, "Wide")]
+    [InlineData(DeliveryExtra.NoBall, "NoBall")]
+    public void CompletedIllegalDeliveryPublishesItsUmpireSignal(DeliveryExtra extra, string expected)
+    {
+        var bus = new MatchEventBus();
+        bus.BeginDelivery(1, 1);
+        var result = new DeliveryResult(0, 1, 0, IsLegal: false, Extra: extra);
+
+        bus.CompleteDelivery(result);
+
+        Assert.Contains(bus.DeliveryLogs[0].Events, matchEvent =>
+            matchEvent is DeliveryExtraSignalled { Extra: var label } && label == expected);
+    }
+
     [Fact]
     public void SeededBatchEventLogsReconcileWithBothInningsScorecards()
     {

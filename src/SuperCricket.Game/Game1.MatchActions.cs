@@ -118,7 +118,9 @@ public partial class Game1
         var profile = CpuDifficultyModel.GetProfile(
             _cpuDifficulty,
             IsCpuBattingControlled ? DifficultySide.Cpu : DifficultySide.Human);
-        var timingState = new BatterTimingState(_match.LegalBalls);
+        var timingState = IsCpuBattingControlled
+            ? new BatterTimingState(_match.LegalBalls)
+            : GetCurrentBatterTimingState();
         var idealWidth = TimingWindowModel.IdealWidth(
             profile,
             timingState,
@@ -142,6 +144,13 @@ public partial class Game1
             leftHanded,
             profile.Timing.AssistEnabled,
             new Random(GetStrokeOutcomeSeed(request, _shotInputDistanceMeters)));
+        if (!IsCpuBattingControlled)
+        {
+            _timingZoneFeedbackText = MatchHudPresenter.GetTimingZoneLabel(
+                _strokeResolution.Value.Zone,
+                _strokeResolution.Value.Missed);
+            _timingZoneFeedbackRemainingSeconds = 1f;
+        }
         _match.Events.Publish(new StrokePlayed(_ballFlight.CurrentFrame.TimeSeconds, _strokeResolution.Value.StrokeId));
         _chosenShot = CopyShotWithAim(authoredShot, horizontalAim, forwardAim, animationClipOverride ?? selectedStroke.AnimationClip);
         RecordShotTiming(name);
@@ -481,12 +490,10 @@ public partial class Game1
         {
             case IncomingDeliveryResolution.NoBall:
                 _shotOutcome = "NO-BALL: one penalty run, delivery not counted";
-                PlayAudio(CricketAudioCue.Extra);
                 FinishDelivery();
                 break;
             case IncomingDeliveryResolution.Wide:
                 _shotOutcome = "WIDE: one extra run, delivery not counted";
-                PlayAudio(CricketAudioCue.Extra);
                 FinishDelivery();
                 break;
             case IncomingDeliveryResolution.Bowled:
@@ -515,8 +522,6 @@ public partial class Game1
             _runRequestedPending = false;
 
         var collectionAction = BattedBallFieldingModel.ResolveCollection(CurrentDelivery, contact.Kind, _isRunning);
-        if (contact.Kind == FieldingContactKind.Catch && CurrentDelivery.IsNoBall)
-            PlayAudio(CricketAudioCue.Extra);
         if (collectionAction == FieldingCollectionAction.CaughtDismissal)
         {
             _cpuRunsRemaining = 0;
@@ -580,7 +585,6 @@ public partial class Game1
     {
         CurrentDelivery.ResolveBoundary(crossing.ClearedInTheAir, _isRunning && _runners.CurrentRunCrossed);
         _shotOutcome = crossing.ClearedInTheAir ? "SIX: cleared the boundary" : "FOUR: reached the boundary";
-        PlayAudio(CricketAudioCue.Boundary);
         _cpuRunsRemaining = 0;
         _runRequestedPending = false;
         _runners.Stop();
@@ -592,6 +596,13 @@ public partial class Game1
     {
         if (_deliveryComplete)
             return;
+
+        if (!IsCpuBattingControlled && _bowlerReleased && CurrentDelivery.Extra != DeliveryExtra.Wide)
+        {
+            var zone = _strokeResolution?.Zone ?? TimingZone.Early;
+            GetCurrentBatterTimingState().RegisterBall(zone, _bodyHitThisDelivery, _strokeResolution?.Missed == true);
+            _bodyHitThisDelivery = false;
+        }
 
         _matchController.CompleteDelivery();
         _runners.Stop();

@@ -52,6 +52,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly float? _captureBatterFootworkActionTimeSeconds;
     private readonly bool _captureBowlingTarget;
     private readonly bool _captureFeedbackPreview;
+    private readonly bool _captureTimingGaugePreview;
     private readonly bool _captureFieldInsetPreview;
     private readonly CpuDifficulty? _captureDifficultyOverride;
     private readonly bool _captureCameraPresetSpecified;
@@ -63,6 +64,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private Texture2D _feedbackMapDot = null!;
     private Texture2D _feedbackMapRing = null!;
     private readonly Dictionary<CricketAudioCue, SoundEffect> _audioCues = [];
+    private readonly List<IDisposable> _matchFeedbackSubscriptions = [];
     private BasicEffect _worldEffect = null!;
     private BasicEffect _crowdEffect = null!;
     private BasicEffect _surfaceEffect = null!;
@@ -128,7 +130,15 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _bowlerReleased;
     private bool _showDebugOverlay;
     private bool _lastInputWasGamePad;
+    private bool _bodyHitThisDelivery;
     private float _runHoldElapsed;
+    private GamePadFeedbackCue _activeGamePadFeedbackCue;
+    private float _gamePadFeedbackElapsedSeconds;
+    private float _gamePadFeedbackRemainingSeconds;
+    private string? _umpireSignalText;
+    private float _umpireSignalRemainingSeconds;
+    private string? _timingZoneFeedbackText;
+    private float _timingZoneFeedbackRemainingSeconds;
     private float _bowlingAimOffsetX;
     private float _bowlingAimOffsetZ;
     private Vector3? _bowlingTargetMarkerPosition;
@@ -231,7 +241,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         bool captureBowlingTarget = false,
         bool captureFeedbackPreview = false,
         CpuDifficulty? captureDifficultyOverride = null,
-        bool captureFieldInsetPreview = false)
+        bool captureFieldInsetPreview = false,
+        bool captureTimingGaugePreview = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -249,7 +260,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
             captureFeedbackPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
-                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null) ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null || captureTimingGaugePreview) ||
+            captureTimingGaugePreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null || captureBowlingTarget ||
+                captureFieldInsetPreview) ||
             captureFieldInsetPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
@@ -270,6 +285,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureBallFlightTimeSeconds = captureBallFlightTimeSeconds;
         _captureBowlingTarget = captureBowlingTarget;
         _captureFeedbackPreview = captureFeedbackPreview;
+        _captureTimingGaugePreview = captureTimingGaugePreview;
         _captureFieldInsetPreview = captureFieldInsetPreview;
         _captureDifficultyOverride = captureDifficultyOverride;
         _captureCameraPresetSpecified = captureCameraPreset is not null;

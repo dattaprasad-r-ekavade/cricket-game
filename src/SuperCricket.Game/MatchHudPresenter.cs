@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Events;
 
 namespace SuperCricket.Game;
 
@@ -107,9 +108,33 @@ internal readonly record struct LiveFeedbackBannerState(
     CpuDifficulty Difficulty,
     float BatterWicketLineZ,
     string? ShotControlLabel = null,
-    BattingInputScheme InputScheme = BattingInputScheme.Directional);
+    BattingInputScheme InputScheme = BattingInputScheme.Directional,
+    TimingGaugePresentation? TimingGauge = null,
+    string? UmpireSignal = null,
+    float UmpireSignalRemainingSeconds = 0f);
 
 internal readonly record struct HudActionHint(string Input, string Action);
+
+internal readonly record struct TimingGaugeBand(TimingZone Zone, float Start, float End);
+
+internal sealed record TimingGaugePresentation(
+    IReadOnlyList<TimingGaugeBand> Bands,
+    float Progress,
+    TimingZone CurrentZone);
+
+internal enum GamePadFeedbackCue
+{
+    None,
+    IdealContact,
+    EdgeContact,
+    BodyHit
+}
+
+internal readonly record struct GamePadFeedbackProfile(
+    float LeftMotor,
+    float RightMotor,
+    float DurationSeconds,
+    float PulseSeconds);
 
 internal readonly record struct LiveFeedbackBannerContent(
     string Title,
@@ -120,6 +145,136 @@ internal readonly record struct LiveFeedbackBannerContent(
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static TimingGaugePresentation BuildTimingGauge(TimingWindow window, float ballDistanceMeters)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        if (!float.IsFinite(ballDistanceMeters))
+            throw new ArgumentOutOfRangeException(nameof(ballDistanceMeters));
+
+        var rangeStart = window.CentreMeters + window.WindowMeters;
+        var rangeEnd = window.CentreMeters - window.WindowMeters;
+        var span = rangeStart - rangeEnd;
+        var zones = new[]
+        {
+            TimingZone.TooEarly,
+            TimingZone.Start,
+            TimingZone.Early,
+            TimingZone.Ideal,
+            TimingZone.Late,
+            TimingZone.End,
+            TimingZone.TooLate
+        };
+        var bands = new TimingGaugeBand[zones.Length];
+        for (var index = 0; index < zones.Length; index++)
+        {
+            var band = window.GetBand(zones[index]);
+            var clippedMinimum = Math.Clamp(band.MinimumDistanceMeters, rangeEnd, rangeStart);
+            var clippedMaximum = Math.Clamp(band.MaximumDistanceMeters, rangeEnd, rangeStart);
+            bands[index] = new TimingGaugeBand(
+                zones[index],
+                Math.Clamp((rangeStart - clippedMaximum) / span, 0f, 1f),
+                Math.Clamp((rangeStart - clippedMinimum) / span, 0f, 1f));
+        }
+
+        return new TimingGaugePresentation(
+            bands,
+            Math.Clamp((rangeStart - ballDistanceMeters) / span, 0f, 1f),
+            TimingWindowModel.Classify(window, ballDistanceMeters));
+    }
+
+    public static Rectangle CalculateTimingZoneInsetBounds(
+        int viewportWidth,
+        int viewportHeight,
+        Point batterAnchor,
+        int width,
+        int height)
+    {
+        if (viewportWidth < 1 || viewportHeight < 1 || width < 1 || height < 1)
+            throw new ArgumentOutOfRangeException(nameof(viewportWidth), "Viewport and inset dimensions must be positive.");
+
+        var insetWidth = Math.Min(width, Math.Max(1, viewportWidth - 16));
+        var insetHeight = Math.Min(height, Math.Max(1, viewportHeight - 16));
+        var x = Math.Clamp(batterAnchor.X - insetWidth / 2, 0, viewportWidth - insetWidth);
+        var y = Math.Clamp(batterAnchor.Y - insetHeight - 18, 0, viewportHeight - insetHeight);
+        return new Rectangle(x, y, insetWidth, insetHeight);
+    }
+
+    public static Color GetTimingGaugeBandColor(TimingZone zone, bool highContrast) => highContrast
+        ? zone == TimingZone.Ideal ? Color.Yellow : zone is TimingZone.Early or TimingZone.Late ? Color.White : new Color(132, 132, 132)
+        : zone switch
+        {
+            TimingZone.TooEarly or TimingZone.TooLate => new Color(164, 62, 57),
+            TimingZone.Start or TimingZone.End => new Color(227, 124, 45),
+            TimingZone.Early or TimingZone.Late => new Color(236, 196, 54),
+            TimingZone.Ideal => new Color(77, 190, 101),
+            _ => throw new ArgumentOutOfRangeException(nameof(zone))
+        };
+
+    public static string GetTimingZoneLabel(TimingZone zone, bool missed = false)
+    {
+        if (!Enum.IsDefined(zone))
+            throw new ArgumentOutOfRangeException(nameof(zone));
+        if (missed || zone is TimingZone.TooEarly or TimingZone.TooLate)
+            return "BEATEN";
+        return zone switch
+        {
+            TimingZone.Start => "VERY EARLY",
+            TimingZone.Early => "EARLY",
+            TimingZone.Ideal => "PERFECT",
+            TimingZone.Late => "LATE",
+            TimingZone.End => "VERY LATE",
+            _ => "BEATEN"
+        };
+    }
+
+    public static CricketAudioCue GetTimingAudioCue(TimingZone zone, bool missed = false)
+    {
+        if (!Enum.IsDefined(zone))
+            throw new ArgumentOutOfRangeException(nameof(zone));
+        if (missed || zone is TimingZone.TooEarly or TimingZone.TooLate)
+            return CricketAudioCue.BatBeaten;
+        return zone == TimingZone.Ideal ? CricketAudioCue.BatContact : CricketAudioCue.BatContactEdge;
+    }
+
+    public static CricketAudioCue? GetTimingAudioCue(MatchEvent matchEvent) => matchEvent switch
+    {
+        BatContact contact when Enum.TryParse<TimingZone>(contact.TimingZone, out var zone) => GetTimingAudioCue(zone),
+        BallBeatBat { TimingZone: { } zoneName } when Enum.TryParse<TimingZone>(zoneName, out var zone) =>
+            GetTimingAudioCue(zone, missed: true),
+        BodyHit => CricketAudioCue.BodyHit,
+        _ => null
+    };
+
+    public static GamePadFeedbackCue GetGamePadFeedbackCue(MatchEvent matchEvent) => matchEvent switch
+    {
+        BodyHit => GamePadFeedbackCue.BodyHit,
+        BatContact contact when Enum.TryParse<TimingZone>(contact.TimingZone, out var zone) && zone == TimingZone.Ideal =>
+            GamePadFeedbackCue.IdealContact,
+        BatContact => GamePadFeedbackCue.EdgeContact,
+        BallBeatBat { TimingZone: { } zoneName } when Enum.TryParse<TimingZone>(zoneName, out var zone) &&
+            zone is not (TimingZone.TooEarly or TimingZone.TooLate) => GamePadFeedbackCue.EdgeContact,
+        _ => GamePadFeedbackCue.None
+    };
+
+    public static GamePadFeedbackProfile? GetGamePadFeedbackProfile(GamePadFeedbackCue cue) => cue switch
+    {
+        GamePadFeedbackCue.IdealContact => new GamePadFeedbackProfile(0.95f, 0.95f, 0.15f, 0f),
+        GamePadFeedbackCue.EdgeContact => new GamePadFeedbackProfile(0.72f, 0.72f, 0.38f, 0.055f),
+        GamePadFeedbackCue.BodyHit => new GamePadFeedbackProfile(0.62f, 0.62f, 0.68f, 0f),
+        GamePadFeedbackCue.None => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(cue))
+    };
+
+    public static string? GetUmpireSignalLabel(MatchEvent matchEvent) => matchEvent switch
+    {
+        Boundary { Runs: 4 } => "FOUR",
+        Boundary { Runs: 6 } => "SIX",
+        DeliveryExtraSignalled { Extra: "Wide" } => "WIDE",
+        DeliveryExtraSignalled { Extra: "NoBall" } => "NO BALL",
+        UmpireDecision { IsOut: true } or WicketBroken or Dismissal => "OUT",
+        _ => null
+    };
+
     public static string[] BuildCompactOverlayLines(CompactMatchOverlayState state)
     {
         var eventText = state.ShotOutcome.Length > 72 ? state.ShotOutcome[..69] + "..." : state.ShotOutcome;
@@ -154,6 +309,28 @@ internal static class MatchHudPresenter
 
     public static LiveFeedbackBannerContent? BuildLiveFeedbackBanner(LiveFeedbackBannerState state)
     {
+        if (!string.IsNullOrWhiteSpace(state.UmpireSignal) && state.UmpireSignalRemainingSeconds > 0f)
+        {
+            var signalAccent = state.HighContrast ? Color.Yellow : state.UmpireSignal switch
+            {
+                "OUT" => new Color(255, 103, 91),
+                "WIDE" or "NO BALL" => new Color(255, 193, 67),
+                _ => new Color(135, 255, 159)
+            };
+            return new LiveFeedbackBannerContent(
+                $"UMPIRE | {state.UmpireSignal}",
+                state.UmpireSignal switch
+                {
+                    "FOUR" or "SIX" => "Boundary awarded",
+                    "WIDE" => "Wide called",
+                    "NO BALL" => "No-ball called",
+                    "OUT" => "Wicket awarded",
+                    _ => "Umpire decision"
+                },
+                signalAccent,
+                state.UmpireSignalRemainingSeconds);
+        }
+
         if (state.IsHumanBowling && state.ActiveBowlingTargetPosition is { } target &&
             state.FirstBouncePosition is { } landing && state.RemainingSeconds > 0f)
         {

@@ -19,6 +19,10 @@ public partial class Game1
 {
     protected override void UnloadContent()
     {
+        foreach (var subscription in _matchFeedbackSubscriptions)
+            subscription.Dispose();
+        _matchFeedbackSubscriptions.Clear();
+        StopGamePadFeedback();
         CancelBattingTiming();
         _playerRenderer?.Dispose();
         _bowlerRenderer?.Dispose();

@@ -20,6 +20,9 @@ public static class ProceduralCricketAudioReviewChecks
                 CricketAudioCue.Boundary => 0.48f,
                 CricketAudioCue.Wicket => 0.30f,
                 CricketAudioCue.Extra => 0.18f,
+                CricketAudioCue.BatContactEdge => 0.12f,
+                CricketAudioCue.BatBeaten => 0.13f,
+                CricketAudioCue.BodyHit => 0.34f,
                 _ => throw new ArgumentOutOfRangeException(nameof(cue), cue, "Unknown cricket audio cue.")
             };
             Require(first.Length == (int)MathF.Round(ProceduralCricketAudio.SampleRate * durationSeconds) * sizeof(short),
@@ -50,7 +53,7 @@ public static class ProceduralCricketAudioReviewChecks
         {
         }
 
-        Console.WriteLine("PASS: bat, boundary, wicket, and extra cues generate distinct, deterministic, clean-edged 16-bit PCM drafts.");
+        Console.WriteLine("PASS: bat timing, body-hit, boundary, wicket, and extra cues generate distinct deterministic 16-bit PCM drafts.");
     }
 
     private static void Require(bool condition, string message)

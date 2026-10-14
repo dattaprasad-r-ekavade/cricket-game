@@ -7,7 +7,10 @@ public enum CricketAudioCue
     BatContact,
     Boundary,
     Wicket,
-    Extra
+    Extra,
+    BatContactEdge,
+    BatBeaten,
+    BodyHit
 }
 
 /// <summary>Builds deterministic PCM sound-effect drafts for the early playable slice.</summary>
@@ -23,6 +26,9 @@ public static class ProceduralCricketAudio
             CricketAudioCue.Boundary => 0.48f,
             CricketAudioCue.Wicket => 0.30f,
             CricketAudioCue.Extra => 0.18f,
+            CricketAudioCue.BatContactEdge => 0.12f,
+            CricketAudioCue.BatBeaten => 0.13f,
+            CricketAudioCue.BodyHit => 0.34f,
             _ => throw new ArgumentOutOfRangeException(nameof(cue), cue, "Unknown cricket audio cue.")
         };
         var sampleCount = (int)MathF.Round(SampleRate * durationSeconds);
@@ -39,6 +45,9 @@ public static class ProceduralCricketAudio
                 CricketAudioCue.Boundary => CreateBoundary(time, durationSeconds),
                 CricketAudioCue.Wicket => CreateWicket(time, durationSeconds, randomNoise),
                 CricketAudioCue.Extra => CreateExtra(time, durationSeconds, randomNoise),
+                CricketAudioCue.BatContactEdge => CreateBatContactEdge(time, durationSeconds, randomNoise),
+                CricketAudioCue.BatBeaten => CreateBatBeaten(time, durationSeconds, randomNoise),
+                CricketAudioCue.BodyHit => CreateBodyHit(time, durationSeconds, randomNoise),
                 _ => throw new ArgumentOutOfRangeException(nameof(cue), cue, "Unknown cricket audio cue.")
             };
             var amplitude = (short)MathF.Round(Math.Clamp(wave * envelope, -0.92f, 0.92f) * short.MaxValue);
@@ -87,5 +96,29 @@ public static class ProceduralCricketAudio
         var envelope = attack * MathF.Exp(-time * 18f) * Math.Clamp(1f - time / duration, 0f, 1f);
         var alertTone = MathF.Sin(2f * MathF.PI * 610f * time);
         return (alertTone * 0.55f + noise * 0.08f, envelope);
+    }
+
+    private static (float Wave, float Envelope) CreateBatContactEdge(float time, float duration, float noise)
+    {
+        var envelope = Math.Clamp(time * 300f, 0f, 1f) *
+            MathF.Exp(-time * 35f) * Math.Clamp(1f - time / duration, 0f, 1f);
+        var thinTone = MathF.Sin(2f * MathF.PI * (940f - 120f * time) * time);
+        return (thinTone * 0.72f + noise * 0.12f, envelope);
+    }
+
+    private static (float Wave, float Envelope) CreateBatBeaten(float time, float duration, float noise)
+    {
+        var envelope = Math.Clamp(time * 180f, 0f, 1f) *
+            MathF.Exp(-time * 24f) * Math.Clamp(1f - time / duration, 0f, 1f);
+        var mutedTone = MathF.Sin(2f * MathF.PI * (138f - 45f * time) * time);
+        return (mutedTone * 0.34f + noise * 0.12f, envelope);
+    }
+
+    private static (float Wave, float Envelope) CreateBodyHit(float time, float duration, float noise)
+    {
+        var envelope = Math.Clamp(time * 150f, 0f, 1f) *
+            MathF.Exp(-time * 8f) * Math.Clamp(1f - time / duration, 0f, 1f);
+        var lowThud = MathF.Sin(2f * MathF.PI * 72f * time);
+        return (lowThud * 0.62f + noise * 0.18f, envelope);
     }
 }

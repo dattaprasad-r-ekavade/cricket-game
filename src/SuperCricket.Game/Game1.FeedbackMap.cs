@@ -137,8 +137,12 @@ public partial class Game1
 
     private string? GetBattingTimingText()
     {
-        if (IsCpuBattingControlled || _chosenShot is not { } shot ||
-            _shotInputDelaySeconds is not { } actualInputDelay)
+        if (IsCpuBattingControlled || _chosenShot is not { } shot)
+            return null;
+
+        if (_strokeResolution is { } outcome)
+            return MatchHudPresenter.GetTimingZoneLabel(outcome.Zone, outcome.Missed);
+        if (_shotInputDelaySeconds is not { } actualInputDelay)
             return null;
 
         var idealInputDelay = FindShotIdealInputDelaySeconds(shot.Name);
@@ -186,6 +190,34 @@ public partial class Game1
         _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds * 0.82f;
         _matchController.CompleteDelivery();
         _shotResolved = true;
+        _simulationPaused = true;
+    }
+
+    private void PrepareTimingGaugePreviewCapture()
+    {
+        _gameSettings.HighContrast = false;
+        var timingState = GetCurrentBatterTimingState();
+        for (var ball = timingState.BallsFaced; ball < 24; ball++)
+            timingState.RegisterBall(TimingZone.Ideal, bodyHit: false, beaten: false);
+
+        var gauge = GetLiveBattingTimingGauge()
+            ?? throw new InvalidOperationException("The timing-gauge preview could not create a live timing window.");
+        for (var step = 0; gauge.CurrentZone != TimingZone.Ideal &&
+            _ballFlight.CurrentFrame.Phase != BallMotionPhase.Settled && step < 2_000; step++)
+        {
+            var previous = _ballFlight.CurrentFrame;
+            var frame = _ballFlight.Step();
+            _trajectoryVertices.Add(new VertexPositionColor(
+                ToXna(frame.Position) + new Vector3(0f, 0.01f, 0f),
+                GetBallTrailColor(frame.Velocity.Length())));
+            gauge = GetLiveBattingTimingGauge()
+                ?? throw new InvalidOperationException("The timing-gauge preview lost its timing window.");
+            if (frame.Position == previous.Position)
+                break;
+        }
+
+        if (gauge.CurrentZone != TimingZone.Ideal)
+            throw new InvalidOperationException("The timing-gauge preview could not place the ball in the Ideal band.");
         _simulationPaused = true;
     }
 }

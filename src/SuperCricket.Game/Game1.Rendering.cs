@@ -117,6 +117,7 @@ public partial class Game1
         }
         DrawDeliveryFeedbackCard();
         DrawDebugOverlay();
+        DrawTimingZoneInset();
         DrawLiveFeedbackBanner();
         DrawBattingFieldInset();
         base.Draw(gameTime);

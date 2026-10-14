@@ -44,6 +44,7 @@ public partial class Game1
     {
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
+        UpdateGamePadFeedback(elapsedSeconds);
         _inputRouter.BeginKeyboardFrame(keyboard);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
         bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
@@ -417,7 +418,7 @@ public partial class Game1
                         _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                         _shotResolved = true;
                         _shotOutcome = $"BEATEN: {_chosenShot.Name} was outside the {strokeOutcome.Zone} zone";
-                        _match.Events.Publish(new BallBeatBat(_contactTimeSeconds.Value));
+                        _match.Events.Publish(new BallBeatBat(_contactTimeSeconds.Value, strokeOutcome.Zone.ToString()));
                     }
                     else
                     {
@@ -438,7 +439,10 @@ public partial class Game1
                         _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
                         _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                         _ballFlight.ApplyBatContact(ToNumerics(resolvedContactPosition), strokeOutcome.OutgoingVelocity);
-                        _match.Events.Publish(new BatContact(_contactTimeSeconds.Value, ToNumerics(resolvedContactPosition)));
+                        _match.Events.Publish(new BatContact(
+                            _contactTimeSeconds.Value,
+                            ToNumerics(resolvedContactPosition),
+                            strokeOutcome.Zone.ToString()));
                         frame = _ballFlight.CurrentFrame;
                         fieldingPreviousFrame = frame;
                         fieldingElapsed *= 1f - contactFraction;
@@ -447,7 +451,6 @@ public partial class Game1
                         _camera.SelectPreset("ball-follow");
                         _fieldingSide.Reset();
                         _shotOutcome = $"HIT: {_chosenShot.Name} {strokeOutcome.Zone}, {contactQuality:0.00} quality at {outgoingVelocity.Length():0.0} m/s";
-                        PlayAudio(CricketAudioCue.BatContact);
                         if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
                         {
                             var fieldingPlayers = _match.FieldingPlayers;
@@ -481,7 +484,7 @@ public partial class Game1
                     _contactFeedbackRemainingSeconds = ContactFeedbackDurationSeconds;
                     _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                     _shotOutcome = $"MISS: {_chosenShot.Name} swung outside contact";
-                    _match.Events.Publish(new BallBeatBat(frame.TimeSeconds));
+                    _match.Events.Publish(new BallBeatBat(frame.TimeSeconds, _strokeResolution?.Zone.ToString()));
                 }
 
                 if (!_deliveryComplete && !_battedBall && IncomingDeliveryModel.TryResolve(

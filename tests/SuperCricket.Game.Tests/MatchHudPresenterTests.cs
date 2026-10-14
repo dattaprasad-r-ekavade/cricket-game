@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using SuperCricket.Game;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Events;
 
 namespace SuperCricket.Game.Tests;
 
@@ -109,6 +110,115 @@ public sealed class MatchHudPresenterTests
     {
         Assert.Equal(expected, MatchHudPresenter.FormatBattingTimingText(
             new BattingTimingAssessment(Enum.Parse<BattingTimingBand>(band), offsetSeconds)));
+    }
+
+    [Fact]
+    public void TimingGaugePresentsSevenContiguousBandsScaledToTheIdealWidth()
+    {
+        var settledWindow = TimingWindowModel.Build(0f, 2f, 0.8f);
+        var gauge = MatchHudPresenter.BuildTimingGauge(settledWindow, 0f);
+        Assert.Equal(7, gauge.Bands.Count);
+        Assert.Equal(TimingZone.TooEarly, gauge.Bands[0].Zone);
+        Assert.Equal(TimingZone.TooLate, gauge.Bands[^1].Zone);
+        Assert.Equal(0f, gauge.Bands[0].Start, 6);
+        Assert.Equal(1f, gauge.Bands[^1].End, 6);
+        for (var index = 1; index < gauge.Bands.Count; index++)
+            Assert.Equal(gauge.Bands[index - 1].End, gauge.Bands[index].Start, 6);
+        Assert.Equal(TimingZone.Ideal, gauge.CurrentZone);
+        Assert.Equal(0.5f, gauge.Progress, 6);
+
+        var narrow = MatchHudPresenter.BuildTimingGauge(TimingWindowModel.Build(0f, 2f, 0.2f), 0f);
+        var narrowIdeal = Assert.Single(narrow.Bands, band => band.Zone == TimingZone.Ideal);
+        var wideIdeal = Assert.Single(gauge.Bands, band => band.Zone == TimingZone.Ideal);
+        Assert.True(wideIdeal.End - wideIdeal.Start > narrowIdeal.End - narrowIdeal.Start);
+    }
+
+    [Theory]
+    [InlineData("TooLate", "BEATEN")]
+    [InlineData("Start", "VERY EARLY")]
+    [InlineData("Early", "EARLY")]
+    [InlineData("Ideal", "PERFECT")]
+    [InlineData("Late", "LATE")]
+    [InlineData("End", "VERY LATE")]
+    [InlineData("TooEarly", "BEATEN")]
+    public void TimingZoneLabelsCoverEveryBand(string zone, string expected) =>
+        Assert.Equal(expected, MatchHudPresenter.GetTimingZoneLabel(Enum.Parse<TimingZone>(zone)));
+
+    [Fact]
+    public void MissedTimingAlwaysUsesTheBeatenLabel()
+    {
+        Assert.Equal("BEATEN", MatchHudPresenter.GetTimingZoneLabel(TimingZone.Ideal, missed: true));
+        Assert.Equal("BEATEN", MatchHudPresenter.GetTimingZoneLabel(TimingZone.Start, missed: true));
+    }
+
+    [Fact]
+    public void UmpireSignalMappingCoversBoundariesExtrasAndDismissals()
+    {
+        Assert.Equal("FOUR", MatchHudPresenter.GetUmpireSignalLabel(new Boundary(1f, 4, false, null)));
+        Assert.Equal("SIX", MatchHudPresenter.GetUmpireSignalLabel(new Boundary(1f, 6, true, null)));
+        Assert.Equal("WIDE", MatchHudPresenter.GetUmpireSignalLabel(new DeliveryExtraSignalled(1f, "Wide")));
+        Assert.Equal("NO BALL", MatchHudPresenter.GetUmpireSignalLabel(new DeliveryExtraSignalled(1f, "NoBall")));
+        Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new UmpireDecision(1f, true, "LBW")));
+        Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new WicketBroken(1f, "Bowled")));
+        Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new Dismissal(1f, "Caught", "Striker")));
+        Assert.Null(MatchHudPresenter.GetUmpireSignalLabel(new UmpireDecision(1f, false, "LBW")));
+        Assert.Null(MatchHudPresenter.GetUmpireSignalLabel(new RunCompleted(1f, 1, 1, 0, 1)));
+    }
+
+    [Fact]
+    public void TimingEventsMapToAudioAndGamePadFeedbackByZone()
+    {
+        foreach (var zone in Enum.GetValues<TimingZone>())
+        {
+            var eventName = zone.ToString();
+            var contact = new BatContact(1f, System.Numerics.Vector3.Zero, eventName);
+            var expectedAudio = zone switch
+            {
+                TimingZone.Ideal => CricketAudioCue.BatContact,
+                TimingZone.TooEarly or TimingZone.TooLate => CricketAudioCue.BatBeaten,
+                _ => CricketAudioCue.BatContactEdge
+            };
+            var expectedRumble = zone == TimingZone.Ideal
+                ? GamePadFeedbackCue.IdealContact
+                : GamePadFeedbackCue.EdgeContact;
+            Assert.Equal(expectedAudio, MatchHudPresenter.GetTimingAudioCue(contact));
+            Assert.Equal(expectedRumble, MatchHudPresenter.GetGamePadFeedbackCue(contact));
+        }
+
+        var missed = new BallBeatBat(1f, TimingZone.Early.ToString());
+        Assert.Equal(CricketAudioCue.BatBeaten, MatchHudPresenter.GetTimingAudioCue(missed));
+        Assert.Equal(GamePadFeedbackCue.EdgeContact, MatchHudPresenter.GetGamePadFeedbackCue(missed));
+        var bodyHit = new BodyHit(1f, System.Numerics.Vector3.Zero);
+        Assert.Equal(CricketAudioCue.BodyHit, MatchHudPresenter.GetTimingAudioCue(bodyHit));
+        Assert.Equal(GamePadFeedbackCue.BodyHit, MatchHudPresenter.GetGamePadFeedbackCue(bodyHit));
+        Assert.Equal(GamePadFeedbackCue.None, MatchHudPresenter.GetGamePadFeedbackCue(new DeliveryReleased(0f, 1, 1)));
+
+        var idealProfile = MatchHudPresenter.GetGamePadFeedbackProfile(GamePadFeedbackCue.IdealContact)!.Value;
+        var edgeProfile = MatchHudPresenter.GetGamePadFeedbackProfile(GamePadFeedbackCue.EdgeContact)!.Value;
+        var bodyProfile = MatchHudPresenter.GetGamePadFeedbackProfile(GamePadFeedbackCue.BodyHit)!.Value;
+        Assert.True(idealProfile.LeftMotor > edgeProfile.LeftMotor && idealProfile.DurationSeconds < edgeProfile.DurationSeconds);
+        Assert.True(edgeProfile.PulseSeconds > 0f && bodyProfile.DurationSeconds > edgeProfile.DurationSeconds);
+        Assert.Null(MatchHudPresenter.GetGamePadFeedbackProfile(GamePadFeedbackCue.None));
+    }
+
+    [Fact]
+    public void UmpireSignalGetsAnImmediateReadableLiveBanner()
+    {
+        var content = MatchHudPresenter.BuildLiveFeedbackBanner(CreateLiveFeedbackState(
+            umpireSignal: "NO BALL",
+            umpireSignalRemainingSeconds: 1f));
+        Assert.NotNull(content);
+        Assert.Equal("UMPIRE | NO BALL", content.Value.Title);
+        Assert.Equal("No-ball called", content.Value.Detail);
+    }
+
+    [Fact]
+    public void TimingZoneInsetStaysInsideTheViewportNearTheBatterAnchor()
+    {
+        var inset = MatchHudPresenter.CalculateTimingZoneInsetBounds(1440, 900, new Point(710, 450), 180, 44);
+        Assert.Equal(new Rectangle(620, 388, 180, 44), inset);
+        var clamped = MatchHudPresenter.CalculateTimingZoneInsetBounds(320, 180, new Point(0, 0), 400, 200);
+        Assert.Equal(new Rectangle(0, 0, 304, 164), clamped);
     }
 
     [Fact]
@@ -583,7 +693,9 @@ public sealed class MatchHudPresenterTests
         bool hasPredictedBounce = false,
         CpuDifficulty difficulty = CpuDifficulty.Standard,
         float batterWicketLineZ = -8.72f,
-        string? shotControlLabel = null) => new(
+        string? shotControlLabel = null,
+        string? umpireSignal = null,
+        float umpireSignalRemainingSeconds = 0f) => new(
             isHumanBowling,
             activeTarget,
             firstBounce,
@@ -598,7 +710,9 @@ public sealed class MatchHudPresenterTests
             hasPredictedBounce,
             difficulty,
             batterWicketLineZ,
-            shotControlLabel);
+            shotControlLabel,
+            UmpireSignal: umpireSignal,
+            UmpireSignalRemainingSeconds: umpireSignalRemainingSeconds);
 
     private static string Hint(bool isGamePad, MatchHudPhase phase) =>
         MatchHudPresenter.GetPrimaryControlHint(new MatchHudState(isGamePad, phase, "Yorker"));

@@ -20,6 +20,7 @@ public partial class Game1
     private void StartNewMatch(int? seed = null)
     {
         _matchController.StartNewMatch(_selectedOversPerInnings, seed);
+        ResetBatterTimingStates();
         _nextDeliveryPresetIndex = 0;
         _bowlingAimOffsetX = 0f;
         _bowlingAimOffsetZ = 0f;
@@ -29,6 +30,7 @@ public partial class Game1
     private void StartNextInnings()
     {
         _matchController.StartNextInnings();
+        ResetBatterTimingStates();
         _nextDeliveryPresetIndex = 0;
         _bowlingAimOffsetX = 0f;
         _bowlingAimOffsetZ = 0f;
@@ -131,6 +133,11 @@ public partial class Game1
         _bounceSpotFeedbackRemainingSeconds = 0f;
         _contactFeedbackRemainingSeconds = 0f;
         _liveFeedbackBannerRemainingSeconds = 0f;
+        _timingZoneFeedbackText = null;
+        _timingZoneFeedbackRemainingSeconds = 0f;
+        _umpireSignalText = null;
+        _umpireSignalRemainingSeconds = 0f;
+        _bodyHitThisDelivery = false;
         _contactFeedbackQuality = null;
         _contactFeedbackIsMiss = false;
         _activeBowlingTargetPosition = IsCpuBattingControlled && !_developerMode

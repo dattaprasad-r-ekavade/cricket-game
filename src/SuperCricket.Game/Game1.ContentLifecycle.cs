@@ -160,7 +160,10 @@ public partial class Game1
         LoadGameSettings();
         if (_captureDifficultyOverride is { } captureDifficulty)
             _cpuDifficulty = captureDifficulty;
+        else if (_captureTimingGaugePreview)
+            _cpuDifficulty = CpuDifficulty.Pro;
         LoadAudioCues();
+        SubscribeToMatchFeedbackEvents();
         StartNewMatch();
         if (_captureTarget is not null)
         {
@@ -215,7 +218,9 @@ public partial class Game1
             if (_camera.FollowsBall)
                 _camera.FollowBall(ToXna(_ballFlight.CurrentFrame.Position), 0f);
             _simulationPaused = true;
-            if (_captureFeedbackPreview)
+            if (_captureTimingGaugePreview)
+                PrepareTimingGaugePreviewCapture();
+            else if (_captureFeedbackPreview)
                 PrepareFeedbackPreviewCapture();
             else if (_captureFieldInsetPreview)
                 PrepareLiveFieldInsetCapture();

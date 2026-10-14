@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Game.Rendering;
@@ -24,6 +25,7 @@ public partial class Game1
             _nextDeliveryPresetIndex = deliveryPresetIndex;
             _selectedOversPerInnings = 1;
             _match.Reset(_selectedOversPerInnings);
+            ResetBatterTimingStates();
             BeginDelivery();
         }
 
@@ -74,10 +76,41 @@ public partial class Game1
         Require(GetPrimaryControlHint().Contains("L3: camera", StringComparison.Ordinal),
             "the normal GamePad HUD did not show the camera shortcut");
         _lastInputWasGamePad = false;
+        Reset();
+        var savedTimingDifficulty = _cpuDifficulty;
+        _cpuDifficulty = CpuDifficulty.Pro;
+        _bowlerReleased = true;
+        var freshGauge = GetLiveBattingTimingGauge()
+            ?? throw new InvalidOperationException("the live timing gauge was hidden before release feedback could be checked");
+        var freshIdealBand = freshGauge.Bands.Single(band => band.Zone == TimingZone.Ideal);
+        var freshIdealWidth = freshIdealBand.End - freshIdealBand.Start;
+        _cpuDifficulty = CpuDifficulty.Rookie;
+        var rookieGauge = GetLiveBattingTimingGauge()
+            ?? throw new InvalidOperationException("the Rookie timing gauge was hidden before release feedback could be checked");
+        var rookieIdealBand = rookieGauge.Bands.Single(band => band.Zone == TimingZone.Ideal);
+        Require(rookieIdealBand.End - rookieIdealBand.Start > freshIdealWidth,
+            "the Ideal timing band did not narrow as difficulty rose from Rookie to Pro");
+        _cpuDifficulty = CpuDifficulty.Pro;
+        var timingState = GetCurrentBatterTimingState();
+        for (var ball = 0; ball < 24; ball++)
+            timingState.RegisterBall(TimingZone.Ideal, bodyHit: false, beaten: false);
+        var settledGauge = GetLiveBattingTimingGauge()
+            ?? throw new InvalidOperationException("the timing gauge disappeared after the batter settled in");
+        var settledIdealBand = settledGauge.Bands.Single(band => band.Zone == TimingZone.Ideal);
+        Require(settledIdealBand.End - settledIdealBand.Start > freshIdealWidth,
+            "the Ideal timing band did not widen as the batter settled in");
+        _cpuDifficulty = CpuDifficulty.Legend;
+        Require(GetLiveBattingTimingGauge() is null,
+            "the timing gauge remained visible above Pro difficulty");
+        _cpuDifficulty = savedTimingDifficulty;
+        Reset();
         Tick(0f, Keys.S);
         Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
             _playerAnimator.CurrentClipName == "front-foot-drive" &&
-            _shotControlLabel == "S: ATTACK",
+            _shotControlLabel == "S: ATTACK" &&
+            _timingZoneFeedbackText == GetBattingTimingText() &&
+            _timingZoneFeedbackText is "EARLY" or "PERFECT" or "LATE" or "VERY EARLY" or "VERY LATE" or "BEATEN" &&
+            MathF.Abs(_timingZoneFeedbackRemainingSeconds - 1f) < 0.001f,
             "S did not immediately select and animate a straight attack");
 
         _gameSettings.BattingInputScheme = BattingInputScheme.ClassicChords;
