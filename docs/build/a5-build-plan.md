@@ -314,7 +314,7 @@ Replace the shot choice in `CpuBattingOutcomeModel` / `CpuLiveBattingPlanModel` 
 
 **Accept:** migration test; validator tests; rosters pass `validate`.
 
-### WP15 — Difficulty profiles (S)
+### WP15 — Difficulty profiles (S) [x]
 
 `assets/difficulty/{format}-{level}-{human|cpu}.json`, five levels × two sides, for "limited" now (Test format later): timing window (centre, window, ideal base, ideal minimum, loft reduction, settle curve, assist on/off), umpire's-call probability, bowling target radius min/max, scatter steps, meter fill time, CPU stroke weights and commit σ. The CPU-batting files invert the human ones (harder = stronger CPU). Validator + loader in Content; `CpuDifficultyModel` reads from it.
 

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "format": "limited",
+  "level": "rookie",
+  "side": "cpu",
+  "timing": {
+    "centreMeters": 0.0,
+    "windowMeters": 6.4,
+    "idealBase": 0.7,
+    "idealMinimum": 0.2,
+    "loftReduction": 0.3,
+    "settleCurve": [
+      {
+        "ballsFaced": 0,
+        "fraction": 0.6
+      },
+      {
+        "ballsFaced": 8,
+        "fraction": 0.6
+      },
+      {
+        "ballsFaced": 20,
+        "fraction": 0.75
+      },
+      {
+        "ballsFaced": 36,
+        "fraction": 1.0
+      }
+    ],
+    "assistEnabled": false
+  },
+  "umpiresCallProbability": 0.35,
+  "bowlingTargetRadiusMinMeters": 0.12,
+  "bowlingTargetRadiusMaxMeters": 1.45,
+  "scatterSteps": 7,
+  "meterFillSeconds": 1.0,
+  "cpu": {
+    "strokeWeights": {
+      "defence": 0.5,
+      "drive": 0.36,
+      "loft": 0.14
+    },
+    "commitSigmaSeconds": 0.18,
+    "battingTimingErrorMultiplier": 1.65,
+    "shotPlacementErrorMultiplier": 1.4,
+    "bowlingAccuracySpreadMultiplier": 1.5,
+    "battingAggressionOffset": -0.15,
+    "battingWicketChanceMultiplier": 1.25,
+    "battingBoundaryChanceMultiplier": 0.75,
+    "battingRunChanceMultiplier": 0.8,
+    "battingRunOutChanceMultiplier": 1.25
+  }
+}

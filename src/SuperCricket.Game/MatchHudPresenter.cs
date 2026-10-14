@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using SuperCricket.Content;
 using SuperCricket.Simulation;
 
 namespace SuperCricket.Game;
@@ -224,7 +225,7 @@ internal static class MatchHudPresenter
                 _ => state.HighContrast ? Color.White : new Color(255, 164, 77)
             };
             if (state.HasPredictedBounce)
-                detail += state.Difficulty == CpuDifficulty.Pro
+                detail += state.Difficulty is CpuDifficulty.Pro or CpuDifficulty.Legend
                     ? " | ring = projected bounce"
                     : " | ring = bounce point; bat outline = contact zone";
             return new LiveFeedbackBannerContent(title, detail, accent, 1f);
@@ -256,12 +257,11 @@ internal static class MatchHudPresenter
             : Color.Lerp(warm, hot, (speedFraction - 0.5f) * 2f);
     }
 
-    public static int GetBattingContactZoneAlpha(CpuDifficulty difficulty) => difficulty switch
+    public static int GetBattingContactZoneAlpha(CpuDifficulty difficulty)
     {
-        CpuDifficulty.Rookie => 220,
-        CpuDifficulty.Standard => 120,
-        _ => 0
-    };
+        var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Human);
+        return Math.Clamp((int)MathF.Round((profile.Timing.WindowMeters - 6.4f) * 150f), 0, 220);
+    }
 
     public static string GetContactFeedbackLabel(ContactFeedbackPresentationState state) => state.IsMiss
         ? "NO CONTACT"

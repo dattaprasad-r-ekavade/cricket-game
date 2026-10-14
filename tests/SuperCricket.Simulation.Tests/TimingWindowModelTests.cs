@@ -104,6 +104,29 @@ public sealed class TimingWindowModelTests
     }
 
     [Fact]
+    public void DifficultyProfileControlsTimingWindowAndAssist()
+    {
+        var profile = new DifficultyProfileAsset
+        {
+            Side = DifficultySide.Human,
+            Timing = new DifficultyTimingProfile
+            {
+                CentreMeters = 0.25f,
+                WindowMeters = 7f,
+                IdealBase = 1.1f,
+                IdealMinimum = 0.35f,
+                AssistEnabled = false
+            }
+        };
+
+        var window = TimingWindowModel.Build(profile);
+
+        Assert.Equal(0.25f, window.CentreMeters);
+        Assert.Equal(7f, window.WindowMeters);
+        Assert.False(TimingWindowModel.ApplyAssist(TimingZone.Early, profile) == TimingZone.Ideal);
+    }
+
+    [Fact]
     public void BatterTimingState_UpdatesAndClampsConfidence()
     {
         var state = new BatterTimingState();

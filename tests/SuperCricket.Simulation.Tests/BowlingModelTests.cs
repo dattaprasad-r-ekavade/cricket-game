@@ -52,6 +52,32 @@ public sealed class BowlingModelTests
     }
 
     [Fact]
+    public void Aim_ProfileUsesPlayerAccuracyStaminaAndScatterSettings()
+    {
+        var profile = DifficultyProfileAsset.Load(TestAssets.Asset("difficulty", "limited-standard-cpu.json"));
+        var bowler = TeamRosterAsset.CreatePlaceholder("Profile Bowler XI").Players[7];
+        bowler.BowlingAttributes.Accuracy = 84;
+        bowler.BowlingAttributes.Stamina = 78;
+        var lessAccurateBowler = TeamRosterAsset.CreatePlaceholder("Profile Bowler XI").Players[7];
+        lessAccurateBowler.BowlingAttributes.Accuracy = 45;
+        lessAccurateBowler.BowlingAttributes.Stamina = 78;
+
+        var result = BowlingAccuracyModel.Aim(
+            StockDelivery, 0f, 0f, bowler, ballsInSpell: 10,
+            BowlingSkillLevel.Standard, seed: 712, profile);
+        var lessAccurate = BowlingAccuracyModel.Aim(
+            StockDelivery, 0f, 0f, lessAccurateBowler, ballsInSpell: 10,
+            BowlingSkillLevel.Standard, seed: 712, profile);
+
+        Assert.Equal(78f, result.Stamina);
+        Assert.InRange(result.TargetRadiusMeters,
+            profile.BowlingTargetRadiusMinMeters, profile.BowlingTargetRadiusMaxMeters);
+        Assert.True(result.TargetRadiusMeters < lessAccurate.TargetRadiusMeters);
+        Assert.Equal(profile.MeterFillSeconds, PaceMeterModel.FillSeconds(profile));
+        Assert.Equal(DeliveryPaceBand.Normal, PaceMeterModel.Resolve(0.35f, profile).Pace);
+    }
+
+    [Fact]
     public void PaceMeter_ResolvesBandsNoBallAndNoPress()
     {
         Assert.Equal(0.9f, PaceMeterModel.FillSeconds(PaceMeterDifficulty.Easy));

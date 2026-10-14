@@ -191,8 +191,10 @@ public sealed class MatchHudPresenterTests
     public void BattingContactZoneAlphaStepsDownWithDifficulty()
     {
         Assert.Equal(220, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Rookie));
+        Assert.Equal(180, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Amateur));
         Assert.Equal(120, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Standard));
-        Assert.Equal(0, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Pro));
+        Assert.Equal(60, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Pro));
+        Assert.Equal(0, MatchHudPresenter.GetBattingContactZoneAlpha(CpuDifficulty.Legend));
     }
 
     [Fact]

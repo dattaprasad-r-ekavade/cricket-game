@@ -309,7 +309,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
                     PitchedOutsideLeg: firstBounce is { } bounce && bounce.Position.X < -CricketPitchGeometry.WicketHalfWidthMeters,
                     ImpactOutsideOffStump: contact.Position.X > CricketPitchGeometry.WicketHalfWidthMeters,
                     ShotOffered: shotOffered),
-                    umpiresCallProbability: 0.35f,
+                    CpuDifficultyModel.GetProfile(CpuDifficulty.Standard, DifficultySide.Human),
                     seed: random.Next());
                 if (decision.IsOut)
                 {

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "format": "limited",
+  "level": "pro",
+  "side": "human",
+  "timing": {
+    "centreMeters": 0.0,
+    "windowMeters": 6.8,
+    "idealBase": 0.9,
+    "idealMinimum": 0.25,
+    "loftReduction": 0.28,
+    "settleCurve": [
+      {
+        "ballsFaced": 0,
+        "fraction": 0.6
+      },
+      {
+        "ballsFaced": 8,
+        "fraction": 0.6
+      },
+      {
+        "ballsFaced": 20,
+        "fraction": 0.75
+      },
+      {
+        "ballsFaced": 36,
+        "fraction": 1.0
+      }
+    ],
+    "assistEnabled": false
+  },
+  "umpiresCallProbability": 0.35,
+  "bowlingTargetRadiusMinMeters": 0.14,
+  "bowlingTargetRadiusMaxMeters": 1.2,
+  "scatterSteps": 5,
+  "meterFillSeconds": 0.6
+}

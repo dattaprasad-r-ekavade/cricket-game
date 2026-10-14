@@ -39,6 +39,8 @@ public partial class Game1
 
     protected override void LoadContent()
     {
+        CpuDifficultyModel.ConfigureProfiles(DifficultyProfileCatalog.LoadDirectory(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Difficulty")));
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _debugFont = Content.Load<SpriteFont>("DebugFont");
         _debugPanel = new Texture2D(GraphicsDevice, 1, 1);

@@ -146,6 +146,17 @@ static int Run(string[] arguments)
                 arguments.Skip(1).ToArray());
         }
 
+        if (arguments[0] == "validate-difficulty")
+        {
+            if (arguments.Length != 2)
+                throw new ArgumentException("Usage: validate-difficulty <profile-directory>");
+            var catalog = DifficultyProfileCatalog.LoadDirectory(arguments[1]);
+            Console.WriteLine($"Valid difficulty catalog: {catalog.Profiles.Count} profiles across {DifficultyProfileCatalog.LevelNames.Count} levels.");
+            foreach (var profile in catalog.Profiles.OrderBy(profile => profile.Level).ThenBy(profile => profile.Side))
+                Console.WriteLine($"  {profile.Format}/{profile.Level}/{profile.Side}: timing window {profile.Timing.WindowMeters:0.##} m, ideal {profile.Timing.IdealBase:0.##} m, umpire's call {profile.UmpiresCallProbability:0.##}");
+            return 0;
+        }
+
         if (arguments[0] == "validate-team")
         {
             var team = TeamRosterAsset.Load(arguments[1]);
@@ -798,6 +809,7 @@ static void PrintUsage()
     Console.WriteLine("Super Cricket tools");
     Console.WriteLine("  validate-player <player-asset>");
     Console.WriteLine("  validate-team <team.json>");
+    Console.WriteLine("  validate-difficulty <profile-directory>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  validate-strokes <strokes.json>");
     Console.WriteLine("  validate-deliveries <deliveries.json>");

@@ -71,19 +71,13 @@ public partial class Game1
                 ? _deliveryPreset.PitchSurfaceHeightMeters
                 : _deliveryPreset.FieldSurfaceHeightMeters;
             var center = new Vector3(predictedBounce.X, surfaceHeight + 0.04f, predictedBounce.Z);
-            var alpha = _gameSettings.HighContrast ? 0.98f : !_bowlerReleased ? 0.94f : _cpuDifficulty switch
-            {
-                CpuDifficulty.Rookie => 0.92f,
-                CpuDifficulty.Standard => 0.72f,
-                _ => 0.52f
-            };
+            var humanProfile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+            var difficultyFraction = Math.Clamp((humanProfile.Timing.WindowMeters - 6.4f) / 1.6f, 0f, 1f);
+            var alpha = _gameSettings.HighContrast ? 0.98f : !_bowlerReleased
+                ? 0.94f
+                : 0.52f + difficultyFraction * 0.42f;
             var color = WithAlpha(_gameSettings.HighContrast ? Color.White : new Color(72, 222, 255), alpha);
-            var radius = !_bowlerReleased ? 0.68f : _cpuDifficulty switch
-            {
-                CpuDifficulty.Rookie => 0.72f,
-                CpuDifficulty.Standard => 0.58f,
-                _ => 0.44f
-            };
+            var radius = !_bowlerReleased ? 0.68f : 0.44f + difficultyFraction * 0.28f;
             GraphicsDevice.DepthStencilState = DepthStencilState.None;
             DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, radius, color);
             DrawFeedbackWorldRing(center, Vector3.UnitX, Vector3.UnitZ, 0.12f, WithAlpha(Color.White, alpha));

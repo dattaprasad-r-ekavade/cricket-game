@@ -36,6 +36,7 @@
     <None Include="..\..\assets\characters\practice-bowler-humanoid.glb" Link="Assets\Characters\practice-bowler-humanoid.glb" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\shots.json" Link="Assets\Batting\shots.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\batting\timing-calibration.json" Link="Assets\Batting\timing-calibration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\assets\difficulty\*.json" Link="Assets\Difficulty\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\outfield-grass.png" Link="Assets\Textures\outfield-grass.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\assets\textures\cricket-pitch-clay.png" Link="Assets\Textures\cricket-pitch-clay.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

@@ -1,4 +1,5 @@
 using System.Numerics;
+using SuperCricket.Content;
 using SuperCricket.Simulation.Umpiring;
 
 namespace SuperCricket.Simulation.Tests;
@@ -40,6 +41,18 @@ public sealed class LbwModelTests
             .Count(seed => LbwModel.Evaluate(Contact(velocityX: 1.2f), probability, seed).IsOut);
 
         Assert.InRange(outCount / 1000f, probability - 0.05f, probability + 0.05f);
+    }
+
+    [Fact]
+    public void Evaluate_UsesTheProfileUmpiresCallProbability()
+    {
+        var profile = DifficultyProfileAsset.Load(TestAssets.Asset("difficulty", "limited-standard-human.json"));
+        var contact = Contact(velocityX: 1.2f);
+
+        var fromProfile = LbwModel.Evaluate(contact, profile, seed: 28);
+        var direct = LbwModel.Evaluate(contact, profile.UmpiresCallProbability, seed: 28);
+
+        Assert.Equal(direct, fromProfile);
     }
 
     [Fact]

@@ -32,13 +32,15 @@ public static class BowlingAccuracyModel
         BowlingSkillLevel skillLevel,
         int seed,
         float minRadiusMeters = 0.12f,
-        float maxRadiusMeters = 1.1f)
+        float maxRadiusMeters = 1.1f,
+        int scatterSteps = 4)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ValidateRating(accuracyRating, nameof(accuracyRating));
         if (ballsInSpell < 0) throw new ArgumentOutOfRangeException(nameof(ballsInSpell));
         if (!float.IsFinite(stamina) || stamina is < 0f or > 100f) throw new ArgumentOutOfRangeException(nameof(stamina));
         if (!Enum.IsDefined(skillLevel)) throw new ArgumentOutOfRangeException(nameof(skillLevel));
+        if (scatterSteps is < 0 or > 12) throw new ArgumentOutOfRangeException(nameof(scatterSteps));
         if (!float.IsFinite(minRadiusMeters) || !float.IsFinite(maxRadiusMeters) || minRadiusMeters < 0f || maxRadiusMeters < minRadiusMeters)
             throw new ArgumentOutOfRangeException(nameof(maxRadiusMeters));
         if (!float.IsFinite(targetLineOffsetMeters) || MathF.Abs(targetLineOffsetMeters) > BowlingAimModel.MaximumLineOffsetMeters ||
@@ -53,11 +55,42 @@ public static class BowlingAccuracyModel
         var scatterScale = 1f - 0.65f * rhythm;
         var scatterEnabled = skillLevel is not (BowlingSkillLevel.Rookie or BowlingSkillLevel.Amateur);
         var random = new Random(seed);
-        var scatterLine = scatterEnabled ? ((float)random.NextDouble() * 2f - 1f) * 0.25f * scatterScale : 0f;
-        var scatterLength = scatterEnabled ? ((float)random.NextDouble() * 2f - 1f) * 0.25f * scatterScale : 0f;
+        var scatterRange = scatterSteps * 0.0625f * scatterScale;
+        var scatterLine = scatterEnabled && scatterSteps > 0 ? ((float)random.NextDouble() * 2f - 1f) * scatterRange : 0f;
+        var scatterLength = scatterEnabled && scatterSteps > 0 ? ((float)random.NextDouble() * 2f - 1f) * scatterRange : 0f;
         var aimed = BowlingAimModel.AimForPitchTarget(delivery,
             targetLineOffsetMeters + scatterLine, targetLengthOffsetMeters + scatterLength);
         return new BowlingAimResult(aimed, radius, scatterLine, scatterLength, rhythm, stamina);
+    }
+
+    public static BowlingAimResult Aim(
+        DeliveryPreset delivery,
+        float targetLineOffsetMeters,
+        float targetLengthOffsetMeters,
+        TeamPlayerData bowler,
+        int ballsInSpell,
+        BowlingSkillLevel skillLevel,
+        int seed,
+        DifficultyProfileAsset profile)
+    {
+        ArgumentNullException.ThrowIfNull(bowler);
+        ArgumentNullException.ThrowIfNull(profile);
+        var errors = profile.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid bowling difficulty profile: {string.Join(" ", errors)}", nameof(profile));
+        var accuracy = bowler.BowlingAttributes?.Accuracy
+            ?? throw new ArgumentException("Bowler accuracy rating is required.", nameof(bowler));
+        var stamina = bowler.BowlingAttributes.Stamina;
+        var effectiveMinRadius = profile.BowlingTargetRadiusMinMeters;
+        var effectiveMaxRadius = profile.BowlingTargetRadiusMaxMeters;
+        if (profile.Side == DifficultySide.Cpu && profile.Cpu is { } cpu)
+        {
+            effectiveMinRadius *= cpu.BowlingAccuracySpreadMultiplier;
+            effectiveMaxRadius *= cpu.BowlingAccuracySpreadMultiplier;
+        }
+        return Aim(delivery, targetLineOffsetMeters, targetLengthOffsetMeters,
+            accuracy, ballsInSpell, stamina, skillLevel, seed,
+            effectiveMinRadius, effectiveMaxRadius, profile.ScatterSteps);
     }
 
     public static float StaminaAfterOvers(float staminaRating, int oversBowled)
@@ -94,6 +127,15 @@ public readonly record struct PaceMeterResult(DeliveryPaceBand Pace, float Speed
 /// <summary>Converts a stride-timed press to a discrete pace and front-foot result.</summary>
 public static class PaceMeterModel
 {
+    public static float FillSeconds(DifficultyProfileAsset profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var errors = profile.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid pace-meter difficulty profile: {string.Join(" ", errors)}", nameof(profile));
+        return profile.MeterFillSeconds;
+    }
+
     public static float FillSeconds(PaceMeterDifficulty difficulty) => difficulty switch
     {
         PaceMeterDifficulty.Easy => 0.9f,
@@ -104,7 +146,14 @@ public static class PaceMeterModel
 
     public static PaceMeterResult Resolve(float? elapsedSeconds, PaceMeterDifficulty difficulty)
     {
-        var fillSeconds = FillSeconds(difficulty);
+        return ResolveWithFillSeconds(elapsedSeconds, FillSeconds(difficulty));
+    }
+
+    public static PaceMeterResult Resolve(float? elapsedSeconds, DifficultyProfileAsset profile) =>
+        ResolveWithFillSeconds(elapsedSeconds, FillSeconds(profile));
+
+    private static PaceMeterResult ResolveWithFillSeconds(float? elapsedSeconds, float fillSeconds)
+    {
         if (elapsedSeconds is null) return new PaceMeterResult(DeliveryPaceBand.Normal, 0.92f, false, 0f);
         if (!float.IsFinite(elapsedSeconds.Value) || elapsedSeconds.Value < 0f)
             throw new ArgumentOutOfRangeException(nameof(elapsedSeconds));

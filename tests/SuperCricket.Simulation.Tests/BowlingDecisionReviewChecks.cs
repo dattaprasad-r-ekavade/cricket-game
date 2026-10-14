@@ -7,10 +7,20 @@ public static class BowlingDecisionReviewChecks
 {
     public static void Run()
     {
-        Require(CpuDifficultyModel.Next(CpuDifficulty.Rookie) == CpuDifficulty.Standard &&
+        Require(CpuDifficultyModel.Difficulties.SequenceEqual(new[]
+                { CpuDifficulty.Rookie, CpuDifficulty.Amateur, CpuDifficulty.Standard, CpuDifficulty.Pro, CpuDifficulty.Legend }) &&
+            CpuDifficultyModel.Next(CpuDifficulty.Rookie) == CpuDifficulty.Amateur &&
+            CpuDifficultyModel.Next(CpuDifficulty.Amateur) == CpuDifficulty.Standard &&
             CpuDifficultyModel.Next(CpuDifficulty.Standard) == CpuDifficulty.Pro &&
-            CpuDifficultyModel.Next(CpuDifficulty.Pro) == CpuDifficulty.Rookie,
+            CpuDifficultyModel.Next(CpuDifficulty.Pro) == CpuDifficulty.Legend &&
+            CpuDifficultyModel.Next(CpuDifficulty.Legend) == CpuDifficulty.Rookie,
             "CPU difficulty did not cycle in the expected order");
+        foreach (var level in CpuDifficultyModel.Difficulties)
+        {
+            Require(CpuDifficultyModel.GetProfile(level, DifficultySide.Human).Timing is not null &&
+                CpuDifficultyModel.GetProfile(level, DifficultySide.Cpu).Cpu is not null,
+                $"difficulty {level} did not resolve both side profiles");
+        }
         RequireThrows(() => CpuDifficultyModel.GetTuning((CpuDifficulty)99),
             "an unknown CPU difficulty was accepted");
 

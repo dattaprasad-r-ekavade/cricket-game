@@ -136,6 +136,15 @@ public static class TimingWindowModel
             new TimingZoneBand(float.NegativeInfinity, tooLateEdge, false, false));
     }
 
+    public static TimingWindow Build(DifficultyProfileAsset profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var errors = profile.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid difficulty timing profile: {string.Join(" ", errors)}", nameof(profile));
+        return Build(profile.Timing.CentreMeters, profile.Timing.WindowMeters, profile.Timing.IdealBase);
+    }
+
     public static TimingZone Classify(TimingWindow window, float distanceMeters)
     {
         ArgumentNullException.ThrowIfNull(window);
@@ -184,6 +193,29 @@ public static class TimingWindowModel
             PlayerBattingRatingModel.GetStrokeRating(batter, foot, direction, loft));
     }
 
+    public static float IdealWidth(
+        DifficultyProfileAsset profile,
+        BatterTimingState state,
+        TeamPlayerData batter,
+        StrokeFoot foot,
+        ShotDirection8 direction,
+        bool loft)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var errors = profile.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid difficulty timing profile: {string.Join(" ", errors)}", nameof(profile));
+        var timing = profile.Timing;
+        var difficulty = new TimingDifficulty
+        {
+            IdealBase = timing.IdealBase,
+            IdealMinimum = timing.IdealMinimum,
+            LoftReduction = timing.LoftReduction,
+            SettleCurve = timing.SettleCurve.Select(point => new TimingSettlePoint(point.BallsFaced, point.Fraction)).ToList()
+        };
+        return IdealWidth(difficulty, state, batter, foot, direction, loft);
+    }
+
     public static TimingZone ApplyAssist(TimingZone zone, bool assist)
     {
         if (!Enum.IsDefined(zone))
@@ -191,6 +223,12 @@ public static class TimingWindowModel
         return assist && zone is TimingZone.Early or TimingZone.Late
             ? TimingZone.Ideal
             : zone;
+    }
+
+    public static TimingZone ApplyAssist(TimingZone zone, DifficultyProfileAsset profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return ApplyAssist(zone, profile.Timing.AssistEnabled);
     }
 
     public static float DistanceToContactPlane(BallFlightFrame frame, float contactPlaneZ)

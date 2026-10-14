@@ -1,4 +1,5 @@
 using System.Numerics;
+using SuperCricket.Content;
 
 namespace SuperCricket.Simulation.Umpiring;
 
@@ -53,6 +54,15 @@ public static class LbwModel
 
         var outOnCall = new Random(seed).NextDouble() < umpiresCallProbability;
         return new LbwDecision(LbwBand.UmpiresCall, outOnCall, offsetX, height);
+    }
+
+    public static LbwDecision Evaluate(LbwContact contact, DifficultyProfileAsset profile, int seed)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var errors = profile.Validate();
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid umpiring difficulty profile: {string.Join(" ", errors)}", nameof(profile));
+        return Evaluate(contact, profile.UmpiresCallProbability, seed);
     }
 
     public static bool TryProjectToWickets(LbwContact contact, out float offsetX, out float heightMeters)
