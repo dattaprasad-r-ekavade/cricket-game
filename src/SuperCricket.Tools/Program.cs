@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 using SuperCricket.Simulation;
 
 return Run(args);
@@ -55,6 +56,15 @@ static int Run(string[] arguments)
             Console.WriteLine($"Valid stroke table: {strokeTable.Strokes.Count} strokes.");
             foreach (var warning in strokeTable.Validate().Where(StrokeTableAsset.IsWarning))
                 Console.WriteLine($"  {warning}");
+            return 0;
+        }
+
+        if (arguments[0] == "validate-deliveries")
+        {
+            var catalogue = DeliveryCatalogue.Load(arguments[1]);
+            Console.WriteLine($"Valid delivery catalogue: {catalogue.Deliveries.Count} deliveries.");
+            foreach (var delivery in catalogue.Deliveries)
+                Console.WriteLine($"  {delivery.Id}: {delivery.Style}, {delivery.MinSpeedKph:0.#}–{delivery.MaxSpeedKph:0.#} km/h");
             return 0;
         }
 
@@ -786,6 +796,7 @@ static void PrintUsage()
     Console.WriteLine("  validate-team <team.json>");
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  validate-strokes <strokes.json>");
+    Console.WriteLine("  validate-deliveries <deliveries.json>");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
     Console.WriteLine("  verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");

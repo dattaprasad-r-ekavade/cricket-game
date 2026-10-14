@@ -213,7 +213,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 ---
 
-### WP7a — Bowling model (M) · A5.9
+### WP7a — Bowling model (M) · A5.9 [x]
 
 **Create** under `src/SuperCricket.Simulation/Bowling/`:
 - `DeliveryCatalogue` + `assets/bowling/deliveries.json` (Content asset + validator): typed deliveries per bowler style: *pace* (stock, outswing, inswing, off-cutter, leg-cutter, bouncer, yorker, slower ball), *off-spin* (off-break, arm ball, doosra-style variation, flighted), *leg-spin* (leg-break, googly, top-spinner, flipper, flighted). Each has a speed range in km/h, swing/seam or spin parameters, and a per-pitch-type multiplier for spin. Our own values; sanity ranges from data-stats §3 (quicks 120–145 km/h stock, slower ball about 40% slower, spinners 70–90 km/h; dry pitches turn about 3× more than green).

@@ -22,6 +22,9 @@ public sealed class DeliveryPreset
     public float GravityMetersPerSecondSquared { get; set; } = 9.81f;
     public float AirDragPerMeter { get; set; } = 0.00025f;
     public float LateralAccelerationMetersPerSecondSquared { get; set; }
+    public float SideSpin { get; set; }
+    public float TopSpin { get; set; }
+    public float PitchSpinMultiplier { get; set; } = 1f;
     public float BallRadiusMeters { get; set; } = 0.036f;
     public float PitchSurfaceHeightMeters { get; set; } = -0.025f;
     public float FieldSurfaceHeightMeters { get; set; } = -0.08f;
@@ -90,6 +93,10 @@ public sealed class DeliveryPreset
         if (!IsNonNegative(AirDragPerMeter) || AirDragPerMeter > 0.1f) errors.Add("Air drag must be between 0 and 0.1 per meter.");
         if (!float.IsFinite(LateralAccelerationMetersPerSecondSquared) || MathF.Abs(LateralAccelerationMetersPerSecondSquared) > 100f)
             errors.Add("Lateral acceleration must be between -100 and 100 m/s².");
+        if (!float.IsFinite(SideSpin) || MathF.Abs(SideSpin) > 2f || !float.IsFinite(TopSpin) || MathF.Abs(TopSpin) > 2f)
+            errors.Add("Side-spin and top-spin values must be between -2 and 2.");
+        if (!float.IsFinite(PitchSpinMultiplier) || PitchSpinMultiplier is < 0f or > 4f)
+            errors.Add("Pitch spin multiplier must be between 0 and 4.");
         if (!IsPositive(BallRadiusMeters) || BallRadiusMeters is < 0.01f or > 0.2f)
             errors.Add("Ball radius must be between 0.01 and 0.2 m.");
         if (!float.IsFinite(PitchSurfaceHeightMeters) || !float.IsFinite(FieldSurfaceHeightMeters))
