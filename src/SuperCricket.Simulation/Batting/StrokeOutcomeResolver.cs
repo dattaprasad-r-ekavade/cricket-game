@@ -67,8 +67,8 @@ public static class StrokeOutcomeResolver
         {
             var (minimumFineYaw, maximumFineYaw) = FineYawRange(request.Direction);
             yawDegrees = Sample(random, minimumFineYaw, maximumFineYaw);
-            speed *= Sample(random, 0.4f, 0.6f);
-            elevationDegrees = Sample(random, 5f, 20f);
+            speed *= Sample(random, 0.55f, 0.75f);
+            elevationDegrees = Sample(random, 15f, 28f);
         }
 
         if (leftHanded)
