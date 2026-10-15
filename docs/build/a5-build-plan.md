@@ -358,7 +358,7 @@ Report: what changed, test results, numbers asked for in Accept, open questions,
 3. Rookie: at least 60% of attacking inputs on good-length balls make contact; Legend: under 30% Ideal without practice.
 4. The bowler can name what they bowled and see where it landed; a no-ball from a late meter press is understood.
 5. An LBW and a run-out each show a decision and a replay that explain it.
-6. Batch: 50 seeded T20s per difficulty show runs per over 6–9 (Normal), LBW 8–18% and run-outs 5–12% of dismissals.
+6. Batch: 50 seeded T20s per difficulty meet the Standard runs-per-over, wickets-per-innings and dismissal-share bands in [tools/balance-bands.json](../../tools/balance-bands.json); WP21's review gate enforces them. Rookie scores more than Legend.
 
 Findings go into `docs/playtests/<date>.md`; the next waves are chosen from that list.
 

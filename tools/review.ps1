@@ -4,10 +4,48 @@ param(
     [switch]$SkipCaptures,
     [switch]$SkipGame)
 
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    throw "tools/review.ps1 requires PowerShell 7 or newer; detected $($PSVersionTable.PSVersion). Run it with 'pwsh'."
+}
+
 $ErrorActionPreference = 'Stop'
 $runGameChecks = $RunGameChecks -and !$SkipGame
 $captureVisuals = $CaptureVisuals -and !$SkipCaptures
 $repoPath = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$balanceBandsPath = Join-Path $PSScriptRoot 'balance-bands.json'
+$balanceBands = Get-Content -LiteralPath $balanceBandsPath -Raw | ConvertFrom-Json
+$planPath = Join-Path $repoPath 'docs/build/a5-build-plan.md'
+$planText = Get-Content -LiteralPath $planPath -Raw
+$planSectionSix = [regex]::Match($planText, '(?ms)^## 6\. Gate after wave 3.*?(?=^## |\z)').Value
+if ([int]$balanceBands.planSection -ne 6 -or
+    [string]::IsNullOrWhiteSpace($planSectionSix) -or
+    $planSectionSix -notmatch 'tools/balance-bands\.json') {
+    throw 'Balance bands must be defined in tools/balance-bands.json and referenced by section 6 of docs/build/a5-build-plan.md.'
+}
+
+function Assert-BalanceBand([string]$Name, $Band) {
+    if ($null -eq $Band -or $null -eq $Band.min -or $null -eq $Band.max -or
+        [double]$Band.min -gt [double]$Band.max) {
+        throw "Balance band '$Name' is missing a valid min/max range in tools/balance-bands.json."
+    }
+}
+
+$targetBands = $balanceBands.matchBalance
+Assert-BalanceBand 'runsPerOver' $targetBands.runsPerOver
+Assert-BalanceBand 'wicketsPerInnings.10' $targetBands.wicketsPerInnings.'10'
+Assert-BalanceBand 'wicketsPerInnings.20' $targetBands.wicketsPerInnings.'20'
+if ([int]$targetBands.maximumInningsScore.'10' -le 0) {
+    throw "Balance band 'maximumInningsScore.10' must be a positive value in tools/balance-bands.json."
+}
+Assert-BalanceBand 'dismissalShares.lbw' $targetBands.dismissalShares.lbw
+Assert-BalanceBand 'dismissalShares.caught' $targetBands.dismissalShares.caught
+Assert-BalanceBand 'dismissalShares.bowled' $targetBands.dismissalShares.bowled
+Assert-BalanceBand 'dismissalShares.runOut' $targetBands.dismissalShares.runOut
+$physicsSmokeBands = $balanceBands.reviewSmoke.physics10Over
+Assert-BalanceBand 'reviewSmoke.physics10Over.averageRunsPerInnings' $physicsSmokeBands.averageRunsPerInnings
+Assert-BalanceBand 'reviewSmoke.physics10Over.inningsScore' $physicsSmokeBands.inningsScore
+Assert-BalanceBand 'reviewSmoke.physics10Over.runOutShare' $physicsSmokeBands.runOutShare
+
 Push-Location -LiteralPath $repoPath
 try {
     function Invoke-CheckedDotNet([string[]]$CommandArguments) {
@@ -224,10 +262,12 @@ try {
         $physicsBalanceTwoRunPlans -gt $physicsBalanceContacts -or
         $physicsBalanceTwoRunScores -gt ($physicsBalanceTwoRunPlans + $physicsBalanceBoundaries) -or
         $physicsBalanceDismissals -le 0 -or
-        $physicsBalanceRunOutShare -lt 0.05 -or $physicsBalanceRunOutShare -gt 0.18 -or
-        $physicsAverageRunsPerInnings -lt 80 -or $physicsAverageRunsPerInnings -gt 125 -or
-        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt 40 -or
-        ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt 190) {
+        $physicsBalanceRunOutShare -lt $physicsSmokeBands.runOutShare.min -or
+        $physicsBalanceRunOutShare -gt $physicsSmokeBands.runOutShare.max -or
+        $physicsAverageRunsPerInnings -lt $physicsSmokeBands.averageRunsPerInnings.min -or
+        $physicsAverageRunsPerInnings -gt $physicsSmokeBands.averageRunsPerInnings.max -or
+        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt $physicsSmokeBands.inningsScore.min -or
+        ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt $physicsSmokeBands.inningsScore.max) {
         throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
     }
     Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans, and a $([math]::Round(100 * $physicsBalanceRunOutShare, 1))% run-out share across $physicsBalanceDismissals dismissals."
