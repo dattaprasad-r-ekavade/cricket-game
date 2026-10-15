@@ -90,6 +90,9 @@ public static class FieldPlacementReviewChecks
         var formationCatalog = FieldFormationCatalog.Load(
             Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../assets/fields/positions.json")),
             Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../assets/fields/presets")));
+        var longOn = formationCatalog.Positions.Resolve("Long-on", BatterHandedness.Right);
+        Require(HorizontalRadius(longOn) is > 45f and < 50f,
+            "the deep field catalogue did not place the rope fielders in the expanded 62.5 m outfield");
         foreach (var style in Enum.GetValues<BowlerStyle>())
         {
             var authored = FieldPlacementModel.Resolve(

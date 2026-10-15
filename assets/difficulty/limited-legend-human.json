@@ -5,8 +5,8 @@
   "side": "human",
   "timing": {
     "centreMeters": 0.0,
-    "windowMeters": 6.4,
-    "idealBase": 0.8,
+    "windowMeters": 7.2,
+    "idealBase": 1.0,
     "idealMinimum": 0.2,
     "loftReduction": 0.3,
     "settleCurve": [

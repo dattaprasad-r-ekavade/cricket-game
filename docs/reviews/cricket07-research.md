@@ -2,6 +2,8 @@
 
 Research for the Super Cricket camera and feedback pass, 7 October 2026. This combines the installed PC copy's readable support material with a producer diary and contemporary PC reviews. The local game reached its title screen but did not advance past “Click to continue” in this Windows 11 session, despite mouse and keyboard input; the in-match menus and camera switches therefore could not be observed directly.
 
+> **Update, 13 October 2026:** the packed archives have now been decoded read-only. They show that Cricket 07 resolves batting from authored timing zones rather than physical contact, and they document its control, delivery, fielding, replay and feedback structures. See [cricket07-data-analysis.md](cricket07-data-analysis.md) and plan item A5.
+
 ## Installed copy
 
 The installation at `C:\Program Files (x86)\EA SPORTS\EA SPORTS(TM) Cricket 07` includes `Support\en-uk\readme.txt` (dated 6 September 2006), `Support\config.xml`, `Data\controltypes.csv`, the executable, and packed archives (`data.gob`, `un*ep.vp6`, and others). The help files are installation/display troubleshooting, not a gameplay manual or camera guide. `controltypes.csv` is a controller-detection/button-layout table; it does not contain the keyboard gameplay map. A targeted search of the install and its matching Documents save folder found no separate plain-text key map.

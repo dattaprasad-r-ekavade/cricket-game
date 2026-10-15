@@ -26,5 +26,5 @@
   "rollingDecelerationMetersPerSecondSquared": 1.6,
   "fixedTimeStepSeconds": 0.008333333,
   "maximumSimulationSeconds": 3.5,
-  "fieldBoundaryRadiusMeters": 42.0
+  "fieldBoundaryRadiusMeters": 62.5
 }

@@ -14,14 +14,17 @@ public static class BattedBallFieldingModel
 
     public static FieldingCollectionAction ResolveCollection(
         DeliverySession delivery, FieldingContactKind kind, bool runnersMoving,
-        int catchingRating = 100, int seed = 0)
+        int catchingRating = 100, int seed = 0,
+        float reactionDistanceMeters = 0f, float ballHeightAboveGroundMeters = 1.4f)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         if (!Enum.IsDefined(kind))
             throw new ArgumentOutOfRangeException(nameof(kind));
         if (delivery.IsComplete)
             throw new InvalidOperationException("A completed delivery cannot receive another fielder collection.");
-        if (kind == FieldingContactKind.Catch && CatchingModel.IsHeld(catchingRating, seed) && delivery.ResolveCatch())
+        if (kind == FieldingContactKind.Catch &&
+            CatchingModel.IsHeld(catchingRating, reactionDistanceMeters, ballHeightAboveGroundMeters, seed) &&
+            delivery.ResolveCatch())
             return FieldingCollectionAction.CaughtDismissal;
         return runnersMoving ? FieldingCollectionAction.ReturnThrow : FieldingCollectionAction.Held;
     }

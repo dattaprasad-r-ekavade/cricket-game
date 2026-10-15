@@ -38,7 +38,7 @@ public sealed class DeliveryPreset
     public float RollingDecelerationMetersPerSecondSquared { get; set; } = 1.6f;
     public float FixedTimeStepSeconds { get; set; } = 1f / 120f;
     public float MaximumSimulationSeconds { get; set; } = 3.5f;
-    public float FieldBoundaryRadiusMeters { get; set; } = 42f;
+    public float FieldBoundaryRadiusMeters { get; set; } = 62.5f;
 
     [JsonIgnore]
     public Vector3 StartPosition => ReleasePosition.ToVector3();

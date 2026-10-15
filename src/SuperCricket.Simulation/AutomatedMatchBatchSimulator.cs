@@ -28,7 +28,13 @@ public readonly record struct PhysicsMatchMetrics(
     int NoBallDeliveries,
     int Leaves,
     int LbwDismissals = 0,
-    int NearRunOuts = 0);
+    int NearRunOuts = 0,
+    int CaughtDismissals = 0,
+    int Edges = 0,
+    int AerialContacts = 0,
+    int PowerplayRuns = 0,
+    int MiddleRuns = 0,
+    int DeathRuns = 0);
 
 /// <summary>Runs seeded, renderer-free matches through the production innings and delivery rules.</summary>
 public static class AutomatedMatchBatchSimulator
@@ -48,7 +54,7 @@ public static class AutomatedMatchBatchSimulator
         if (matchCount is < 1 or > MaximumMatchesPerBatch)
             throw new ArgumentOutOfRangeException(nameof(matchCount), $"Match count must be between 1 and {MaximumMatchesPerBatch}.");
         if (!LimitedOversMatch.SupportedOversPerInnings.Contains(oversPerInnings))
-            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "Choose 1, 2, 5, or 10 overs per innings.");
+            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "Choose 1, 2, 5, 10, or 20 overs per innings.");
 
         var results = new AutomatedMatchResult[matchCount];
         for (var index = 0; index < matchCount; index++)

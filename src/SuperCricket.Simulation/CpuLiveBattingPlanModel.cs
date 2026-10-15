@@ -19,6 +19,7 @@ public readonly record struct CpuLiveBattingPlan(
 public static class CpuLiveBattingPlanModel
 {
     public const float InputDelayStepSeconds = 0.025f;
+    public const float SimulatedHumanTimingSigmaSeconds = 0.08f;
 
     public static CpuLiveBattingPlan Choose(
         TeamPlayerData striker,
@@ -34,15 +35,19 @@ public static class CpuLiveBattingPlanModel
         IReadOnlyList<Vector3>? fieldingPositions = null,
         CpuDifficulty difficulty = CpuDifficulty.Standard,
         StrokeTableAsset? strokeTable = null,
-        BatterTimingState? timingState = null)
+        BatterTimingState? timingState = null,
+        DifficultySide battingSide = DifficultySide.Cpu)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(batterAsset);
         ArgumentNullException.ThrowIfNull(bowlerAsset);
         ArgumentNullException.ThrowIfNull(shotSet);
         ArgumentNullException.ThrowIfNull(fielders);
+        if (!Enum.IsDefined(battingSide))
+            throw new ArgumentOutOfRangeException(nameof(battingSide));
         timingState ??= new BatterTimingState();
-        var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic, difficulty);
+        var decisionDifficulty = battingSide == DifficultySide.Human ? CpuDifficulty.Standard : difficulty;
+        var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic, decisionDifficulty);
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)
             throw new ArgumentException($"Invalid CPU batting delivery: {string.Join(" ", deliveryErrors)}", nameof(delivery));
@@ -68,7 +73,7 @@ public static class CpuLiveBattingPlanModel
             selectedBall = BallCategoryClassifier.Classify(
                 delivery, BattingPracticeAnalyzer.BatterStanceX, leftHanded);
             outcome = CpuBattingOutcomeModel.Choose(
-                striker, bowler, fielders, situation, fieldingTactic, difficulty,
+                striker, bowler, fielders, situation, fieldingTactic, decisionDifficulty,
                 strokeTable, selectedBall, seed ^ unchecked((int)0x6a09e667));
             selectedStroke = outcome.SelectedStroke;
         }
@@ -90,9 +95,9 @@ public static class CpuLiveBattingPlanModel
             InputDelayStepSeconds,
             striker);
         var authoredShot = shotSet.Get(shotName);
-        var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, difficulty);
+        var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, decisionDifficulty);
         if (fieldingPositions is null)
-            return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState,
+            return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, battingSide, seed, timingState,
                 selectedStroke, selectedBall);
 
         var fieldingRatings = fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray();
@@ -107,9 +112,9 @@ public static class CpuLiveBattingPlanModel
             striker.Timing,
             striker.Power,
             seed ^ unchecked((int)0x4cf5ad43),
-            difficulty);
+            decisionDifficulty);
         plan = plan with { HorizontalAim = executedAim };
-        return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState,
+        return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, battingSide, seed, timingState,
             selectedStroke, selectedBall);
     }
 
@@ -121,6 +126,7 @@ public static class CpuLiveBattingPlanModel
         float forwardAim,
         StrokeTableAsset? strokeTable,
         CpuDifficulty difficulty,
+        DifficultySide battingSide,
         int seed,
         BatterTimingState timingState,
         StrokeDefinition? selectedStroke,
@@ -139,9 +145,18 @@ public static class CpuLiveBattingPlanModel
             selectedStroke?.Loft ?? (shot == CpuShotChoice.Loft),
             selectedStroke?.Foot ?? StrokeFoot.Auto);
         selectedStroke ??= StrokeSelector.Select(strokeTable, request, ball);
-        var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
-        if (profile.Cpu is not { } cpuProfile)
+        var profile = CpuDifficultyModel.GetProfile(difficulty, battingSide);
+        var timingSigmaSeconds = SimulatedHumanTimingSigmaSeconds;
+        if (battingSide == DifficultySide.Cpu)
+        {
+            if (profile.Cpu is not { } cpuProfile)
+                throw new InvalidOperationException($"The {difficulty} CPU profile has no commit-timing settings.");
+            timingSigmaSeconds = cpuProfile.CommitSigmaSeconds;
+        }
+        else if (profile.Side != DifficultySide.Human)
+        {
             throw new InvalidOperationException($"The {difficulty} CPU profile has no commit-timing settings.");
+        }
         var idealWidth = TimingWindowModel.IdealWidth(
             profile, timingState, striker, selectedStroke.Foot, direction, request.Loft);
         var window = TimingWindowModel.Build(
@@ -156,7 +171,7 @@ public static class CpuLiveBattingPlanModel
             var random = new Random(seed ^ unchecked((int)0x165667b1));
             var referenceSpeed = FrameAtInput(delivery, plan.InputDelaySeconds).Velocity.Length();
             var desiredDistance = Math.Clamp(
-                window.CentreMeters + SampleStandardNormal(random) * cpuProfile.CommitSigmaSeconds * referenceSpeed,
+                window.CentreMeters + SampleStandardNormal(random) * timingSigmaSeconds * referenceSpeed,
                 window.CentreMeters - window.WindowMeters * 0.5f,
                 window.CentreMeters + window.WindowMeters * 0.5f);
             var selectedSample = liveSamples

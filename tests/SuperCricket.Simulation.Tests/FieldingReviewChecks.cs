@@ -19,6 +19,12 @@ public static class FieldingReviewChecks
             lowCatch.Kind == FieldingContactKind.Catch && MathF.Abs(lowCatch.Position.X) < 0.001f,
             "a low airborne ball within reach was not caught at its swept contact point");
 
+        var highCatchPrevious = Frame(-0.3f, 3.5f, 0f, bounceCount: 0);
+        var highCatchCurrent = Frame(0.3f, 3.5f, 0f, bounceCount: 0);
+        Require(fielders.TryFindContact(highCatchPrevious, highCatchCurrent, out var highCatch) &&
+            highCatch.Kind == FieldingContactKind.Catch,
+            "a high catch within the fielder's jump reach was not intercepted");
+
         var groundPickupPrevious = Frame(-0.2f, -0.04f, 0f, bounceCount: 1);
         var groundPickupCurrent = Frame(0.2f, -0.04f, 0f, bounceCount: 1);
         Require(fielders.TryFindContact(groundPickupPrevious, groundPickupCurrent, out var groundPickup) &&
@@ -60,10 +66,10 @@ public static class FieldingReviewChecks
         RequireThrows(() => lowSkillFielders.ConfigureFieldingRatings(invalidRatings),
             "an out-of-range fielding rating was accepted");
 
-        var highPrevious = Frame(-0.3f, 2.6f, 0f, bounceCount: 0);
-        var highCurrent = Frame(0.3f, 2.6f, 0f, bounceCount: 0);
+        var highPrevious = Frame(-0.3f, 4.1f, 0f, bounceCount: 0);
+        var highCurrent = Frame(0.3f, 4.1f, 0f, bounceCount: 0);
         Require(!fielders.TryFindContact(highPrevious, highCurrent, out _),
-            "an airborne ball above fielder reach was incorrectly intercepted");
+            "an airborne ball above the fielder's jump reach was incorrectly intercepted");
 
         const float boundaryRadius = 42f;
         const float fieldSurface = -0.08f;
@@ -90,7 +96,7 @@ public static class FieldingReviewChecks
         Require(!BoundaryResolver.TryFindCrossing(airborneStart, insideEnd, boundaryRadius, fieldSurface, ballRadius, out _),
             "a ball that stayed inside the rope produced a boundary crossing");
 
-        Console.WriteLine("PASS: low catches, ground pickups, rating-based fielding, and airborne/rope-skim boundary classification.");
+        Console.WriteLine("PASS: low and high catches, ground pickups, rating-based fielding, and airborne/rope-skim boundary classification.");
     }
 
     private static BallFlightFrame Frame(float x, float y, float z, int bounceCount) =>

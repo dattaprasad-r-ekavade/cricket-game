@@ -48,13 +48,13 @@ public sealed class StrokeOutcomeResolverTests
                 Assert.Equal(stroke.Id, resolution.StrokeId);
                 var speed = resolution.OutgoingVelocity.Length();
                 Assert.InRange(speed,
-                    ideal.MinSpeedMetersPerSecond * (resolution.Edged ? 0.4f : 1f),
-                    ideal.MaxSpeedMetersPerSecond * (resolution.Edged ? 0.6f : 1f));
+                    ideal.MinSpeedMetersPerSecond * (resolution.Edged ? 0.55f : 1f),
+                    ideal.MaxSpeedMetersPerSecond * (resolution.Edged ? 0.75f : 1f));
                 var elevation = MathF.Atan2(
                     resolution.OutgoingVelocity.Y,
                     new Vector2(resolution.OutgoingVelocity.X, resolution.OutgoingVelocity.Z).Length()) * (180f / MathF.PI);
                 if (resolution.Edged)
-                    Assert.InRange(elevation, 4.99f, 20.01f);
+                    Assert.InRange(elevation, 14.99f, 28.01f);
                 else
                     Assert.InRange(elevation, authoredElevation - 0.01f, authoredElevation + 0.01f);
             }
@@ -130,12 +130,12 @@ public sealed class StrokeOutcomeResolverTests
         Assert.True(resolution.OutgoingVelocity.Z < 0f, "The edge did not travel behind the batter.");
         Assert.True(resolution.OutgoingVelocity.X > 0f, "The right-handed cover edge did not stay on the off side.");
         Assert.InRange(yawDegrees, 154.99f, 180.01f);
-        Assert.InRange(speed, ideal.MinSpeedMetersPerSecond * 0.4f, ideal.MaxSpeedMetersPerSecond * 0.6f);
+        Assert.InRange(speed, ideal.MinSpeedMetersPerSecond * 0.55f, ideal.MaxSpeedMetersPerSecond * 0.75f);
         Assert.InRange(MathF.Atan2(
             resolution.OutgoingVelocity.Y,
             new Vector2(resolution.OutgoingVelocity.X, resolution.OutgoingVelocity.Z).Length()) * (180f / MathF.PI),
-            4.99f,
-            20.01f);
+            14.99f,
+            28.01f);
 
         var leftHanded = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, true, false, new Random(edgeSeed));
         Assert.True(leftHanded.Edged);

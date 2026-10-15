@@ -37,20 +37,14 @@
       }
     }
   },
-  "reviewSmoke": {
-    "physics10Over": {
-      "averageRunsPerInnings": {
-        "min": 80,
-        "max": 125
-      },
-      "inningsScore": {
-        "min": 40,
-        "max": 190
-      },
-      "runOutShare": {
-        "min": 0.05,
-        "max": 0.18
-      }
+  "strokeSpeed": {
+    "idealGroundMedianMetersPerSecond": {
+      "min": 22,
+      "max": 26
+    },
+    "idealLoftMedianMetersPerSecond": {
+      "min": 28,
+      "max": 100
     }
   }
 }

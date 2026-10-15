@@ -41,10 +41,91 @@ Assert-BalanceBand 'dismissalShares.lbw' $targetBands.dismissalShares.lbw
 Assert-BalanceBand 'dismissalShares.caught' $targetBands.dismissalShares.caught
 Assert-BalanceBand 'dismissalShares.bowled' $targetBands.dismissalShares.bowled
 Assert-BalanceBand 'dismissalShares.runOut' $targetBands.dismissalShares.runOut
-$physicsSmokeBands = $balanceBands.reviewSmoke.physics10Over
-Assert-BalanceBand 'reviewSmoke.physics10Over.averageRunsPerInnings' $physicsSmokeBands.averageRunsPerInnings
-Assert-BalanceBand 'reviewSmoke.physics10Over.inningsScore' $physicsSmokeBands.inningsScore
-Assert-BalanceBand 'reviewSmoke.physics10Over.runOutShare' $physicsSmokeBands.runOutShare
+Assert-BalanceBand 'strokeSpeed.idealGroundMedianMetersPerSecond' $balanceBands.strokeSpeed.idealGroundMedianMetersPerSecond
+Assert-BalanceBand 'strokeSpeed.idealLoftMedianMetersPerSecond' $balanceBands.strokeSpeed.idealLoftMedianMetersPerSecond
+
+function Get-Median([double[]]$Values) {
+    $sorted = @($Values | Sort-Object)
+    if ($sorted.Count -eq 0) { throw 'A median requires at least one value.' }
+    $middle = [int][math]::Floor($sorted.Count / 2)
+    if ($sorted.Count % 2 -eq 1) { return [double]$sorted[$middle] }
+    return ([double]$sorted[$middle - 1] + [double]$sorted[$middle]) / 2
+}
+
+function Get-PhysicsBalanceMetrics([object[]]$Rows, [int]$Overs) {
+    $runs = 0
+    $legalBalls = 0
+    $wickets = 0
+    $caught = 0
+    $lbw = 0
+    $bowled = 0
+    $runOuts = 0
+    $boundaries = 0
+    $powerplayRuns = 0
+    $middleRuns = 0
+    $deathRuns = 0
+    $powerplayBalls = 0
+    $middleBalls = 0
+    $deathBalls = 0
+    $maximumInningsScore = 0
+    $powerplayCapacity = [int][math]::Ceiling($Overs * 6 * 0.30)
+    $middleCapacity = [int][math]::Ceiling($Overs * 6 * 0.45)
+
+    foreach ($row in $Rows) {
+        $firstBalls = [int]$row.first_legal_balls
+        $secondBalls = [int]$row.second_legal_balls
+        $runs += [int]$row.first_runs + [int]$row.second_runs
+        $legalBalls += $firstBalls + $secondBalls
+        $wickets += [int]$row.first_wickets + [int]$row.second_wickets
+        $caught += [int]$row.caught_dismissals
+        $lbw += [int]$row.lbw_dismissals
+        $bowled += [int]$row.bowled_dismissals
+        $runOuts += [int]$row.run_outs
+        $boundaries += [int]$row.boundaries
+        $powerplayRuns += [int]$row.powerplay_runs
+        $middleRuns += [int]$row.middle_runs
+        $deathRuns += [int]$row.death_runs
+        $powerplayBalls += [math]::Min($powerplayCapacity, $firstBalls) + [math]::Min($powerplayCapacity, $secondBalls)
+        $middleBalls += [math]::Min($middleCapacity, [math]::Max(0, $firstBalls - $powerplayCapacity)) +
+            [math]::Min($middleCapacity, [math]::Max(0, $secondBalls - $powerplayCapacity))
+        $deathBalls += [math]::Max(0, $firstBalls - $powerplayCapacity - $middleCapacity) +
+            [math]::Max(0, $secondBalls - $powerplayCapacity - $middleCapacity)
+        $maximumInningsScore = [math]::Max($maximumInningsScore, [math]::Max([int]$row.first_runs, [int]$row.second_runs))
+    }
+
+    if ($wickets -le 0 -or $legalBalls -le 0 -or $powerplayBalls -le 0 -or $middleBalls -le 0 -or $deathBalls -le 0) {
+        throw "The $Overs-over physics sample is missing dismissals, legal balls, or phase balls."
+    }
+    return [pscustomobject]@{
+        RunsPerOver = $runs * 6 / $legalBalls
+        WicketsPerInnings = $wickets / ($Rows.Count * 2)
+        MaximumInningsScore = $maximumInningsScore
+        BoundariesPerInnings = $boundaries / ($Rows.Count * 2)
+        LbwShare = $lbw / $wickets
+        CaughtShare = $caught / $wickets
+        BowledShare = $bowled / $wickets
+        RunOutShare = $runOuts / $wickets
+        PowerplayRunsPerOver = $powerplayRuns * 6 / $powerplayBalls
+        MiddleRunsPerOver = $middleRuns * 6 / $middleBalls
+        DeathRunsPerOver = $deathRuns * 6 / $deathBalls
+    }
+}
+
+function Assert-TargetBand([string]$Name, [double]$Value, $Band) {
+    if ($Value -lt [double]$Band.min -or $Value -gt [double]$Band.max) {
+        throw "$Name $([math]::Round($Value, 4)) is outside target [$($Band.min), $($Band.max)]."
+    }
+}
+
+function Record-TargetBandFailure(
+    [string]$Name,
+    [double]$Value,
+    $Band,
+    [System.Collections.Generic.List[string]]$Failures) {
+    if ($Value -lt [double]$Band.min -or $Value -gt [double]$Band.max) {
+        [void]$Failures.Add("$Name $([math]::Round($Value, 4)) is outside target [$($Band.min), $($Band.max)].")
+    }
+}
 
 Push-Location -LiteralPath $repoPath
 try {
@@ -123,6 +204,7 @@ try {
     Invoke-CheckedDotNet @($toolsDll, 'verify-delivery-envelopes')
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
     Invoke-CheckedDotNet @($toolsDll, 'validate-fields', 'assets/fields/positions.json', 'assets/fields/presets')
+    Invoke-CheckedDotNet @($toolsDll, 'validate-stadium-layout', 'assets/stadium/stadium-layout.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'verify-match')
     Invoke-CheckedDotNet @($toolsDll, 'verify-match-batch')
@@ -253,7 +335,6 @@ try {
         $physicsBalanceRunOuts / $physicsBalanceDismissals
     } else { 0 }
     $physicsInningsScores = @($physicsBalanceRows | ForEach-Object { [int]$_.first_runs; [int]$_.second_runs })
-    # Outcome-first stroke speeds lift the longer seeded sample above the former score envelope.
     if ($physicsBalancePlans -ne ($physicsBalanceContacts + $physicsBalanceMisses) -or
         $physicsBalancePlans + $physicsBalanceLeaves -ne $physicsBalanceDeliveries -or
         $physicsBalanceLeaves -gt $physicsBalanceWides -or
@@ -261,16 +342,87 @@ try {
         $physicsBalanceTwoRunPlans -le 0 -or
         $physicsBalanceTwoRunPlans -gt $physicsBalanceContacts -or
         $physicsBalanceTwoRunScores -gt ($physicsBalanceTwoRunPlans + $physicsBalanceBoundaries) -or
-        $physicsBalanceDismissals -le 0 -or
-        $physicsBalanceRunOutShare -lt $physicsSmokeBands.runOutShare.min -or
-        $physicsBalanceRunOutShare -gt $physicsSmokeBands.runOutShare.max -or
-        $physicsAverageRunsPerInnings -lt $physicsSmokeBands.averageRunsPerInnings.min -or
-        $physicsAverageRunsPerInnings -gt $physicsSmokeBands.averageRunsPerInnings.max -or
-        ($physicsInningsScores | Measure-Object -Minimum).Minimum -lt $physicsSmokeBands.inningsScore.min -or
-        ($physicsInningsScores | Measure-Object -Maximum).Maximum -gt $physicsSmokeBands.inningsScore.max) {
-        throw 'Seeded 10-over physics scores or event mix fell outside the calibrated review range.'
+        $physicsBalanceDismissals -le 0) {
+        throw 'Seeded 10-over physics batch produced inconsistent scores or event counts.'
     }
-    Write-Output "PASS: six physics-grounded 10-over matches averaged $([math]::Round($physicsAverageRunsPerInnings, 1)) runs per innings with $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, $physicsBalancePickups pickups, $physicsBalanceTwoRunScores results of 2+ runs from $physicsBalanceTwoRunPlans multi-run plans, and a $([math]::Round(100 * $physicsBalanceRunOutShare, 1))% run-out share across $physicsBalanceDismissals dismissals."
+    Write-Output "PASS: six physics-grounded 10-over smoke matches wrote consistent innings and event metrics, including $physicsBalanceLeaves leaves, $physicsBalanceBoundaries boundaries, and $physicsBalanceTwoRunScores doubles."
+
+    foreach ($overs in @(10, 20)) {
+        $balancePath = "artifacts/review-physics-balance-$overs-over-standard.csv"
+        Invoke-CheckedDotNet @($toolsDll, 'simulate-physics-match-batch', $coastalRosterPath, $highlandRosterPath,
+            'assets/fields/practice-attack.json', $batterPath, $bowlerPath, $shotsPath,
+            'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
+            'assets/deliveries/no-ball-pace.json', '50', [string]$overs, '9100', $balancePath, 'Standard')
+        $balanceRows = @(Import-Csv -LiteralPath $balancePath)
+        if ($balanceRows.Count -ne 50 -or
+            @($balanceRows | Where-Object { [string]::IsNullOrWhiteSpace($_.result) }).Count -gt 0) {
+            throw "The $overs-over Standard acceptance batch did not complete all 50 seeded matches."
+        }
+        $metrics = Get-PhysicsBalanceMetrics $balanceRows $overs
+        Assert-TargetBand "$overs-over runs per over" $metrics.RunsPerOver $targetBands.runsPerOver
+        Assert-TargetBand "$overs-over wickets per innings" $metrics.WicketsPerInnings $targetBands.wicketsPerInnings.($overs.ToString())
+        Assert-TargetBand "$overs-over LBW share" $metrics.LbwShare $targetBands.dismissalShares.lbw
+        Assert-TargetBand "$overs-over caught share" $metrics.CaughtShare $targetBands.dismissalShares.caught
+        Assert-TargetBand "$overs-over bowled share" $metrics.BowledShare $targetBands.dismissalShares.bowled
+        Assert-TargetBand "$overs-over run-out share" $metrics.RunOutShare $targetBands.dismissalShares.runOut
+        if ($overs -eq 10 -and $metrics.MaximumInningsScore -gt [int]$targetBands.maximumInningsScore.'10') {
+            throw "10-over maximum innings score $($metrics.MaximumInningsScore) exceeds the $($targetBands.maximumInningsScore.'10') target."
+        }
+        Write-Output ("PASS: 50 Standard matches at {0} overs; {1:0.00} RPO, {2:0.00} wickets/innings, LBW {3:P1}, caught {4:P1}, bowled {5:P1}, run-out {6:P1}, max score {7}." -f
+            $overs, $metrics.RunsPerOver, $metrics.WicketsPerInnings, $metrics.LbwShare,
+            $metrics.CaughtShare, $metrics.BowledShare, $metrics.RunOutShare, $metrics.MaximumInningsScore)
+        if ($overs -eq 20 -and $metrics.DeathRunsPerOver -le $metrics.MiddleRunsPerOver) {
+            throw 'T20 death-over scoring did not exceed middle-over scoring.'
+        }
+    }
+
+    $humanAverageScores = @{}
+    $humanGateFailures = [System.Collections.Generic.List[string]]::new()
+    foreach ($difficulty in @('Rookie', 'Amateur', 'Standard', 'Pro', 'Legend')) {
+        $humanBalancePath = "artifacts/review-physics-balance-20-over-human-$difficulty.csv"
+        Invoke-CheckedDotNet @($toolsDll, 'simulate-physics-match-batch', $coastalRosterPath, $highlandRosterPath,
+            'assets/fields/practice-attack.json', $batterPath, $bowlerPath, $shotsPath,
+            'assets/deliveries/standard-pace.json', 'assets/deliveries/wide-pace.json',
+            'assets/deliveries/no-ball-pace.json', '50', '20', '9100', $humanBalancePath, $difficulty, 'Human')
+        $humanBalanceRows = @(Import-Csv -LiteralPath $humanBalancePath)
+        if ($humanBalanceRows.Count -ne 50 -or
+            @($humanBalanceRows | Where-Object { [string]::IsNullOrWhiteSpace($_.result) }).Count -gt 0) {
+            throw "The 20-over $difficulty Human-profile acceptance batch did not complete all 50 seeded matches."
+        }
+        $humanMetrics = Get-PhysicsBalanceMetrics $humanBalanceRows 20
+        Record-TargetBandFailure "$difficulty Human runs per over" $humanMetrics.RunsPerOver $targetBands.runsPerOver $humanGateFailures
+        Record-TargetBandFailure "$difficulty Human wickets per innings" $humanMetrics.WicketsPerInnings $targetBands.wicketsPerInnings.'20' $humanGateFailures
+        Record-TargetBandFailure "$difficulty Human LBW share" $humanMetrics.LbwShare $targetBands.dismissalShares.lbw $humanGateFailures
+        Record-TargetBandFailure "$difficulty Human caught share" $humanMetrics.CaughtShare $targetBands.dismissalShares.caught $humanGateFailures
+        Record-TargetBandFailure "$difficulty Human bowled share" $humanMetrics.BowledShare $targetBands.dismissalShares.bowled $humanGateFailures
+        Record-TargetBandFailure "$difficulty Human run-out share" $humanMetrics.RunOutShare $targetBands.dismissalShares.runOut $humanGateFailures
+        $combinedRuns = 0
+        foreach ($row in $humanBalanceRows) {
+            $combinedRuns += [int]$row.first_runs + [int]$row.second_runs
+        }
+        $humanAverageScores[$difficulty] = $combinedRuns / $humanBalanceRows.Count
+        Write-Output ("RESULT: 50 {0} Human-profile matches; {1:0.00} RPO, {2:0.00} wickets/innings, LBW {3:P1}, caught {4:P1}, bowled {5:P1}, run-out {6:P1}, average combined score {7:0.0}." -f
+            $difficulty, $humanMetrics.RunsPerOver, $humanMetrics.WicketsPerInnings, $humanMetrics.LbwShare,
+            $humanMetrics.CaughtShare, $humanMetrics.BowledShare, $humanMetrics.RunOutShare, $humanAverageScores[$difficulty])
+    }
+    if ($humanAverageScores.Rookie -le $humanAverageScores.Legend) {
+        [void]$humanGateFailures.Add("Rookie Human-profile average score $($humanAverageScores.Rookie) must exceed Legend $($humanAverageScores.Legend).")
+    }
+    Write-Output ("RESULT: Rookie Human-profile average score {0:0.0}; Legend {1:0.0}." -f
+        $humanAverageScores.Rookie, $humanAverageScores.Legend)
+
+    $strokeAsset = Get-Content -LiteralPath $strokesPath -Raw | ConvertFrom-Json
+    $groundIdealMidpoints = @($strokeAsset.strokes | Where-Object { !$_.loft -and $_.intent -eq 'attack' } | ForEach-Object {
+        ([double]$_.zones.ideal.minSpeedMetersPerSecond + [double]$_.zones.ideal.maxSpeedMetersPerSecond) / 2
+    })
+    $loftIdealMidpoints = @($strokeAsset.strokes | Where-Object { $_.loft } | ForEach-Object {
+        ([double]$_.zones.ideal.minSpeedMetersPerSecond + [double]$_.zones.ideal.maxSpeedMetersPerSecond) / 2
+    })
+    $groundIdealMedian = Get-Median $groundIdealMidpoints
+    $loftIdealMedian = Get-Median $loftIdealMidpoints
+    Assert-TargetBand 'ground Ideal median speed' $groundIdealMedian $balanceBands.strokeSpeed.idealGroundMedianMetersPerSecond
+    Assert-TargetBand 'loft Ideal median speed' $loftIdealMedian $balanceBands.strokeSpeed.idealLoftMedianMetersPerSecond
+    Write-Output "PASS: Attack Ideal ground median $([math]::Round($groundIdealMedian, 2)) m/s and loft Ideal median $([math]::Round($loftIdealMedian, 2)) m/s."
     Invoke-CheckedDotNet @($toolsDll, 'verify-footwork', $batterPath, $bowlerPath, $shotsPath,
         'assets/deliveries/wide-pace.json')
     Invoke-CheckedDotNet @($toolsDll, 'simulate-over', 'assets/scenarios/practice-over.json')
@@ -304,11 +456,21 @@ try {
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-start.png')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-practice-setup.png', '--practice-setup-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-field-overview.png', '--camera', 'field-overview')
+        Invoke-CheckedDotNet @($toolsDll, 'capture-spin-paths', 'assets/bowling/deliveries.json',
+            'assets/deliveries/standard-pace.json', 'artifacts/wp23-spin-path-comparison.svg')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-behind-striker.png', '--camera', 'behind-striker')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-batting-field-map.png', '--camera', 'behind-striker')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-bowling-target.png', '--bowling-target')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-bowling-meter.png', '--bowling-meter-preview')
+        Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
+            '--capture-frame', 'artifacts/review-lbw-replay.png', '--lbw-replay-preview')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
             '--capture-frame', 'artifacts/review-batting-feedback.png', '--feedback-preview')
         Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
@@ -336,6 +498,9 @@ try {
             Invoke-CheckedDotNet @('run', '--project', 'src/SuperCricket.Game', '-c', 'Release', '--no-build', '--',
                 '--capture-frame', "artifacts/review-fielder-$action.png", '--fielder-action', "fielder-$action", '--action-time', '0.4')
         }
+    }
+    if ($humanGateFailures.Count -gt 0) {
+        throw "Section 6 Human-profile batch gate failed: $($humanGateFailures -join '; ')"
     }
     Write-Output 'Review checks passed. CSVs and any requested renderer captures are in artifacts/.'
 }

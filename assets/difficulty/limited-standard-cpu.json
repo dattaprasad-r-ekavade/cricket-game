@@ -54,7 +54,7 @@
     "pacingAggressionOffset": -0.1,
     "battingWicketChanceMultiplier": 1.0,
     "battingBoundaryChanceMultiplier": 1.0,
-    "battingRunChanceMultiplier": 1.0,
-    "battingRunOutChanceMultiplier": 1.0
+    "battingRunChanceMultiplier": 0.9,
+    "battingRunOutChanceMultiplier": 1.15
   }
 }

@@ -133,8 +133,8 @@ public static class BowlingDecisionModel
 
     private static void ValidateSituation(BowlingSituation situation)
     {
-        if (situation.OversPerInnings is < 1 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(situation), "Overs per innings must be between 1 and 10.");
+        if (situation.OversPerInnings is < 1 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(situation), "Overs per innings must be between 1 and 20.");
         if (situation.LegalBalls < 0 || situation.LegalBalls >= situation.OversPerInnings * OverScoreboard.BallsPerOver)
             throw new ArgumentOutOfRangeException(nameof(situation), "Legal balls must be within an unfinished innings.");
         if (situation.Runs < 0 || situation.Wickets is < 0 or >= OverScoreboard.MaximumWickets)

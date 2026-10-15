@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "boundaryRadiusMeters": 42.0,
+  "boundaryRadiusMeters": 62.5,
   "positions": [
     { "name": "Bowler", "angleDegrees": 0.0, "radiusMeters": 0.0 },
     { "name": "Wicketkeeper", "angleDegrees": 180.0, "radiusMeters": 11.2 },
@@ -20,12 +20,12 @@
     { "name": "Mid-wicket", "angleDegrees": 46.0, "radiusMeters": 19.0 },
     { "name": "Square leg", "angleDegrees": 78.0, "radiusMeters": 20.0 },
     { "name": "Fine leg", "angleDegrees": 121.0, "radiusMeters": 27.0 },
-    { "name": "Deep square", "angleDegrees": 100.0, "radiusMeters": 31.0 },
-    { "name": "Deep mid-wicket", "angleDegrees": 52.0, "radiusMeters": 31.0 },
-    { "name": "Long-on", "angleDegrees": 24.0, "radiusMeters": 32.0 },
-    { "name": "Long-off", "angleDegrees": -23.0, "radiusMeters": 32.0 },
-    { "name": "Deep cover", "angleDegrees": -51.0, "radiusMeters": 31.0 },
-    { "name": "Deep point", "angleDegrees": -85.0, "radiusMeters": 30.0 },
-    { "name": "Long leg", "angleDegrees": 151.0, "radiusMeters": 30.0 }
+    { "name": "Deep square", "angleDegrees": 100.0, "radiusMeters": 46.1 },
+    { "name": "Deep mid-wicket", "angleDegrees": 52.0, "radiusMeters": 46.1 },
+    { "name": "Long-on", "angleDegrees": 24.0, "radiusMeters": 47.6 },
+    { "name": "Long-off", "angleDegrees": -23.0, "radiusMeters": 47.6 },
+    { "name": "Deep cover", "angleDegrees": -51.0, "radiusMeters": 46.1 },
+    { "name": "Deep point", "angleDegrees": -85.0, "radiusMeters": 44.6 },
+    { "name": "Long leg", "angleDegrees": 151.0, "radiusMeters": 44.6 }
   ]
 }

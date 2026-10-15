@@ -36,8 +36,8 @@ public sealed class GameSettings
             errors.Add($"Settings version must be {CurrentVersion}.");
         if (!Enum.IsDefined(Difficulty))
             errors.Add("CPU difficulty is not supported.");
-        if (OversPerInnings is not (1 or 2 or 5 or 10))
-            errors.Add("Overs per innings must be 1, 2, 5, or 10.");
+        if (OversPerInnings is not (1 or 2 or 5 or 10 or 20))
+            errors.Add("Overs per innings must be 1, 2, 5, 10, or 20.");
         if (!float.IsFinite(EffectsVolume) || EffectsVolume is < 0f or > 1f)
             errors.Add("Effects volume must be between 0 and 1.");
         if (!Enum.IsDefined(BattingInputScheme))

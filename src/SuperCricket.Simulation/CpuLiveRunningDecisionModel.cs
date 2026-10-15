@@ -39,7 +39,8 @@ public static class CpuLiveRunningDecisionModel
         float pickupAnimationDurationSeconds = 0.5f,
         float throwAnimationDurationSeconds = 0.6f,
         int maximumRunCount = MaximumPlannedRuns,
-        float? catchAnimationDurationSeconds = null)
+        float? catchAnimationDurationSeconds = null,
+        float runOutChanceMultiplier = 1f)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(fielderPositions);
@@ -56,6 +57,8 @@ public static class CpuLiveRunningDecisionModel
         var catchDuration = catchAnimationDurationSeconds ?? pickupAnimationDurationSeconds;
         if (!float.IsFinite(catchDuration) || catchDuration <= 0f)
             throw new ArgumentOutOfRangeException(nameof(catchAnimationDurationSeconds));
+        if (!float.IsFinite(runOutChanceMultiplier) || runOutChanceMultiplier <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(runOutChanceMultiplier));
         if (fielderPositions.Count != FieldingSide.FielderCount || fieldingRatings.Count != FieldingSide.FielderCount)
             throw new ArgumentException($"CPU running decisions require exactly {FieldingSide.FielderCount} fielding positions and ratings.");
         if (!runIntent)
@@ -85,7 +88,9 @@ public static class CpuLiveRunningDecisionModel
                     return new CpuLiveRunDecision(0, CpuLiveRunDecisionReason.FielderCanCollectBeforeRun, elapsedSinceContact);
 
                 var collectionDuration = contact.Kind == FieldingContactKind.Catch ? catchDuration : pickupAnimationDurationSeconds;
-                var safetyMargin = contact.Kind == FieldingContactKind.Catch ? 0f : RunSafetyMarginSeconds;
+                var safetyMargin = contact.Kind == FieldingContactKind.Catch
+                    ? 0f
+                    : RunSafetyMarginSeconds / runOutChanceMultiplier;
                 var safeRuns = CountCompletedRuns(
                     MathF.Max(0f,
                         elapsedSinceContact + collectionDuration + throwAnimationDurationSeconds - safetyMargin),

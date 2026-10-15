@@ -51,6 +51,7 @@ public static class FieldPlacementModel
 
         var positions = new Vector3[preset.Players.Count];
         var maximumRadius = preset.BoundaryRadiusMeters - BoundarySafetyMarginMeters;
+        var deepFielderRadius = DeepFielderRadiusMeters * (preset.BoundaryRadiusMeters / 42f);
         for (var index = 0; index < preset.Players.Count; index++)
         {
             var player = preset.Players[index];
@@ -64,9 +65,9 @@ public static class FieldPlacementModel
 
             var adjustedRadius = tactic switch
             {
-                FieldingTactic.ProtectBoundary when radius >= DeepFielderRadiusMeters =>
+                FieldingTactic.ProtectBoundary when radius >= deepFielderRadius =>
                     MathF.Min(maximumRadius, radius + 2.5f),
-                FieldingTactic.AttackWickets when radius < DeepFielderRadiusMeters =>
+                FieldingTactic.AttackWickets when radius < deepFielderRadius =>
                     MathF.Max(3.5f, radius - 1.5f),
                 _ => radius
             };
@@ -150,8 +151,8 @@ public static class FieldPlacementModel
 
     private static string? ValidateSituation(BowlingSituation situation)
     {
-        if (situation.OversPerInnings is < 1 or > 10)
-            return "Overs per innings must be between 1 and 10.";
+        if (situation.OversPerInnings is < 1 or > 20)
+            return "Overs per innings must be between 1 and 20.";
         if (situation.LegalBalls < 0 || situation.LegalBalls >= situation.OversPerInnings * OverScoreboard.BallsPerOver)
             return "Legal balls must be within an unfinished innings.";
         if (situation.Runs < 0 || situation.Wickets is < 0 or >= OverScoreboard.MaximumWickets)
@@ -163,8 +164,8 @@ public static class FieldPlacementModel
 
     private static void ValidateChoiceSituation(FieldChoiceSituation situation)
     {
-        if (situation.OversPerInnings is < 1 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(situation), "Overs per innings must be between 1 and 10.");
+        if (situation.OversPerInnings is < 1 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(situation), "Overs per innings must be between 1 and 20.");
         var maximumBalls = situation.OversPerInnings * OverScoreboard.BallsPerOver;
         if (situation.LegalBalls < 0 || situation.LegalBalls > maximumBalls)
             throw new ArgumentOutOfRangeException(nameof(situation), "Legal balls must be within the innings.");

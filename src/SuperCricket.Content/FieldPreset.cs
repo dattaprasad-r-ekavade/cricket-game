@@ -15,7 +15,7 @@ public sealed class FieldPreset
 
     public int Version { get; set; } = 1;
     public string Name { get; set; } = string.Empty;
-    public float BoundaryRadiusMeters { get; set; } = 42f;
+    public float BoundaryRadiusMeters { get; set; } = 62.5f;
     public List<FieldPositionData> Players { get; set; } = [];
 
     public static FieldPreset Load(string path)

@@ -8,7 +8,11 @@ public enum FieldingContactKind
     Catch
 }
 
-public readonly record struct FieldingContact(int FielderIndex, Vector3 Position, FieldingContactKind Kind);
+public readonly record struct FieldingContact(
+    int FielderIndex,
+    Vector3 Position,
+    FieldingContactKind Kind,
+    float ReactionDistanceMeters = 0f);
 
 /// <summary>Small fielder set with bounded chase movement and swept ball interception.</summary>
 public sealed class FieldingSide
@@ -21,9 +25,9 @@ public sealed class FieldingSide
         new(0.0f, -0.08f, -20.0f),
         new(-20.0f, -0.08f, -7.0f),
         new(2.25f, -0.08f, -24.0f),
-        new(-17.0f, -0.08f, 16.0f),
-        new(16.0f, -0.08f, 16.0f),
-        new(0.0f, -0.08f, -31.0f),
+        new(-25.3f, -0.08f, 23.8f),
+        new(23.8f, -0.08f, 23.8f),
+        new(0.0f, -0.08f, -46.1f),
         new(0.0f, -0.08f, -11.2f)
     ];
 
@@ -33,13 +37,14 @@ public sealed class FieldingSide
     public const float ReactionSeconds = 0.14f;
     public const float FieldingRadiusMeters = 0.68f;
     public const float MinimumCatchHeightAboveGroundMeters = 0.72f;
+    public const float MaximumCatchHeightAboveGroundMeters = 4f;
     public const int FielderCount = 10;
     private readonly float[] _moveSpeeds = Enumerable.Repeat(MoveSpeedMetersPerSecond, FielderCount).ToArray();
     private readonly float[] _reactionTimes = Enumerable.Repeat(ReactionSeconds, FielderCount).ToArray();
     private readonly float[] _pickupRadii = Enumerable.Repeat(FieldingRadiusMeters, FielderCount).ToArray();
     private int _activeChaser = -1;
     private float _reactionRemaining;
-    private float _boundaryRadiusMeters = 42f;
+    private float _boundaryRadiusMeters = 62.5f;
 
     public IReadOnlyList<Vector3> Positions => _positions;
     public IReadOnlyList<Vector3> StartingPositions => _startingPositions;
@@ -226,7 +231,7 @@ public sealed class FieldingSide
                 continue;
 
             var ballHeight = previous.Position.Y + (current.Position.Y - previous.Position.Y) * fraction;
-            if (ballHeight > 2.45f || ballHeight < -0.1f)
+            if (ballHeight - fielder.Y > MaximumCatchHeightAboveGroundMeters || ballHeight < -0.1f)
                 continue;
 
             bestFraction = fraction;
@@ -244,7 +249,8 @@ public sealed class FieldingSide
         var kind = current.BounceCount == 0 && bestPosition.Y > fielderGroundHeight + MinimumCatchHeightAboveGroundMeters
             ? FieldingContactKind.Catch
             : FieldingContactKind.GroundPickup;
-        contact = new FieldingContact(bestIndex, bestPosition, kind);
+        var reactionDistance = MathF.Sqrt(HorizontalDistanceSquared(_startingPositions[bestIndex], bestPosition));
+        contact = new FieldingContact(bestIndex, bestPosition, kind, reactionDistance);
         return true;
     }
 

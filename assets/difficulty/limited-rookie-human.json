@@ -5,8 +5,8 @@
   "side": "human",
   "timing": {
     "centreMeters": 0.0,
-    "windowMeters": 8.0,
-    "idealBase": 1.2,
+    "windowMeters": 7.6,
+    "idealBase": 1.1,
     "idealMinimum": 0.4,
     "loftReduction": 0.15,
     "settleCurve": [
@@ -29,7 +29,7 @@
     ],
     "assistEnabled": true
   },
-  "umpiresCallProbability": 0.35,
+  "umpiresCallProbability": 0.0,
   "bowlingTargetRadiusMinMeters": 0.12,
   "bowlingTargetRadiusMaxMeters": 0.9,
   "scatterSteps": 2,

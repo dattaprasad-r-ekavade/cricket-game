@@ -221,7 +221,8 @@ public sealed class StrokeTableAsset
         {
             foreach (var (zone, data) in stroke.Zones)
             {
-                if (zone != TimingZone.Ideal && data is not null && float.IsFinite(data.MaxSpeedMetersPerSecond) &&
+                if (zone is not (TimingZone.Ideal or TimingZone.Start or TimingZone.End) &&
+                    data is not null && float.IsFinite(data.MaxSpeedMetersPerSecond) &&
                     ideal.MaxSpeedMetersPerSecond < data.MaxSpeedMetersPerSecond)
                     errors.Add($"Stroke '{stroke.Id}' Ideal max speed must be at least the {zone} max speed.");
             }

@@ -15,7 +15,7 @@ public sealed class FieldPositionCatalog
     };
 
     public int Version { get; set; } = 1;
-    public float BoundaryRadiusMeters { get; set; } = 42f;
+    public float BoundaryRadiusMeters { get; set; } = 62.5f;
     public List<FieldPositionDefinition> Positions { get; set; } = [];
 
     public static FieldPositionCatalog Load(string path)

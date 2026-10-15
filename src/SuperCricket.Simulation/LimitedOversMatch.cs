@@ -86,7 +86,7 @@ public sealed class LimitedOversMatch
         Reset(oversPerInnings);
     }
 
-    public static IReadOnlyList<int> SupportedOversPerInnings { get; } = Array.AsReadOnly(new[] { 1, 2, 5, 10 });
+    public static IReadOnlyList<int> SupportedOversPerInnings { get; } = Array.AsReadOnly(new[] { 1, 2, 5, 10, 20 });
 
     public TeamRosterAsset FirstTeam => _firstTeam;
     public TeamRosterAsset SecondTeam => _secondTeam;
@@ -191,8 +191,8 @@ public sealed class LimitedOversMatch
     public void Reset(int? oversPerInnings = null)
     {
         var selectedOvers = oversPerInnings ?? (OversPerInnings == 0 ? 1 : OversPerInnings);
-        if (selectedOvers is not (1 or 2 or 5 or 10))
-            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "Choose 1, 2, 5, or 10 overs per innings.");
+        if (selectedOvers is not (1 or 2 or 5 or 10 or 20))
+            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "Choose 1, 2, 5, 10, or 20 overs per innings.");
 
         OversPerInnings = selectedOvers;
         InningsNumber = 1;

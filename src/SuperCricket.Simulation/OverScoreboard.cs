@@ -10,8 +10,8 @@ public sealed class OverScoreboard
 
     public OverScoreboard(int oversPerInnings = 1)
     {
-        if (oversPerInnings is < 1 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "An innings must have between one and ten overs.");
+        if (oversPerInnings is < 1 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(oversPerInnings), "An innings must have between one and twenty overs.");
         _oversPerInnings = oversPerInnings;
     }
 

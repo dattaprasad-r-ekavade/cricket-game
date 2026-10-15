@@ -5,6 +5,51 @@ namespace SuperCricket.Simulation.Tests;
 public sealed class CpuLiveBattingTimingTests
 {
     [Fact]
+    public void HumanSideBatchProxyUsesHumanTimingProfilesWithFixedInputNoise()
+    {
+        var paths = TestAssets.CpuBattingInputs();
+        var batterAsset = PlayerAsset.Load(paths[0]);
+        var bowlerAsset = PlayerAsset.Load(paths[1]);
+        var shotSet = BattingShotSet.Load(paths[2]);
+        var delivery = DeliveryPreset.Load(paths[3]);
+        var fieldPreset = FieldPreset.Load(paths[7]);
+        var fieldingPositions = fieldPreset.Players.Select(fielder => fielder.Position.ToVector3()).ToArray();
+        var battingTeam = TeamRosterAsset.Load(paths[5]);
+        var fieldingTeam = TeamRosterAsset.Load(paths[6]);
+        var striker = battingTeam.GetPlayerAtBattingOrder(1);
+        var bowler = fieldingTeam.Players.First(player =>
+            player.Role.Equals("Bowler", StringComparison.OrdinalIgnoreCase));
+        var fielders = fieldingTeam.Players.Where(player => player.Id != bowler.Id).ToArray();
+        var strokeTable = StrokeTableAsset.Load(TestAssets.Asset("batting", "strokes.json"));
+        var situation = new BowlingSituation(LegalBalls: 0, OversPerInnings: 20, Runs: 0, Wickets: 0, Target: null);
+
+        CpuLiveBattingPlan Plan(CpuDifficulty difficulty) => CpuLiveBattingPlanModel.Choose(
+            striker,
+            bowler,
+            fielders,
+            situation,
+            FieldingTactic.Balanced,
+            delivery,
+            batterAsset,
+            bowlerAsset,
+            shotSet,
+            seed: 7139,
+            fieldingPositions: fieldingPositions,
+            difficulty: difficulty,
+            strokeTable: strokeTable,
+            battingSide: DifficultySide.Human);
+
+        var rookie = Plan(CpuDifficulty.Rookie);
+        var legend = Plan(CpuDifficulty.Legend);
+
+        Assert.NotNull(rookie.StrokeOutcome);
+        Assert.NotNull(legend.StrokeOutcome);
+        Assert.Equal(rookie.StrokeOutcome!.Value.StrokeId, legend.StrokeOutcome!.Value.StrokeId);
+        Assert.Equal(rookie.HorizontalAim, legend.HorizontalAim);
+        Assert.True(rookie.IdealWidthMeters > legend.IdealWidthMeters);
+    }
+
+    [Fact]
     public void NewCpuBatterUsesSettleCurveStartEvenLateInTheInnings()
     {
         var paths = TestAssets.CpuBattingInputs();

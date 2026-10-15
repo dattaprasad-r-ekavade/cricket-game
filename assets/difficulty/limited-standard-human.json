@@ -27,9 +27,9 @@
         "fraction": 1.0
       }
     ],
-    "assistEnabled": true
+    "assistEnabled": false
   },
-  "umpiresCallProbability": 0.35,
+  "umpiresCallProbability": 0.25,
   "bowlingTargetRadiusMinMeters": 0.12,
   "bowlingTargetRadiusMaxMeters": 1.1,
   "scatterSteps": 4,
