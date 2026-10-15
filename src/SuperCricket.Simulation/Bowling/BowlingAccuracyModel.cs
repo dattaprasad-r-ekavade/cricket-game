@@ -140,9 +140,15 @@ public enum DeliveryPaceBand
 
 public readonly record struct PaceMeterResult(DeliveryPaceBand Pace, float SpeedMultiplier, bool IsNoBall, float FillFraction);
 
+public readonly record struct PaceMeterBand(DeliveryPaceBand Pace, bool IsNoBall, float StartSeconds, float EndSeconds);
+
 /// <summary>Converts a stride-timed press to a discrete pace and front-foot result.</summary>
 public static class PaceMeterModel
 {
+    public const float SlowBandEndFill = 1f / 3f;
+    public const float NormalBandEndFill = 2f / 3f;
+    public const float NoBallBandStartFill = 0.92f;
+
     public static float FillSeconds(DifficultyProfileAsset profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -160,6 +166,18 @@ public static class PaceMeterModel
         _ => throw new ArgumentOutOfRangeException(nameof(difficulty))
     };
 
+    public static IReadOnlyList<PaceMeterBand> GetBands(DifficultyProfileAsset profile)
+    {
+        var fillSeconds = FillSeconds(profile);
+        return Array.AsReadOnly(new[]
+        {
+            new PaceMeterBand(DeliveryPaceBand.Slow, false, 0f, fillSeconds * SlowBandEndFill),
+            new PaceMeterBand(DeliveryPaceBand.Normal, false, fillSeconds * SlowBandEndFill, fillSeconds * NormalBandEndFill),
+            new PaceMeterBand(DeliveryPaceBand.Fast, false, fillSeconds * NormalBandEndFill, fillSeconds * NoBallBandStartFill),
+            new PaceMeterBand(DeliveryPaceBand.Fast, true, fillSeconds * NoBallBandStartFill, fillSeconds)
+        });
+    }
+
     public static PaceMeterResult Resolve(float? elapsedSeconds, PaceMeterDifficulty difficulty)
     {
         return ResolveWithFillSeconds(elapsedSeconds, FillSeconds(difficulty));
@@ -174,9 +192,9 @@ public static class PaceMeterModel
         if (!float.IsFinite(elapsedSeconds.Value) || elapsedSeconds.Value < 0f)
             throw new ArgumentOutOfRangeException(nameof(elapsedSeconds));
         var fill = Math.Clamp(elapsedSeconds.Value / fillSeconds, 0f, 1f);
-        if (fill >= 0.92f) return new PaceMeterResult(DeliveryPaceBand.Fast, 1f, true, fill);
-        if (fill < 1f / 3f) return new PaceMeterResult(DeliveryPaceBand.Slow, 0.82f, false, fill);
-        if (fill < 2f / 3f) return new PaceMeterResult(DeliveryPaceBand.Normal, 0.92f, false, fill);
+        if (fill >= NoBallBandStartFill) return new PaceMeterResult(DeliveryPaceBand.Fast, 1f, true, fill);
+        if (fill < SlowBandEndFill) return new PaceMeterResult(DeliveryPaceBand.Slow, 0.82f, false, fill);
+        if (fill < NormalBandEndFill) return new PaceMeterResult(DeliveryPaceBand.Normal, 0.92f, false, fill);
         return new PaceMeterResult(DeliveryPaceBand.Fast, 1f, false, fill);
     }
 

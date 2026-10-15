@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using SuperCricket.Content;
 using SuperCricket.Game;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 using SuperCricket.Simulation.Events;
 
 namespace SuperCricket.Game.Tests;
@@ -130,6 +131,39 @@ public sealed class MatchHudPresenterTests
             BowlingNoBall: true));
 
         Assert.Contains(new HudActionHint("CALL", "NO BALL"), hints);
+    }
+
+    [Fact]
+    public void BowlingPaceMeterBandsMatchModelThresholdsForEveryHumanDifficulty()
+    {
+        foreach (var difficulty in CpuDifficultyModel.Difficulties)
+        {
+            var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Human);
+            var fillSeconds = PaceMeterModel.FillSeconds(profile);
+            var modelBands = PaceMeterModel.GetBands(profile);
+            var normalResult = PaceMeterModel.Resolve(fillSeconds * 0.5f, profile);
+            var layout = MatchHudPresenter.BuildBowlingPaceMeter(profile, 0.5f, normalResult);
+
+            Assert.Equal(4, layout.Bands.Count);
+            Assert.Equal("NORMAL", layout.SelectedLabel);
+            Assert.Equal(0f, layout.Bands[0].StartProgress, 6);
+            Assert.Equal(1f, layout.Bands[^1].EndProgress, 6);
+            for (var index = 0; index < modelBands.Count; index++)
+            {
+                Assert.Equal(modelBands[index].StartSeconds / fillSeconds, layout.Bands[index].StartProgress, 6);
+                Assert.Equal(modelBands[index].EndSeconds / fillSeconds, layout.Bands[index].EndProgress, 6);
+                Assert.Equal(index == 3 ? "NB" : modelBands[index].Pace.ToString().ToUpperInvariant(), layout.Bands[index].Label);
+                if (index > 0)
+                    Assert.Equal(layout.Bands[index - 1].EndProgress, layout.Bands[index].StartProgress, 6);
+            }
+
+            Assert.Equal(DeliveryPaceBand.Slow, PaceMeterModel.Resolve(modelBands[0].StartSeconds, profile).Pace);
+            Assert.Equal(DeliveryPaceBand.Normal, PaceMeterModel.Resolve(modelBands[1].StartSeconds, profile).Pace);
+            Assert.Equal(DeliveryPaceBand.Fast, PaceMeterModel.Resolve(modelBands[2].StartSeconds, profile).Pace);
+            var noBallResult = PaceMeterModel.Resolve(modelBands[3].StartSeconds, profile);
+            Assert.True(noBallResult.IsNoBall);
+            Assert.Equal("NO BALL", MatchHudPresenter.BuildBowlingPaceMeter(profile, noBallResult.FillFraction, noBallResult).SelectedLabel);
+        }
     }
 
     [Theory]

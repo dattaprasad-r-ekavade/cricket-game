@@ -49,7 +49,7 @@ public partial class Game1
         var scoreWidth = Math.Min(600, viewport.Width - controlsWidth - HudMargin * 3);
         var controlsHeight = 12 + 34 + hints.Count * HudControlRowHeight +
             (phase == MatchHudPhase.Batting ? 42 : 0) +
-            (HasHumanBowlingControls && _humanBowlingStarted ? 42 : 0) + 27 + 10;
+            (HasHumanBowlingControls && _humanBowlingStarted ? 52 : 0) + 27 + 10;
         var scorePanel = new Rectangle(HudMargin, HudMargin, scoreWidth, HudScorePanelHeight);
         var bowlerLines = HasHumanBowlingControls
             ? MatchHudPresenter.BuildBowlerStatusLines(_match.CurrentBowlingFigures)
@@ -166,7 +166,7 @@ public partial class Game1
         {
             rowY += 2;
             DrawBowlingPaceMeter(panel, rowY, accent, textScale);
-            rowY += 40;
+            rowY += 50;
         }
 
         var footer = _lastInputWasGamePad
@@ -189,17 +189,37 @@ public partial class Game1
     private void DrawBowlingPaceMeter(Rectangle panel, int y, Color accent, float scale)
     {
         var isNoBall = _humanBowlingPaceResult?.IsNoBall == true;
-        var label = isNoBall ? "NO BALL" : _humanBowlingPaceResult is { } result ? result.Pace.ToString().ToUpperInvariant() : "TIMING";
-        DrawOverlayText($"PACE  /  {label}", new Vector2(panel.X + 14, y), isNoBall ? Color.OrangeRed : accent, 0.67f * scale);
+        var meterProfile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
+        var presentation = MatchHudPresenter.BuildBowlingPaceMeter(
+            meterProfile,
+            GetHumanBowlingPaceProgress(),
+            _humanBowlingPaceResult);
+        DrawOverlayText($"PACE  /  {presentation.SelectedLabel}", new Vector2(panel.X + 14, y), isNoBall ? Color.OrangeRed : accent, 0.67f * scale);
         var bar = new Rectangle(panel.X + 14, y + 17, panel.Width - 28, 8);
         _spriteBatch.Draw(_feedbackMapPixel, bar, _gameSettings.HighContrast ? Color.DarkGray : new Color(57, 74, 81));
-        var fill = new Rectangle(bar.X, bar.Y, (int)MathF.Round(bar.Width * GetHumanBowlingPaceProgress()), bar.Height);
-        if (fill.Width > 0)
-            _spriteBatch.Draw(_feedbackMapPixel, fill, isNoBall ? Color.OrangeRed : accent);
-        var meterProfile = CpuDifficultyModel.GetProfile(_cpuDifficulty, DifficultySide.Human);
-        var noBallX = bar.X + (int)MathF.Round(bar.Width * 0.92f);
-        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(noBallX, bar.Y - 4, 2, bar.Height + 8), Color.OrangeRed);
-        DrawOverlayText($"NO BALL  |  {PaceMeterModel.FillSeconds(meterProfile):0.0}s", new Vector2(bar.Right - 115, y), Color.OrangeRed, 0.58f * scale);
+        foreach (var band in presentation.Bands)
+        {
+            var startX = bar.X + (int)MathF.Round(bar.Width * band.StartProgress);
+            var endX = bar.X + (int)MathF.Round(bar.Width * band.EndProgress);
+            var bandColor = band.IsNoBall ? Color.OrangeRed : band.Label switch
+            {
+                "SLOW" => new Color(73, 136, 174),
+                "NORMAL" => new Color(66, 151, 102),
+                _ => new Color(193, 145, 50)
+            };
+            if (_gameSettings.HighContrast && !band.IsNoBall)
+                bandColor = Color.Yellow;
+            _spriteBatch.Draw(_feedbackMapPixel,
+                new Rectangle(startX, bar.Y, Math.Max(1, endX - startX), bar.Height), bandColor);
+            var labelSize = _debugFont.MeasureString(band.Label) * (0.67f * scale);
+            var labelPosition = new Vector2((startX + endX - labelSize.X) * 0.5f, bar.Bottom + 1);
+            DrawOverlayText(band.Label, labelPosition, band.IsNoBall ? Color.OrangeRed : accent, 0.67f * scale);
+        }
+        var markerX = bar.X + (int)MathF.Round(bar.Width * presentation.Progress);
+        _spriteBatch.Draw(_feedbackMapPixel, new Rectangle(markerX - 1, bar.Y - 3, 3, bar.Height + 6), Color.White);
+        var noBallBand = presentation.Bands.Single(band => band.IsNoBall);
+        DrawOverlayText($"NO BALL ≥ {noBallBand.StartProgress * presentation.FillSeconds:0.00}s",
+            new Vector2(bar.Right - 132, y), Color.OrangeRed, 0.58f * scale);
     }
 
     private void DrawShotLaneMeter(Rectangle panel, int y, Color accent, float scale)

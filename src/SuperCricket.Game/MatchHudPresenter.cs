@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using SuperCricket.Content;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 using SuperCricket.Simulation.Events;
 
 namespace SuperCricket.Game;
@@ -126,6 +127,14 @@ internal readonly record struct HudActionHint(string Input, string Action);
 
 internal readonly record struct TimingGaugeBand(TimingZone Zone, float Start, float End);
 
+internal readonly record struct BowlingPaceBandLayout(string Label, bool IsNoBall, float StartProgress, float EndProgress);
+
+internal sealed record BowlingPaceMeterPresentation(
+    IReadOnlyList<BowlingPaceBandLayout> Bands,
+    float FillSeconds,
+    float Progress,
+    string SelectedLabel);
+
 internal sealed record TimingGaugePresentation(
     IReadOnlyList<TimingGaugeBand> Bands,
     float Progress,
@@ -154,6 +163,29 @@ internal readonly record struct LiveFeedbackBannerContent(
 /// <summary>Builds match HUD text and layout values without depending on a graphics device.</summary>
 internal static class MatchHudPresenter
 {
+    public static BowlingPaceMeterPresentation BuildBowlingPaceMeter(
+        DifficultyProfileAsset profile,
+        float progress,
+        PaceMeterResult? selectedResult = null)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (!float.IsFinite(progress))
+            throw new ArgumentOutOfRangeException(nameof(progress));
+
+        var fillSeconds = PaceMeterModel.FillSeconds(profile);
+        var bands = PaceMeterModel.GetBands(profile)
+            .Select(band => new BowlingPaceBandLayout(
+                band.IsNoBall ? "NB" : band.Pace.ToString().ToUpperInvariant(),
+                band.IsNoBall,
+                band.StartSeconds / fillSeconds,
+                band.EndSeconds / fillSeconds))
+            .ToArray();
+        var label = selectedResult is not { } result
+            ? "TIMING"
+            : result.IsNoBall ? "NO BALL" : result.Pace.ToString().ToUpperInvariant();
+        return new BowlingPaceMeterPresentation(Array.AsReadOnly(bands), fillSeconds, Math.Clamp(progress, 0f, 1f), label);
+    }
+
     public static TimingGaugePresentation BuildTimingGauge(TimingWindow window, float ballDistanceMeters)
     {
         ArgumentNullException.ThrowIfNull(window);
