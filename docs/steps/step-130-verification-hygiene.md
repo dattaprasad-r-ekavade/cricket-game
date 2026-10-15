@@ -2,7 +2,7 @@
 
 Date: 2026-10-15
 
-Status: local checks pass; hosted CI pending push.
+Status: complete; the hosted Windows validation run is green.
 
 ## Changes
 
@@ -33,4 +33,4 @@ PASS: six physics-grounded 10-over matches averaged 123.2 runs per innings with 
 Review checks passed. CSVs and any requested renderer captures are in artifacts/.
 ```
 
-Hosted CI run URL: pending push of the WP25 commit.
+Hosted CI: [Windows validation run 96](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/38755908321) succeeded on commit `2c6fcf40310415395c5c6f79d606ba2419fbe954`.
