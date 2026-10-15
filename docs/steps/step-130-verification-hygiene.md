@@ -2,7 +2,7 @@
 
 Date: 2026-10-15
 
-Status: complete; the hosted Windows validation run is green.
+Status: complete; the latest hosted Windows validation run is green.
 
 ## Changes
 
@@ -34,3 +34,14 @@ Review checks passed. CSVs and any requested renderer captures are in artifacts/
 ```
 
 Hosted CI: [Windows validation run 96](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/38755908321) succeeded on commit `2c6fcf40310415395c5c6f79d606ba2419fbe954`.
+
+## Hosted integration verification (16 October 2026)
+
+[Windows validation run 98](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/38812431483) succeeded on commit `b02f59a941cdffae984178856603d2f1641d90d7`. The workflow's `dotnet test SuperCricket.sln -c Release` passed all 544 tests (308 Simulation, 203 Game, 33 Content; 0 failed, 0 skipped). `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures` passed the Release solution and Godot trial builds (0 warnings/errors), content checks, Standard 10/20-over balance gates, all five Human-profile batches, and the other headless checks.
+
+```text
+PASS: 50 Standard matches at 10 overs; 6.11 RPO, 3.36 wickets/innings, LBW 14.9%, caught 58.6%, bowled 15.8%, run-out 10.7%, max score 103.
+PASS: 50 Standard matches at 20 overs; 6.58 RPO, 7.07 wickets/innings, LBW 15.1%, caught 59.8%, bowled 15.7%, run-out 9.3%, max score 182.
+RESULT: Rookie Human-profile average score 305.6; Legend 255.4.
+Review checks passed. CSVs and any requested renderer captures are in artifacts/.
+```
