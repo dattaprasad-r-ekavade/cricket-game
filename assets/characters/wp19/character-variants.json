@@ -1,0 +1,226 @@
+{
+  "schema": "super-cricket.player-variants.v1",
+  "generated": "2026-10-16",
+  "generator": "tools/blender/build_wp19_characters.py, Blender 5.2, MPFB2 2.0.18",
+  "source_body": {
+    "asset": "MPFB2 bundled MakeHuman base mesh",
+    "license": "CC0 1.0",
+    "license_url": "https://static.makehumancommunity.org/about/license.html",
+    "mpfb_release": "https://static.makehumancommunity.org/mpfb/releases/release_2018.html"
+  },
+  "skeleton": {
+    "id": "super-cricket-humanoid-61",
+    "bone_count": 61,
+    "source": "assets/characters/practice-batter-humanoid.blend"
+  },
+  "lod_switch_meters": [
+    18.0,
+    42.0
+  ],
+  "team_color_masks": {
+    "jersey": {
+      "mask": "textures/jersey-team-mask.png",
+      "base_color": "textures/jersey-base-color.png"
+    },
+    "trouser": {
+      "mask": "textures/trouser-team-mask.png",
+      "base_color": "textures/trouser-base-color.png"
+    }
+  },
+  "kit_parts": [
+    "jersey",
+    "trousers",
+    "pads",
+    "gloves",
+    "helmet",
+    "bat",
+    "shoes"
+  ],
+  "variants": [
+    {
+      "id": "agile",
+      "label": "Agile",
+      "macro_profile": {
+        "height": 0.57,
+        "weight": 0.34,
+        "muscle": 0.6,
+        "proportions": 0.36,
+        "age": 0.38
+      },
+      "body_vertex_count": 13380,
+      "body_face_count": 13378,
+      "body_bounds_xyz": [
+        [
+          -0.4884,
+          0.4884
+        ],
+        [
+          -0.3154,
+          0.0845
+        ],
+        [
+          0.0,
+          1.5693
+        ]
+      ],
+      "jersey_vertex_count": 2105,
+      "jersey_face_count": 2007,
+      "trouser_vertex_count": 3512,
+      "trouser_face_count": 3471,
+      "weighted_body_vertices": 13380,
+      "lods": [
+        {
+          "lod": 0,
+          "collection": "WP19 agile LOD0",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "agile-lod0.glb",
+          "glb_bytes": 2369544,
+          "exported_triangles": 41328
+        },
+        {
+          "lod": 1,
+          "collection": "WP19 agile LOD1",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "agile-lod1.glb",
+          "glb_bytes": 765020,
+          "exported_triangles": 11156
+        },
+        {
+          "lod": 2,
+          "collection": "WP19 agile LOD2",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "agile-lod2.glb",
+          "glb_bytes": 419084,
+          "exported_triangles": 5874
+        }
+      ]
+    },
+    {
+      "id": "balanced",
+      "label": "Balanced",
+      "macro_profile": {
+        "height": 0.5,
+        "weight": 0.5,
+        "muscle": 0.52,
+        "proportions": 0.5,
+        "age": 0.44
+      },
+      "body_vertex_count": 13380,
+      "body_face_count": 13378,
+      "body_bounds_xyz": [
+        [
+          -0.5022,
+          0.5022
+        ],
+        [
+          -0.3204,
+          0.0907
+        ],
+        [
+          -0.0,
+          1.5926
+        ]
+      ],
+      "jersey_vertex_count": 2107,
+      "jersey_face_count": 2008,
+      "trouser_vertex_count": 3512,
+      "trouser_face_count": 3469,
+      "weighted_body_vertices": 13380,
+      "lods": [
+        {
+          "lod": 0,
+          "collection": "WP19 balanced LOD0",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "balanced-lod0.glb",
+          "glb_bytes": 2369508,
+          "exported_triangles": 41326
+        },
+        {
+          "lod": 1,
+          "collection": "WP19 balanced LOD1",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "balanced-lod1.glb",
+          "glb_bytes": 771076,
+          "exported_triangles": 11156
+        },
+        {
+          "lod": 2,
+          "collection": "WP19 balanced LOD2",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "balanced-lod2.glb",
+          "glb_bytes": 419672,
+          "exported_triangles": 5875
+        }
+      ]
+    },
+    {
+      "id": "power",
+      "label": "Power",
+      "macro_profile": {
+        "height": 0.6,
+        "weight": 0.7,
+        "muscle": 0.68,
+        "proportions": 0.58,
+        "age": 0.46
+      },
+      "body_vertex_count": 13380,
+      "body_face_count": 13378,
+      "body_bounds_xyz": [
+        [
+          -0.5456,
+          0.5456
+        ],
+        [
+          -0.3484,
+          0.0971
+        ],
+        [
+          0.0,
+          1.7288
+        ]
+      ],
+      "jersey_vertex_count": 2105,
+      "jersey_face_count": 2007,
+      "trouser_vertex_count": 3511,
+      "trouser_face_count": 3468,
+      "weighted_body_vertices": 13380,
+      "lods": [
+        {
+          "lod": 0,
+          "collection": "WP19 power LOD0",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "power-lod0.glb",
+          "glb_bytes": 2368880,
+          "exported_triangles": 41322
+        },
+        {
+          "lod": 1,
+          "collection": "WP19 power LOD1",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "power-lod1.glb",
+          "glb_bytes": 768292,
+          "exported_triangles": 11155
+        },
+        {
+          "lod": 2,
+          "collection": "WP19 power LOD2",
+          "mesh_objects": 66,
+          "rig_bones": 61,
+          "glb": "power-lod2.glb",
+          "glb_bytes": 419032,
+          "exported_triangles": 5875
+        }
+      ]
+    }
+  ],
+  "animation_note": "Skinned 61-bone GLBs bind to the shared WP18 clip set by bone name; clip actions are authored in practice-batter-humanoid.glb.",
+  "visual_review": "Preview generated. Human in-game review is pending."
+}

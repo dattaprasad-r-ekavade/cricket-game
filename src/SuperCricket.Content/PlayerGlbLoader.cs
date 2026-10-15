@@ -11,6 +11,12 @@ internal static class PlayerGlbLoader
     private const float SampleRate = 30f;
 
     public static PlayerAsset Load(string path)
+        => Load(path, animationTemplate: null);
+
+    public static PlayerAsset LoadVariant(string path, PlayerAsset animationTemplate)
+        => Load(path, animationTemplate ?? throw new ArgumentNullException(nameof(animationTemplate)));
+
+    private static PlayerAsset Load(string path, PlayerAsset? animationTemplate)
     {
         var model = ModelRoot.Load(path);
         if (model.LogicalSkins.Count != 1)
@@ -65,14 +71,25 @@ internal static class PlayerGlbLoader
 
         var firstMetadata = model.LogicalAnimations
             .Select(animation => GetMetadata(animation))
-            .FirstOrDefault(metadata => metadata is not null)
-            ?? throw new InvalidDataException($"Player GLB '{path}' has no Super Cricket animation metadata.");
-        var assetName = ReadString(firstMetadata, "assetName");
-        var coordinateSystem = ReadString(firstMetadata, "coordinateSystem");
+            .FirstOrDefault(metadata => metadata is not null);
+        if (firstMetadata is null && animationTemplate is null)
+            throw new InvalidDataException($"Player GLB '{path}' has no Super Cricket animation metadata.");
+        if (firstMetadata is null && model.LogicalAnimations.Count > 0)
+            throw new InvalidDataException($"Player GLB '{path}' has animations but no Super Cricket animation metadata.");
+
+        var assetName = firstMetadata is null
+            ? Path.GetFileNameWithoutExtension(path)
+            : ReadString(firstMetadata, "assetName");
+        var coordinateSystem = firstMetadata is null
+            ? animationTemplate!.CoordinateSystem
+            : ReadString(firstMetadata, "coordinateSystem");
         if (coordinateSystem != "right-handed-y-up-metres")
             throw new InvalidDataException($"Player GLB '{path}' uses unsupported coordinates '{coordinateSystem}'.");
-        var animations = model.LogicalAnimations.Select(animation =>
-            ImportAnimation(animation, orderedNodes, bones, assetName)).ToList();
+        if (animationTemplate is not null)
+            EnsureCompatibleSkeleton(path, bones, animationTemplate.Bones);
+        var animations = model.LogicalAnimations.Count == 0 && animationTemplate is not null
+            ? animationTemplate.Animations
+            : model.LogicalAnimations.Select(animation => ImportAnimation(animation, orderedNodes, bones, assetName)).ToList();
         var textureImport = ImportBaseColorTextures(model, path);
 
         var asset = new PlayerAsset
@@ -89,6 +106,25 @@ internal static class PlayerGlbLoader
         if (errors.Count > 0)
             throw new InvalidDataException($"Invalid player GLB '{path}': {string.Join(" ", errors)}");
         return asset;
+    }
+
+    private static void EnsureCompatibleSkeleton(
+        string path,
+        IReadOnlyList<PlayerBoneData> variantBones,
+        IReadOnlyList<PlayerBoneData> animationBones)
+    {
+        if (variantBones.Count != animationBones.Count)
+            throw new InvalidDataException($"Player variant GLB '{path}' has {variantBones.Count} joints; expected {animationBones.Count} for the shared animation rig.");
+
+        for (var index = 0; index < variantBones.Count; index++)
+        {
+            var variant = variantBones[index];
+            var template = animationBones[index];
+            if (!string.Equals(variant.Name, template.Name, StringComparison.Ordinal) ||
+                variant.ParentIndex != template.ParentIndex ||
+                variant.BindPose.ToNumericsMatrix() != template.BindPose.ToNumericsMatrix())
+                throw new InvalidDataException($"Player variant GLB '{path}' skeleton differs from the shared animation rig at joint {index} ('{template.Name}').");
+        }
     }
 
     private static List<Node> OrderJointsByHierarchy(Node[] joints, IReadOnlyDictionary<Node, int> jointIndices)

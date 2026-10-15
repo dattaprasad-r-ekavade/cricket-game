@@ -23,6 +23,11 @@ public sealed class TeamRosterAsset
         "Batter", "AllRounder", "Bowler", "Wicketkeeper"
     };
 
+    private static readonly HashSet<string> SupportedBodyVariants = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "agile", "balanced", "power"
+    };
+
     public int Version { get; set; } = 2;
     public string Name { get; set; } = string.Empty;
     public string ShortName { get; set; } = string.Empty;
@@ -96,6 +101,8 @@ public sealed class TeamRosterAsset
                 errors.Add($"Roster player '{player.Name}' must have a unique batting order from 1 to {RosterSize}.");
             if (!SupportedRoles.Contains(player.Role ?? string.Empty))
                 errors.Add($"Roster player '{player.Name}' has an unsupported role.");
+            if (!SupportedBodyVariants.Contains(player.BodyVariant ?? string.Empty))
+                errors.Add($"Roster player '{player.Name}' body variant must be agile, balanced, or power.");
             if (string.Equals(player.Role, "Wicketkeeper", StringComparison.OrdinalIgnoreCase))
                 wicketkeepers++;
             if (string.Equals(player.Role, "Bowler", StringComparison.OrdinalIgnoreCase) ||
@@ -254,6 +261,7 @@ public sealed class TeamPlayerData
     public string Name { get; set; } = string.Empty;
     public int BattingOrder { get; set; }
     public string Role { get; set; } = string.Empty;
+    public string BodyVariant { get; set; } = "balanced";
     public int Timing { get; set; } = 50;
     public int Power { get; set; } = 50;
     public int Bowling { get; set; } = 50;

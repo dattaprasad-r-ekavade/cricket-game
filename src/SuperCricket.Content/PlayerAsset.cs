@@ -28,6 +28,16 @@ public sealed class PlayerAsset
         return PlayerGlbLoader.Load(path);
     }
 
+    /// <summary>Loads a mesh-only GLB while borrowing the animation set from a compatible rig asset.</summary>
+    public static PlayerAsset LoadSkinnedVariant(string path, PlayerAsset animationTemplate)
+    {
+        ArgumentNullException.ThrowIfNull(animationTemplate);
+        if (!string.Equals(Path.GetExtension(path), ".glb", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Player variant '{path}' must be a humanoid GLB (.glb).");
+
+        return PlayerGlbLoader.LoadVariant(path, animationTemplate);
+    }
+
     public List<string> Validate()
     {
         var errors = new List<string>();

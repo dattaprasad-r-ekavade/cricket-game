@@ -44,7 +44,8 @@ public sealed class SkinnedPlayerRenderer : IDisposable
             return Texture2D.FromStream(graphicsDevice, stream);
         }).ToArray();
         _baseColorSamplers = asset.Textures.Select(CreateSamplerState).ToArray();
-        _primaryKitBaseColor = FindDiffuseColor(asset, "Shirt") ?? Vector3.One;
+        _primaryKitBaseColor = FindDiffuseColor(asset, "Shirt") ??
+            FindDiffuseColorPrefix(asset, "WP19 Jersey") ?? Vector3.One;
         _accentKitBaseColor = FindDiffuseColor(asset, "Player Detail | Jersey Collar") ?? _primaryKitBaseColor;
         _meshes = asset.Meshes
             .GroupBy(mesh => (
@@ -130,10 +131,18 @@ public sealed class SkinnedPlayerRenderer : IDisposable
         return mesh is null ? null : new Vector3(mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z);
     }
 
+    private static Vector3? FindDiffuseColorPrefix(PlayerAsset asset, string prefix)
+    {
+        var mesh = asset.Meshes.Find(candidate => candidate.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        return mesh is null ? null : new Vector3(mesh.DiffuseColor.X, mesh.DiffuseColor.Y, mesh.DiffuseColor.Z);
+    }
+
     private static KitColorSlot GetKitColorSlot(string meshName)
     {
         if (string.Equals(meshName, "Shirt", StringComparison.OrdinalIgnoreCase) ||
-            meshName.StartsWith("Forearm ", StringComparison.OrdinalIgnoreCase))
+            meshName.StartsWith("Forearm ", StringComparison.OrdinalIgnoreCase) ||
+            meshName.StartsWith("WP19 Jersey ", StringComparison.OrdinalIgnoreCase) ||
+            meshName.StartsWith("WP19 Trouser ", StringComparison.OrdinalIgnoreCase))
             return KitColorSlot.Primary;
         if (meshName.Contains("Jersey Collar", StringComparison.OrdinalIgnoreCase) ||
             meshName.Contains("Sleeve Band", StringComparison.OrdinalIgnoreCase) ||
