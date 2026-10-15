@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "assetDirectory": "props",
+  "placements": [
+    { "asset": "breakable-stumps-and-bails.glb", "position": { "x": 0, "y": 0, "z": -8.72 }, "scale": 1 },
+    { "asset": "breakable-stumps-and-bails.glb", "position": { "x": 0, "y": 0, "z": 8.72 }, "scale": 1 },
+    { "asset": "modular-sight-screen.glb", "position": { "x": 0, "y": 0, "z": -66.5 }, "scale": 1 },
+    { "asset": "modular-sight-screen.glb", "position": { "x": 0, "y": 0, "z": 66.5 }, "scale": 1 },
+    { "asset": "fictional-boundary-board-coastal.glb", "position": { "x": 0, "y": 0, "z": -62.9 }, "scale": 1 },
+    { "asset": "fictional-boundary-board-highland.glb", "position": { "x": 0, "y": 0, "z": 62.9 }, "rotationYDegrees": 180, "scale": 1 },
+    { "asset": "fictional-boundary-board-coastal.glb", "position": { "x": -62.9, "y": 0, "z": 0 }, "rotationYDegrees": 90, "scale": 1 },
+    { "asset": "fictional-boundary-board-highland.glb", "position": { "x": 62.9, "y": 0, "z": 0 }, "rotationYDegrees": -90, "scale": 1 },
+    { "asset": "modular-stand-seating-bay.glb", "position": { "x": -70, "y": 0, "z": 16 }, "rotationYDegrees": 90, "scale": 1 },
+    { "asset": "portable-electronic-scoreboard.glb", "position": { "x": -54, "y": 0, "z": -43 }, "rotationYDegrees": 35, "scale": 1 },
+    { "asset": "manual-pitch-roller.glb", "position": { "x": 55, "y": 0, "z": -28 }, "rotationYDegrees": 25, "scale": 1 },
+    { "asset": "boundary-umbrella.glb", "position": { "x": 44, "y": 0, "z": 43 }, "rotationYDegrees": -25, "scale": 1 },
+    { "asset": "crowd-impostor-card-set.glb", "position": { "x": 0, "y": 2.6, "z": 74 }, "rotationYDegrees": 180, "scale": 1 },
+    { "asset": "batter-helmet-with-face-guard.glb", "position": { "x": 57, "y": 0, "z": -24 }, "rotationYDegrees": 35, "scale": 1 },
+    { "asset": "willow-bat.glb", "position": { "x": 57, "y": 0, "z": -21 }, "rotationYDegrees": 24, "scale": 1 }
+  ]
+}

@@ -6,7 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SuperCricket.Content;
 using SuperCricket.Content.Bowling;
+using SuperCricket.Content.Replays;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Bowling;
 
 return Run(args);
 
@@ -65,6 +67,38 @@ static int Run(string[] arguments)
             Console.WriteLine($"Valid delivery catalogue: {catalogue.Deliveries.Count} deliveries.");
             foreach (var delivery in catalogue.Deliveries)
                 Console.WriteLine($"  {delivery.Id}: {delivery.Style}, {delivery.MinSpeedKph:0.#}–{delivery.MaxSpeedKph:0.#} km/h");
+            return 0;
+        }
+
+        if (arguments[0] == "validate-replay-scripts")
+        {
+            var catalog = ReplayScriptCatalog.Load(arguments[1]);
+            Console.WriteLine($"Valid replay script catalog: {catalog.Events.Count} event types.");
+            foreach (var script in catalog.Events)
+                Console.WriteLine($"  {script.EventType}: {script.Shots.Count} shot(s), {string.Join(", ", script.Shots.Select(shot => $"{shot.Speed:0.##}x {shot.CameraPreset}/{shot.Overlay}"))}");
+            return 0;
+        }
+
+        if (arguments[0] == "validate-stadium-layout")
+        {
+            var layout = StadiumPropLayoutAsset.Load(arguments[1]);
+            var uniqueAssets = layout.Placements.Select(placement => placement.Asset)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            foreach (var asset in uniqueAssets)
+            {
+                var model = StadiumPropAsset.Load(layout.GetAssetPath(arguments[1], asset));
+                Console.WriteLine($"  {asset}: {model.Meshes.Count} meshes");
+            }
+            Console.WriteLine($"Valid stadium layout: {layout.Placements.Count} placements, {uniqueAssets.Length} static props.");
+            return 0;
+        }
+
+        if (arguments[0] == "capture-spin-paths")
+        {
+            if (arguments.Length is < 3 or > 4)
+                throw new ArgumentException("Usage: capture-spin-paths <deliveries.json> <stock-delivery.json> [output.svg]");
+            var outputPath = arguments.Length == 4 ? arguments[3] : Path.Combine("artifacts", "spin-path-comparison.svg");
+            CaptureSpinPathComparison(arguments[1], arguments[2], outputPath);
             return 0;
         }
 
@@ -217,13 +251,30 @@ static int Run(string[] arguments)
 
         if (arguments[0] == "simulate-physics-match-batch")
         {
-            if (arguments.Length is < 13 or > 14)
-                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+            if (arguments.Length is < 13 or > 16)
+                throw new ArgumentException("Usage: simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv] [difficulty] [batting-side]");
             if (!int.TryParse(arguments[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out var matchCount) ||
                 !int.TryParse(arguments[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out var oversPerInnings) ||
                 !int.TryParse(arguments[12], NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed))
                 throw new ArgumentException("Match count, overs, and seed must be integers.");
-            var outputPath = arguments.Length == 14 ? arguments[13] : Path.Combine("artifacts", "physics-match-batch.csv");
+            var outputPath = Path.Combine("artifacts", "physics-match-batch.csv");
+            var difficulty = CpuDifficulty.Standard;
+            if (arguments.Length >= 14)
+            {
+                if (Enum.TryParse<CpuDifficulty>(arguments[13], true, out var parsedDifficulty) && Enum.IsDefined(parsedDifficulty))
+                    difficulty = parsedDifficulty;
+                else
+                    outputPath = arguments[13];
+            }
+            if (arguments.Length >= 15)
+            {
+                if (!Enum.TryParse<CpuDifficulty>(arguments[14], true, out difficulty) || !Enum.IsDefined(difficulty))
+                    throw new ArgumentException("Difficulty must be Rookie, Amateur, Standard, Pro, or Legend.");
+            }
+            var battingSide = DifficultySide.Cpu;
+            if (arguments.Length == 16 &&
+                (!Enum.TryParse<DifficultySide>(arguments[15], true, out battingSide) || !Enum.IsDefined(battingSide)))
+                throw new ArgumentException("Batting side must be Human or Cpu.");
             SimulatePhysicsMatchBatch(
                 TeamRosterAsset.Load(arguments[1]),
                 TeamRosterAsset.Load(arguments[2]),
@@ -237,7 +288,9 @@ static int Run(string[] arguments)
                 matchCount,
                 oversPerInnings,
                 seed,
-                outputPath);
+                outputPath,
+                difficulty,
+                battingSide);
             return 0;
         }
 
@@ -706,11 +759,15 @@ static void SimulatePhysicsMatchBatch(
     int matchCount,
     int oversPerInnings,
     int seed,
-    string outputPath)
+    string outputPath,
+    CpuDifficulty difficulty = CpuDifficulty.Standard,
+    DifficultySide battingSide = DifficultySide.Cpu)
 {
     var results = PhysicsAutomatedMatchBatchSimulator.RunBatch(
         firstTeam, secondTeam, fieldPreset, batterAsset, bowlerAsset, shotSet,
-        stockDelivery, wideDelivery, noBallDelivery, matchCount, oversPerInnings, seed);
+        stockDelivery, wideDelivery, noBallDelivery, matchCount, oversPerInnings, seed,
+        difficulty: difficulty,
+        battingSide: battingSide);
     WriteMatchBatchCsv(firstTeam, secondTeam, results, outputPath);
 
     var firstTeamWins = results.Count(result => result.FirstInnings.Runs > result.SecondInnings.Runs);
@@ -720,7 +777,7 @@ static void SimulatePhysicsMatchBatch(
     var physicsMetrics = results.Where(result => result.PhysicsMetrics.HasValue)
         .Select(result => result.PhysicsMetrics!.Value)
         .ToArray();
-    Console.WriteLine($"Completed {results.Count} physics-grounded matches at {oversPerInnings} overs per innings (seed {seed} onward).");
+    Console.WriteLine($"Completed {results.Count} physics-grounded {difficulty} matches with {battingSide} batting profiles at {oversPerInnings} overs per innings (seed {seed} onward).");
     Console.WriteLine($"{firstTeam.Name} wins {firstTeamWins}; {secondTeam.Name} wins {secondTeamWins}; ties {ties}; average combined score {averageRuns:0.0} runs.");
     if (physicsMetrics.Length > 0)
     {
@@ -742,7 +799,7 @@ static void WriteMatchBatchCsv(
 
     using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
     {
-        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries,leaves,lbw_dismissals,near_run_outs");
+        writer.WriteLine("seed,first_team,first_runs,first_wickets,first_legal_balls,second_team,second_runs,second_wickets,second_legal_balls,result,total_deliveries,shot_plans,contacts,misses,catches,caught_dismissals,edges,aerial_contacts,powerplay_runs,middle_runs,death_runs,ground_pickups,boundaries,run_intents,safe_run_attempts,two_run_plans,two_run_scores,completed_runs,run_outs,bowled_dismissals,wide_deliveries,no_ball_deliveries,leaves,lbw_dismissals,near_run_outs");
         foreach (var result in results)
         {
             var physics = result.PhysicsMetrics ?? default;
@@ -762,6 +819,12 @@ static void WriteMatchBatchCsv(
                 physics.Contacts.ToString(CultureInfo.InvariantCulture),
                 physics.Misses.ToString(CultureInfo.InvariantCulture),
                 physics.Catches.ToString(CultureInfo.InvariantCulture),
+                physics.CaughtDismissals.ToString(CultureInfo.InvariantCulture),
+                physics.Edges.ToString(CultureInfo.InvariantCulture),
+                physics.AerialContacts.ToString(CultureInfo.InvariantCulture),
+                physics.PowerplayRuns.ToString(CultureInfo.InvariantCulture),
+                physics.MiddleRuns.ToString(CultureInfo.InvariantCulture),
+                physics.DeathRuns.ToString(CultureInfo.InvariantCulture),
                 physics.GroundPickups.ToString(CultureInfo.InvariantCulture),
                 physics.Boundaries.ToString(CultureInfo.InvariantCulture),
                 physics.RunIntents.ToString(CultureInfo.InvariantCulture),
@@ -822,6 +885,120 @@ static void VerifyFootwork(string batterPath, string bowlerPath, string shotSetP
 static string F(float value) => value.ToString("0.000000", CultureInfo.InvariantCulture);
 static string Optional(float? value) => value is { } number ? F(number) : string.Empty;
 
+static void CaptureSpinPathComparison(string cataloguePath, string stockDeliveryPath, string outputPath)
+{
+    var catalogue = DeliveryCatalogue.Load(cataloguePath);
+    var stock = DeliveryPreset.Load(stockDeliveryPath);
+    var descriptions = new[]
+    {
+        (Id: "off-spin-off-break", Label: "Off-break", Color: "#e26a4b"),
+        (Id: "leg-spin-leg-break", Label: "Leg-break", Color: "#3779c6")
+    };
+    var paths = new List<(string Label, string Color, List<(float Distance, float Lateral)> Points)>();
+    foreach (var description in descriptions)
+    {
+        var definition = catalogue.Deliveries.Single(delivery => delivery.Id == description.Id);
+        var speed = (definition.MinSpeedKph + definition.MaxSpeedKph) * 0.5f;
+        var delivery = PaceMeterModel.CreateDelivery(definition, stock, 0f, 0f, speed, PitchType.Normal);
+        var simulator = new BallFlightSimulator(delivery);
+        var points = new List<(float Distance, float Lateral)>();
+        Vector3 bouncePosition = default;
+        var hasBounced = false;
+        for (var step = 0; step < 1200; step++)
+        {
+            var frame = simulator.Step();
+            if (!hasBounced && frame.BounceCount > 0)
+            {
+                bouncePosition = frame.Position;
+                hasBounced = true;
+                points.Add((0f, 0f));
+            }
+            else if (hasBounced)
+            {
+                points.Add((bouncePosition.Z - frame.Position.Z, frame.Position.X - bouncePosition.X));
+                if (frame.Position.Z <= -CricketPitchGeometry.WicketOffsetMeters)
+                    break;
+            }
+
+            if (frame.Phase == BallMotionPhase.Settled)
+                break;
+        }
+
+        if (points.Count < 2 || points[^1].Distance < 0f)
+            throw new InvalidOperationException($"Could not capture the {description.Label} path through the striker's wicket line.");
+        paths.Add((description.Label, description.Color, points));
+    }
+
+    const float width = 1080f;
+    const float height = 720f;
+    const float left = 112f;
+    const float top = 76f;
+    const float plotWidth = 900f;
+    const float plotHeight = 520f;
+    var maximumDistance = MathF.Ceiling(paths.Max(path => path.Points[^1].Distance) * 2f) / 2f;
+    var maximumLateral = MathF.Max(0.6f, MathF.Ceiling(paths.SelectMany(path => path.Points)
+        .Max(point => MathF.Abs(point.Lateral)) * 10f) / 10f + 0.1f);
+    var svg = new StringBuilder();
+    svg.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width:0}\" height=\"{height:0}\" viewBox=\"0 0 {width:0} {height:0}\">");
+    svg.AppendLine("<rect width=\"100%\" height=\"100%\" fill=\"#f7f8fa\"/>");
+    svg.AppendLine("<text x=\"540\" y=\"34\" text-anchor=\"middle\" font-family=\"Segoe UI, sans-serif\" font-size=\"22\" font-weight=\"600\" fill=\"#172331\">Spin paths after the bounce</text>");
+    svg.AppendLine("<text x=\"540\" y=\"58\" text-anchor=\"middle\" font-family=\"Segoe UI, sans-serif\" font-size=\"13\" fill=\"#516071\">Normal pitch · 80 km/h · view along the pitch from bounce toward striker</text>");
+
+    for (var tickIndex = 0; tickIndex <= (int)MathF.Ceiling(maximumDistance * 2f); tickIndex++)
+    {
+        var tick = tickIndex * 0.5f;
+        if (tick > maximumDistance + 0.001f) continue;
+        var x = left + tick / maximumDistance * plotWidth;
+        svg.AppendLine($"<line x1=\"{x:0.##}\" y1=\"{top:0.##}\" x2=\"{x:0.##}\" y2=\"{top + plotHeight:0.##}\" stroke=\"#e2e7ed\" stroke-width=\"1\"/>");
+        svg.AppendLine($"<text x=\"{x:0.##}\" y=\"{top + plotHeight + 22f:0.##}\" text-anchor=\"middle\" font-family=\"Segoe UI, sans-serif\" font-size=\"12\" fill=\"#516071\">{tick:0.#}</text>");
+    }
+    for (var tickIndex = -5; tickIndex <= 5; tickIndex++)
+    {
+        var tick = tickIndex * 0.2f;
+        if (MathF.Abs(tick) > maximumLateral + 0.001f) continue;
+        var y = top + (maximumLateral - tick) / (2f * maximumLateral) * plotHeight;
+        svg.AppendLine($"<line x1=\"{left:0.##}\" y1=\"{y:0.##}\" x2=\"{left + plotWidth:0.##}\" y2=\"{y:0.##}\" stroke=\"{(MathF.Abs(tick) < 0.001f ? "#95a1ae" : "#e2e7ed")}\" stroke-width=\"{(MathF.Abs(tick) < 0.001f ? 1.5f : 1f):0.##}\"/>");
+        svg.AppendLine($"<text x=\"{left - 14f:0.##}\" y=\"{y + 4f:0.##}\" text-anchor=\"end\" font-family=\"Segoe UI, sans-serif\" font-size=\"12\" fill=\"#516071\">{tick:+0.0;-0.0;0.0}</text>");
+    }
+    svg.AppendLine($"<rect x=\"{left:0.##}\" y=\"{top:0.##}\" width=\"{plotWidth:0.##}\" height=\"{plotHeight:0.##}\" fill=\"none\" stroke=\"#768393\" stroke-width=\"1.2\"/>");
+
+    foreach (var path in paths)
+    {
+        var points = string.Join(' ', path.Points.Select(point =>
+        {
+            var x = left + point.Distance / maximumDistance * plotWidth;
+            var y = top + (maximumLateral - point.Lateral) / (2f * maximumLateral) * plotHeight;
+            return $"{x:0.##},{y:0.##}";
+        }));
+        svg.AppendLine($"<polyline points=\"{points}\" fill=\"none\" stroke=\"{path.Color}\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+        var last = path.Points[^1];
+        var endX = left + last.Distance / maximumDistance * plotWidth;
+        var endY = top + (maximumLateral - last.Lateral) / (2f * maximumLateral) * plotHeight;
+        svg.AppendLine($"<circle cx=\"{endX:0.##}\" cy=\"{endY:0.##}\" r=\"4.5\" fill=\"{path.Color}\"/>");
+    }
+
+    svg.AppendLine($"<text x=\"{left + plotWidth / 2f:0.##}\" y=\"{height - 32f:0.##}\" text-anchor=\"middle\" font-family=\"Segoe UI, sans-serif\" font-size=\"14\" fill=\"#172331\">Distance after bounce toward striker (m)</text>");
+    svg.AppendLine($"<text x=\"26\" y=\"{top + plotHeight / 2f:0.##}\" text-anchor=\"middle\" transform=\"rotate(-90 26 {top + plotHeight / 2f:0.##})\" font-family=\"Segoe UI, sans-serif\" font-size=\"14\" fill=\"#172331\">Lateral deflection from bounce (m)</text>");
+    for (var index = 0; index < paths.Count; index++)
+    {
+        var path = paths[index];
+        var y = 120f + index * 28f;
+        svg.AppendLine($"<line x1=\"760\" y1=\"{y:0.##}\" x2=\"790\" y2=\"{y:0.##}\" stroke=\"{path.Color}\" stroke-width=\"3\"/>");
+        svg.AppendLine($"<text x=\"798\" y=\"{y + 5f:0.##}\" font-family=\"Segoe UI, sans-serif\" font-size=\"13\" fill=\"#172331\">{path.Label}</text>");
+    }
+    svg.AppendLine("<circle cx=\"115\" cy=\"632\" r=\"4.5\" fill=\"#172331\"/><text x=\"127\" y=\"637\" font-family=\"Segoe UI, sans-serif\" font-size=\"12\" fill=\"#516071\">Pitch bounce</text>");
+    svg.AppendLine("<circle cx=\"276\" cy=\"632\" r=\"4.5\" fill=\"#e26a4b\"/><text x=\"288\" y=\"637\" font-family=\"Segoe UI, sans-serif\" font-size=\"12\" fill=\"#516071\">Wicket line</text>");
+    svg.AppendLine("</svg>");
+
+    var fullPath = Path.GetFullPath(outputPath);
+    var outputDirectory = Path.GetDirectoryName(fullPath);
+    if (!string.IsNullOrEmpty(outputDirectory)) Directory.CreateDirectory(outputDirectory);
+    File.WriteAllText(fullPath, svg.ToString(), Encoding.UTF8);
+    foreach (var path in paths)
+        Console.WriteLine($"{path.Label}: {path.Points[^1].Lateral:+0.000;-0.000;0.000} m lateral at wicket line.");
+    Console.WriteLine($"Spin path comparison written to {fullPath}");
+}
+
 static void PrintUsage()
 {
     Console.WriteLine("Super Cricket tools");
@@ -831,6 +1008,9 @@ static void PrintUsage()
     Console.WriteLine("  validate-shots <shots.json>");
     Console.WriteLine("  validate-strokes <strokes.json>");
     Console.WriteLine("  validate-deliveries <deliveries.json>");
+    Console.WriteLine("  validate-replay-scripts <replay-scripts.json>");
+    Console.WriteLine("  validate-stadium-layout <stadium-layout.json>");
+    Console.WriteLine("  capture-spin-paths <deliveries.json> <stock-delivery.json> [output.svg]");
     Console.WriteLine("  analyze-batting <shots.json> [impact-grid.csv]");
     Console.WriteLine("  analyze-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json> [results.csv] [input-step-seconds]");
     Console.WriteLine("  verify-batting-practice <batter-asset> <bowler-asset> <shots.json> <delivery.json>");
@@ -843,7 +1023,7 @@ static void PrintUsage()
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");
     Console.WriteLine("  simulate-over <over-scenario.json>");
     Console.WriteLine("  simulate-match-batch <first-team.json> <second-team.json> <count> <overs> <seed> [results.csv]");
-    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv]");
+    Console.WriteLine("  simulate-physics-match-batch <first-team.json> <second-team.json> <field.json> <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <no-ball-delivery.json> <count> <overs> <seed> [results.csv] [difficulty] [batting-side]");
     Console.WriteLine("  verify-match");
     Console.WriteLine("  verify-match-batch");
     Console.WriteLine("  verify-delivery-envelopes");
