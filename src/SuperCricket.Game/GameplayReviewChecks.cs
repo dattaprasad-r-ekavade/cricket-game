@@ -103,10 +103,11 @@ public partial class Game1
         Require(GetLiveBattingTimingGauge() is null,
             "the timing gauge remained visible above Pro difficulty");
         _cpuDifficulty = savedTimingDifficulty;
+        _gameSettings.BattingInputScheme = BattingInputScheme.Directional;
         Reset();
         Tick(0f, Keys.S);
         Require(_chosenShot?.Name == "drive" && MathF.Abs(_chosenShot.HorizontalAim) < 0.001f &&
-            _playerAnimator.CurrentClipName == "front-foot-drive" &&
+            _playerAnimator.CurrentClipName == "batting-straight-front-attack" &&
             _shotControlLabel == "S: ATTACK" &&
             _timingZoneFeedbackText == GetBattingTimingText() &&
             _timingZoneFeedbackText is "EARLY" or "PERFECT" or "LATE" or "VERY EARLY" or "VERY LATE" or "BEATEN" &&

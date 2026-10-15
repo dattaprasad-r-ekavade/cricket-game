@@ -78,6 +78,11 @@ def parse_args() -> argparse.Namespace:
         help="Include an additional named Blender action when exporting an existing scene (repeatable).",
     )
     parser.add_argument(
+        "--only-included-clips",
+        action="store_true",
+        help="When exporting an existing scene, export only actions passed with --include-clip (for non-batter player assets).",
+    )
+    parser.add_argument(
         "--rebuild-batting-footwork",
         action="store_true",
         help="Replace the generated off-side and leg-side batting-step actions in an existing scene.",
@@ -622,11 +627,13 @@ def main() -> None:
         )
         if not parts:
             raise RuntimeError("The Player Mesh collection contains no meshes marked sc_player_part.")
-        clip_names = [
+        clip_names = [] if args.only_included_clips else [
             "practice-stance", "defensive-block", "front-foot-drive", "lofted-drive",
             "back-foot-drive", "back-foot-loft", "between-wickets",
             "batting-step-offside", "batting-step-legside",
         ]
+        if args.only_included_clips and not args.include_clip:
+            raise RuntimeError("--only-included-clips requires at least one --include-clip action.")
         actions_by_name = {action.name: action for action in bpy.data.actions}
         missing_clips = [name for name in clip_names if name not in actions_by_name]
         if missing_clips:
@@ -637,7 +644,7 @@ def main() -> None:
                 armature.animation_data_clear()
             actions = create_animations(armature)
             actions_by_name = {action.name: action for action in bpy.data.actions}
-        elif args.rebuild_batting_footwork:
+        elif args.rebuild_batting_footwork and not args.only_included_clips:
             for name in ("batting-step-offside", "batting-step-legside"):
                 action = actions_by_name.get(name)
                 if action is not None:
