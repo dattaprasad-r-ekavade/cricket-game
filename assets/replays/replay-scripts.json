@@ -1,0 +1,10 @@
+{
+  "events": [
+    { "eventType": "bowled", "shots": [{ "cameraPreset": "bowler-end", "startOffsetSeconds": -3.0, "durationSeconds": 4.5, "speed": 1.0, "overlay": "none" }] },
+    { "eventType": "caught", "shots": [{ "cameraPreset": "broadcast", "startOffsetSeconds": -3.5, "durationSeconds": 5.0, "speed": 0.5, "overlay": "none" }] },
+    { "eventType": "lbw", "shots": [{ "cameraPreset": "umpire-close-up", "startOffsetSeconds": -3.0, "durationSeconds": 4.5, "speed": 0.25, "overlay": "stump-line-strip" }] },
+    { "eventType": "run-out", "shots": [{ "cameraPreset": "umpire-close-up", "startOffsetSeconds": -3.5, "durationSeconds": 5.0, "speed": 0.5, "overlay": "crease-zoom" }] },
+    { "eventType": "six", "shots": [{ "cameraPreset": "recorded", "startOffsetSeconds": -2.5, "durationSeconds": 4.0, "speed": 0.5, "overlay": "none" }] },
+    { "eventType": "near-run-out", "shots": [{ "cameraPreset": "umpire-close-up", "startOffsetSeconds": -2.5, "durationSeconds": 4.0, "speed": 0.5, "overlay": "crease-zoom" }] }
+  ]
+}
