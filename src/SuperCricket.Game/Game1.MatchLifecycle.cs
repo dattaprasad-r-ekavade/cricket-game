@@ -21,6 +21,11 @@ public partial class Game1
     private void StartNewMatch(int? seed = null)
     {
         _matchController.StartNewMatch(_selectedOversPerInnings, seed);
+        _activeFieldFormation = null;
+        _previewFieldFormation = null;
+        _fieldPickerOpen = false;
+        _fieldFormationDecisionLegalBalls = -1;
+        _fieldFormationDecisionWickets = -1;
         ResetBatterTimingStates();
         _nextDeliveryPresetIndex = 0;
         _selectedBowlingOptionIndex = 0;
@@ -34,6 +39,11 @@ public partial class Game1
     private void StartNextInnings()
     {
         _matchController.StartNextInnings();
+        _activeFieldFormation = null;
+        _previewFieldFormation = null;
+        _fieldPickerOpen = false;
+        _fieldFormationDecisionLegalBalls = -1;
+        _fieldFormationDecisionWickets = -1;
         ResetBatterTimingStates();
         _nextDeliveryPresetIndex = 0;
         _bowlingAimOffsetX = 0f;
@@ -67,10 +77,21 @@ public partial class Game1
         SetBowlerDeliveryCapturePose(_paceMeterElapsedSeconds);
     }
 
+    private void PrepareFieldPickerPreviewCapture()
+    {
+        PrepareBowlingTargetCapture();
+        if (!HasHumanBowlingControls)
+            throw new InvalidOperationException("The field picker capture requires the human bowling innings.");
+        OpenFieldPickerForPreview();
+    }
+
     private void BeginDelivery()
     {
         if (_match.IsInningsComplete || _match.IsMatchComplete)
             return;
+
+        _fieldPickerOpen = false;
+        _previewFieldFormation = null;
 
         if (HasHumanBowlingControls)
             RefreshBowlingOptions();
@@ -78,8 +99,28 @@ public partial class Game1
         _activeDeliveryPresetIndex = _nextDeliveryPresetIndex;
         var selectedPreset = _deliveryPresets[_activeDeliveryPresetIndex];
         var situation = _matchController.CurrentBowlingSituation;
-        var fieldPlacement = _matchController.ConfigureFieldingSide(_fieldingSide, _fieldPreset);
-        _activeFieldingTactic = fieldPlacement.Tactic;
+        var mustChooseCpuField = _activeFieldFormation is null ||
+            _match.LegalBalls % OverScoreboard.BallsPerOver == 0 &&
+                _fieldFormationDecisionLegalBalls != _match.LegalBalls ||
+            _match.LastDeliveryWasWicket && _fieldFormationDecisionWickets != _match.Wickets;
+        if (mustChooseCpuField)
+        {
+            var fieldPlacement = _matchController.ChooseCpuFieldFormation(
+                _fieldingSide, _fieldFormations, IsFieldingPowerplayActive);
+            _activeFieldFormation = _fieldFormations.Get(
+                _match.CurrentBowler.BowlingAttributes.Style, fieldPlacement.Intent);
+            _activeFieldingTactic = fieldPlacement.Tactic;
+            _fieldFormationDecisionLegalBalls = _match.LegalBalls;
+            _fieldFormationDecisionWickets = _match.Wickets;
+        }
+        else if (_activeFieldFormation is { } activeField)
+        {
+            var fieldPlacement = _matchController.ConfigureFieldFormation(
+                _fieldingSide, _fieldFormations, activeField.Intent, _match.StrikerPlayer.Handedness,
+                IsFieldingPowerplayActive);
+            _activeFieldingTactic = fieldPlacement.Tactic;
+        }
+        _fieldingSide.ResetActivity();
         _deliveryPreset = _matchController.PrepareDeliveryForCurrentMatch(
             selectedPreset,
             _activeDeliveryPresetIndex,
@@ -125,7 +166,7 @@ public partial class Game1
         _fielderSequencePhase = FielderSequencePhase.None;
         Array.Clear(_fielderActionClips);
         Array.Clear(_fielderActionHoldAtEnd);
-        _fieldingSide.Reset();
+        _fieldingSide.ResetActivity();
         _shotOutcome = "Choose a shot before the ball reaches the batter.";
         _releaseMarkerPosition = null;
         _contactMarkerPosition = null;

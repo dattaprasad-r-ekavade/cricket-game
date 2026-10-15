@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Bowling;
 
@@ -75,6 +76,46 @@ internal sealed class MatchController
         ArgumentNullException.ThrowIfNull(fieldingSide);
         var placement = ChooseFieldPlacement(fieldPreset);
         fieldingSide.ConfigureStartingPositions(placement.StartingPositions);
+
+        var players = Match.FieldingPlayers;
+        var ratings = new int[players.Count];
+        for (var index = 0; index < players.Count; index++)
+            ratings[index] = players[index].FieldingAttributes.Speed;
+        fieldingSide.ConfigureFieldingRatings(ratings);
+        return placement;
+    }
+
+    public AuthoredFieldPlacement ChooseCpuFieldFormation(
+        FieldingSide fieldingSide,
+        FieldFormationCatalog catalog,
+        bool powerplayActive = false)
+    {
+        ArgumentNullException.ThrowIfNull(fieldingSide);
+        ArgumentNullException.ThrowIfNull(catalog);
+        var intent = FieldPlacementModel.ChooseIntent(new FieldChoiceSituation(
+            Match.LegalBalls,
+            Match.OversPerInnings,
+            Match.Runs,
+            Match.Wickets,
+            Match.Target,
+            Match.LastWicketLegalBall,
+            Match.LastOverBoundaryCount));
+        return ConfigureFieldFormation(
+            fieldingSide, catalog, intent, Match.StrikerPlayer.Handedness, powerplayActive);
+    }
+
+    public AuthoredFieldPlacement ConfigureFieldFormation(
+        FieldingSide fieldingSide,
+        FieldFormationCatalog catalog,
+        FieldingIntent intent,
+        BatterHandedness handedness,
+        bool powerplayActive = false)
+    {
+        ArgumentNullException.ThrowIfNull(fieldingSide);
+        ArgumentNullException.ThrowIfNull(catalog);
+        var placement = FieldPlacementModel.Resolve(
+            catalog, Match.CurrentBowler.BowlingAttributes.Style, intent, handedness, powerplayActive);
+        fieldingSide.ConfigureStartingPositions(placement.StartingPositions, resetPositions: false);
 
         var players = Match.FieldingPlayers;
         var ratings = new int[players.Count];

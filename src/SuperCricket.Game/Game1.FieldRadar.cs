@@ -12,8 +12,9 @@ public partial class Game1
 
     private void DrawBattingFieldInset()
     {
-        if (IsHumanBowling || IsCpuBattingControlled || _deliveryComplete ||
-            (_simulationPaused && _captureTarget is null))
+        var showFieldPicker = _fieldPickerOpen && HasHumanBowlingControls;
+        if (!showFieldPicker && (IsHumanBowling || IsCpuBattingControlled || _deliveryComplete ||
+            (_simulationPaused && _captureTarget is null)))
             return;
 
         var viewport = GraphicsDevice.Viewport;
@@ -33,13 +34,14 @@ public partial class Game1
         var isLiveBall = _battedBall;
         var titleColor = _gameSettings.HighContrast
             ? Color.Yellow
-            : isLiveBall ? new Color(255, 198, 105) : new Color(128, 233, 255);
+            : showFieldPicker ? new Color(154, 232, 177)
+                : isLiveBall ? new Color(255, 198, 105) : new Color(128, 233, 255);
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
         DrawFeedbackRectangle(panel, _gameSettings.HighContrast ? Color.Black : new Color(4, 11, 15, 244));
         DrawFeedbackOutline(panel, _gameSettings.HighContrast ? Color.White : new Color(134, 167, 161));
         DrawFeedbackRectangle(new Rectangle(panel.X, panel.Y, panel.Width, 4), titleColor);
-        DrawOverlayText(isLiveBall ? "LIVE FIELD PIP" : "BATTING FIELD MAP",
+        DrawOverlayText(showFieldPicker ? "FIELD PRESET PREVIEW" : isLiveBall ? "LIVE FIELD PIP" : "BATTING FIELD MAP",
             new Vector2(panel.X + 11, panel.Y + 8), titleColor, 0.7f);
 
         DrawFeedbackRectangle(plot, new Color(35, 91, 59));
@@ -57,15 +59,28 @@ public partial class Game1
         DrawWicketMark(farWicket, plot.Width * 0.065f);
         DrawWicketMark(nearWicket, plot.Width * 0.065f);
 
-        for (var index = 0; index < _fieldingSide.Positions.Count; index++)
+        var shownFielders = showFieldPicker ? GetFieldRadarPositions() : _fieldingSide.Positions;
+        for (var index = 0; index < shownFielders.Count; index++)
         {
-            var fielder = ToXna(_fieldingSide.Positions[index]);
+            var fielder = ToXna(shownFielders[index]);
             var point = MapFieldPosition(fielder, plot, boundaryRadius);
-            var isChaser = isLiveBall && index == _fieldingSide.ActiveChaserIndex;
+            var isChaser = !showFieldPicker && isLiveBall && index == _fieldingSide.ActiveChaserIndex;
             DrawFeedbackMarker(_feedbackMapDot, point, isChaser ? 12 : 9,
-                isChaser ? new Color(255, 176, 76) : new Color(246, 250, 236));
+                isChaser ? new Color(255, 176, 76) : showFieldPicker ? new Color(236, 255, 239) : new Color(246, 250, 236));
             if (isChaser)
                 DrawFeedbackMarker(_feedbackMapRing, point, 20, new Color(255, 206, 108, 230));
+        }
+
+        if (showFieldPicker && _previewFieldFormation is { } previewField)
+        {
+            var bowler = FieldPlacementModel.Resolve(
+                _fieldFormations,
+                previewField.Style,
+                previewField.Intent,
+                _match.StrikerPlayer.Handedness,
+                IsFieldingPowerplayActive).BowlerPosition;
+            DrawFeedbackMarker(_feedbackMapDot,
+                MapFieldPosition(ToXna(bowler), plot, boundaryRadius), 10, new Color(255, 180, 92));
         }
 
         var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
@@ -115,8 +130,17 @@ public partial class Game1
         }
         else
         {
-            DrawOverlayText("AIM LANE + PROJECTED BOUNCE", new Vector2(panel.X + 11, statusY), Color.White, 0.53f);
-            DrawInsetLegend(panel, plot.Bottom + 25, showBall: false);
+            if (showFieldPicker && _previewFieldFormation is { } preview)
+            {
+                DrawOverlayText(preview.Name.ToUpperInvariant(),
+                    new Vector2(panel.X + 11, statusY), Color.White, 0.53f);
+                DrawFieldPickerLegend(panel, plot.Bottom + 25);
+            }
+            else
+            {
+                DrawOverlayText("AIM LANE + PROJECTED BOUNCE", new Vector2(panel.X + 11, statusY), Color.White, 0.53f);
+                DrawInsetLegend(panel, plot.Bottom + 25, showBall: false);
+            }
         }
         _spriteBatch.End();
     }
@@ -158,6 +182,19 @@ public partial class Game1
         x += 85;
         DrawFeedbackMarker(_feedbackMapDot, new Vector2(x + 5, y + 6), 8, new Color(127, 255, 170));
         DrawOverlayText("BATTERS", new Vector2(x + 12, y), Color.White, 0.46f);
+    }
+
+    private void DrawFieldPickerLegend(Rectangle panel, int y)
+    {
+        var x = panel.X + 12;
+        DrawFeedbackMarker(_feedbackMapDot, new Vector2(x + 5, y + 6), 8, new Color(246, 250, 236));
+        DrawOverlayText("FIELDERS", new Vector2(x + 12, y), Color.White, 0.43f);
+        x += 88;
+        DrawFeedbackMarker(_feedbackMapDot, new Vector2(x + 5, y + 6), 8, new Color(255, 180, 92));
+        DrawOverlayText("BOWLER", new Vector2(x + 12, y), Color.White, 0.43f);
+        x += 73;
+        DrawFeedbackMarker(_feedbackMapDot, new Vector2(x + 5, y + 6), 8, new Color(127, 255, 170));
+        DrawOverlayText("BATTERS", new Vector2(x + 12, y), Color.White, 0.43f);
     }
 
     private void DrawWicketMark(Vector2 center, float halfWidth)

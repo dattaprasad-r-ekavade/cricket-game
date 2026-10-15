@@ -23,7 +23,7 @@ dotnet run --project src/SuperCricket.Game
 | Aim and bat | Arrow keys choose one of 8 directions. `S` attacks; `W` defends; hold `Shift` to add loft. `A` leaves the ball. `D` advances before release. Pause and press `I` to switch to Classic chords. | Left stick chooses direction; A attacks; X defends; RB lofts; B leaves |
 | Run | `D` starts or requests another run after contact; tap `A` to turn back | B starts or requests another run; hold to turn back |
 | Advance | `D` steps down the pitch before release | LB steps down the pitch before release |
-| Bowl | Arrows move the pitch target; C cycles delivery; N bowls | D-pad/left stick move the target; LB cycles delivery; RB bowls |
+| Bowl | CPU bowling: Left/Right aim, C cycles delivery, N bowls. Human bowling: Left/Right aim; Up/Down opens and previews a field preset; S selects; W closes; 1–8 choose a delivery and start the run-up; Space sets pace. | CPU bowling: D-pad/left stick aim, LB cycles delivery, RB bowls. Human bowling: left stick aims; D-pad Up/Down previews a field preset; A selects; B closes; face buttons choose a delivery; LB/RB page; RT sets pace. |
 | Match | P pause; Esc quit; V camera; PgDn/PgUp zoom | Start pause; Back quit; L3 camera |
 | Result | R replay; D difficulty; O overs | A replay; LB difficulty; RB overs |
 

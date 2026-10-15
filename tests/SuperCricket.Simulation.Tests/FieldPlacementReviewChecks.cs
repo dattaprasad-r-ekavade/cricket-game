@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 
 namespace SuperCricket.Simulation;
 
@@ -73,7 +74,50 @@ public static class FieldPlacementReviewChecks
                 balancedSituation with { LegalBalls = 12 }, strikerPower: 55),
             "a field plan was accepted for a completed innings");
 
-        Console.WriteLine("PASS: adaptive field tactics, boundary safety, wicketkeeper role, and saved formation preservation.");
+        Require(FieldPlacementModel.ChooseIntent(new FieldChoiceSituation(
+                18, 5, 22, 2, Target: null, LastWicketLegalBall: 12, LastOverBoundaryCount: 0)) == FieldingIntent.Attack,
+            "a wicket in the last two overs did not select an attacking field");
+        Require(FieldPlacementModel.ChooseIntent(new FieldChoiceSituation(
+                18, 5, 22, 2, Target: 61, LastWicketLegalBall: null, LastOverBoundaryCount: 0)) == FieldingIntent.Defend,
+            "a high required rate did not select a defensive field");
+        Require(FieldPlacementModel.ChooseIntent(new FieldChoiceSituation(
+                18, 5, 22, 2, Target: null, LastWicketLegalBall: null, LastOverBoundaryCount: 2)) == FieldingIntent.Defend,
+            "multiple boundaries in the previous over did not select a defensive field");
+        Require(FieldPlacementModel.ChooseIntent(new FieldChoiceSituation(
+                18, 5, 22, 2, Target: null, LastWicketLegalBall: null, LastOverBoundaryCount: 0)) == FieldingIntent.Standard,
+            "a calm situation did not select a standard field");
+
+        var formationCatalog = FieldFormationCatalog.Load(
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../assets/fields/positions.json")),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../assets/fields/presets")));
+        foreach (var style in Enum.GetValues<BowlerStyle>())
+        {
+            var authored = FieldPlacementModel.Resolve(
+                formationCatalog, style, FieldingIntent.Standard, BatterHandedness.Right);
+            var mirrored = FieldPlacementModel.Resolve(
+                formationCatalog, style, FieldingIntent.Standard, BatterHandedness.Left);
+            Require(authored.StartingPositions.Count == FieldingSide.FielderCount &&
+                authored.Tactic == FieldingTactic.Balanced,
+                $"the {style} standard formation did not provide ten fielders and balanced intent");
+            for (var index = 0; index < authored.StartingPositions.Count; index++)
+                Require(MathF.Abs(authored.StartingPositions[index].X + mirrored.StartingPositions[index].X) < 0.0001f &&
+                    MathF.Abs(authored.StartingPositions[index].Z - mirrored.StartingPositions[index].Z) < 0.0001f,
+                    $"the {style} formation did not mirror around the pitch for a left-handed batter");
+        }
+
+        var walkingField = new FieldingSide();
+        var firstFielderBefore = walkingField.Positions[0];
+        var newSpots = Enumerable.Range(0, FieldingSide.FielderCount)
+            .Select(index => new Vector3(15f + index, -0.08f, 5f))
+            .ToArray();
+        walkingField.ConfigureStartingPositions(newSpots, resetPositions: false);
+        Require(walkingField.Positions[0] == firstFielderBefore,
+            "changing the selected formation teleported a fielder");
+        walkingField.WalkTowardStartingPositions(0.1f, speedMetersPerSecond: 1f);
+        Require(walkingField.Positions[0] != firstFielderBefore && walkingField.Positions[0] != newSpots[0],
+            "fielders did not move toward the new formation over time");
+
+        Console.WriteLine("PASS: field intent selection, style formations, handedness mirror, walking reposition, boundary safety, and saved formation preservation.");
     }
 
     private static FieldPreset CreatePracticePreset() => new()

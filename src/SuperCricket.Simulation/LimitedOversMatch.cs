@@ -55,6 +55,9 @@ public sealed class LimitedOversMatch
     private MatchState _innings = null!;
     private MatchInningsResult? _firstInnings;
     private MatchInningsResult? _secondInnings;
+    private int? _lastWicketLegalBall;
+    private int _currentOverBoundaryCount;
+    private int _lastOverBoundaryCount;
     public MatchEventBus Events { get; } = new();
 
     public LimitedOversMatch(
@@ -147,6 +150,9 @@ public sealed class LimitedOversMatch
     public int Runs => _innings.Runs;
     public int Wickets => _innings.Wickets;
     public int LegalBalls => _innings.LegalBalls;
+    public int? LastWicketLegalBall => _lastWicketLegalBall;
+    public int LastOverBoundaryCount => _lastOverBoundaryCount;
+    public bool LastDeliveryWasWicket => CurrentDelivery?.Result is { Dismissal: not DismissalKind.None };
     public int Striker => _innings.Striker;
     public int NonStriker => _innings.NonStriker;
     public TeamPlayerData StrikerPlayer => BattingTeam.GetPlayerAtBattingOrder(Striker);
@@ -192,6 +198,9 @@ public sealed class LimitedOversMatch
         InningsNumber = 1;
         _firstInnings = null;
         _secondInnings = null;
+        _lastWicketLegalBall = null;
+        _currentOverBoundaryCount = 0;
+        _lastOverBoundaryCount = 0;
         Events.Reset();
         _innings = new MatchState(selectedOvers, Events, inningsNumber: 1);
     }
@@ -210,6 +219,16 @@ public sealed class LimitedOversMatch
         if (CurrentDelivery is { IsComplete: true } completed)
             return completed.Result!.Value;
         var result = _innings.CompleteDelivery();
+        var completedLog = Events.DeliveryLogs.LastOrDefault();
+        if (completedLog?.Events.OfType<Boundary>().Any(boundary => boundary.Runs >= 4) == true)
+            _currentOverBoundaryCount++;
+        if (result.Dismissal != DismissalKind.None)
+            _lastWicketLegalBall = _innings.LegalBalls;
+        if (result.IsLegal && _innings.LegalBalls % OverScoreboard.BallsPerOver == 0)
+        {
+            _lastOverBoundaryCount = _currentOverBoundaryCount;
+            _currentOverBoundaryCount = 0;
+        }
         if (!IsInningsComplete)
             return result;
 
@@ -233,6 +252,9 @@ public sealed class LimitedOversMatch
         if (InningsNumber != 1 || _firstInnings is null || !IsInningsComplete)
             throw new InvalidOperationException("The first innings must be complete before the second innings can start.");
         InningsNumber = 2;
+        _lastWicketLegalBall = null;
+        _currentOverBoundaryCount = 0;
+        _lastOverBoundaryCount = 0;
         _innings = new MatchState(OversPerInnings, Events, inningsNumber: 2);
     }
 

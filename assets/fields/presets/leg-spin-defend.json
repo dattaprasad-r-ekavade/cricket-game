@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Leg-spin defend", "style": "legSpin", "intent": "defend", "bowlerPosition": "Bowler",
+  "positions": ["Deep point", "Deep square", "Third man", "Cover", "Mid-off", "Mid-on", "Mid-wicket", "Square leg", "Fine leg", "Wicketkeeper"]
+}

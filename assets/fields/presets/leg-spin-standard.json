@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Leg-spin standard", "style": "legSpin", "intent": "standard", "bowlerPosition": "Bowler",
+  "positions": ["First slip", "Gully", "Point", "Cover", "Mid-off", "Mid-on", "Mid-wicket", "Square leg", "Fine leg", "Wicketkeeper"]
+}

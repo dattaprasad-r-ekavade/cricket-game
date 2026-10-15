@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Pace standard", "style": "pace", "intent": "standard", "bowlerPosition": "Bowler",
+  "positions": ["First slip", "Gully", "Point", "Cover", "Extra cover", "Mid-off", "Mid-on", "Mid-wicket", "Fine leg", "Wicketkeeper"]
+}

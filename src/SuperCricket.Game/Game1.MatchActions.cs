@@ -608,7 +608,9 @@ public partial class Game1
                 continue;
             }
 
-            var clipName = fielderIndex == chaserIndex ? "between-wickets" : "practice-stance";
+            var clipName = fielderIndex == chaserIndex || _fieldingSide.IsRepositioning(fielderIndex)
+                ? "between-wickets"
+                : "practice-stance";
             if (!string.Equals(animation.CurrentClipName, clipName, StringComparison.OrdinalIgnoreCase))
                 animation.Play(clipName, 0.16f);
             animation.Update(deltaTime);

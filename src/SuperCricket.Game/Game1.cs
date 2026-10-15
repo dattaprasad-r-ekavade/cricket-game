@@ -57,6 +57,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly bool _captureTimingGaugePreview;
     private readonly bool _captureBowlingMeterPreview;
     private readonly bool _captureFieldInsetPreview;
+    private readonly bool _captureFieldPickerPreview;
     private readonly CpuDifficulty? _captureDifficultyOverride;
     private readonly bool _captureCameraPresetSpecified;
     private bool _developerMode;
@@ -116,6 +117,13 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly string?[] _fielderActionClips = new string?[FieldingSide.FielderCount];
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
     private FieldPreset _fieldPreset = null!;
+    private FieldFormationCatalog _fieldFormations = null!;
+    private FieldFormationPreset? _activeFieldFormation;
+    private FieldFormationPreset? _previewFieldFormation;
+    private int _fieldPickerSelectionIndex;
+    private int _fieldFormationDecisionLegalBalls = -1;
+    private int _fieldFormationDecisionWickets = -1;
+    private bool _fieldPickerOpen;
     private static readonly int[] OversChoices = [1, 2, 5, 10];
     private MatchController _matchController = null!;
     private LimitedOversMatch _match => _matchController.Match;
@@ -257,7 +265,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         CpuDifficulty? captureDifficultyOverride = null,
         bool captureFieldInsetPreview = false,
         bool captureTimingGaugePreview = false,
-        bool captureBowlingMeterPreview = false)
+        bool captureBowlingMeterPreview = false,
+        bool captureFieldPickerPreview = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -287,7 +296,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
             captureFieldInsetPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
-                captureBowlingTarget || captureFeedbackPreview) ||
+                captureBowlingTarget || captureFeedbackPreview || captureFieldPickerPreview) ||
+            captureFieldPickerPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
+                captureBowlingTarget || captureFeedbackPreview || captureFieldInsetPreview ||
+                captureTimingGaugePreview || captureBowlingMeterPreview) ||
             captureDifficultyOverride is not null && capturePath is null ||
             profileFrameCount is < 0 or > 36000)
             throw new ArgumentException("Choose one bowler preview time, fielder action, or batter-footwork action and its preview time.");
@@ -307,6 +321,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureTimingGaugePreview = captureTimingGaugePreview;
         _captureBowlingMeterPreview = captureBowlingMeterPreview;
         _captureFieldInsetPreview = captureFieldInsetPreview;
+        _captureFieldPickerPreview = captureFieldPickerPreview;
         _captureDifficultyOverride = captureDifficultyOverride;
         _captureCameraPresetSpecified = captureCameraPreset is not null;
         _captureFielderActionClip = captureFielderActionClip;

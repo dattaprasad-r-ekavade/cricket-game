@@ -19,6 +19,15 @@ internal readonly record struct BowlingControlInputFrame(
     bool NextPagePressed,
     bool PacePressed);
 
+internal readonly record struct FieldPickerInputFrame(
+    bool PreviousPressed,
+    bool NextPressed,
+    bool SelectPressed,
+    bool ClosePressed)
+{
+    public bool OpenRequested => PreviousPressed || NextPressed;
+}
+
 internal readonly record struct KeyboardBattingInputFrame(
     float HorizontalAim,
     float ForwardAim,
@@ -117,6 +126,17 @@ internal sealed class MatchInputRouter
             (pressed & MatchControllerButtons.LeftShoulder) != 0,
             (pressed & MatchControllerButtons.RightShoulder) != 0,
             controller.PacePressed || WasKeyPressed(Keys.Space));
+    }
+
+    public FieldPickerInputFrame ReadFieldPickerControls(ControllerInputFrame controller)
+    {
+        var pressed = controller.PressedButtons;
+        return new FieldPickerInputFrame(
+            WasKeyPressed(Keys.Up) || (pressed & MatchControllerButtons.DPadUp) != 0,
+            WasKeyPressed(Keys.Down) || (pressed & MatchControllerButtons.DPadDown) != 0,
+            WasKeyPressed(Keys.S) || (pressed & MatchControllerButtons.A) != 0,
+            WasKeyPressed(Keys.W) ||
+                (pressed & MatchControllerButtons.B) != 0);
     }
 
     public KeyboardBattingInputFrame ReadBattingInput(

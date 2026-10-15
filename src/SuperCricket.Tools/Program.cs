@@ -119,6 +119,17 @@ static int Run(string[] arguments)
             return 0;
         }
 
+        if (arguments[0] == "validate-fields")
+        {
+            if (arguments.Length != 3)
+                throw new ArgumentException("Usage: validate-fields <positions.json> <preset-directory>");
+            var catalog = FieldFormationCatalog.Load(arguments[1], arguments[2]);
+            Console.WriteLine($"Valid field formation catalogue: {catalog.Formations.Count} presets, {catalog.Positions.Positions.Count} named positions.");
+            foreach (var formation in catalog.Formations)
+                Console.WriteLine($"  {formation.Name}: {formation.Style}/{formation.Intent}, nine fielders, keeper and bowler.");
+            return 0;
+        }
+
         if (arguments[0] == "analyze-field")
         {
             var outputPath = arguments.Length > 2
@@ -826,6 +837,7 @@ static void PrintUsage()
     Console.WriteLine("  verify-cpu-batting <batter-asset> <bowler-asset> <shots.json> <standard-delivery.json> <wide-delivery.json> <batting-team.json> <fielding-team.json> <field.json>");
     Console.WriteLine("  verify-batting <shots.json>");
     Console.WriteLine("  validate-field <field.json>");
+    Console.WriteLine("  validate-fields <positions.json> <preset-directory>");
     Console.WriteLine("  analyze-field <field.json> [coverage.csv] [grid-spacing-meters]");
     Console.WriteLine("  validate <preset.json>");
     Console.WriteLine("  simulate <preset.json> [trajectory.csv]");

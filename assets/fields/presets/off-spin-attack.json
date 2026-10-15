@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Off-spin attack", "style": "offSpin", "intent": "attack", "bowlerPosition": "Bowler",
+  "positions": ["First slip", "Second slip", "Silly point", "Short leg", "Point", "Cover", "Mid-off", "Mid-on", "Mid-wicket", "Wicketkeeper"]
+}

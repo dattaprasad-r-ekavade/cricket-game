@@ -42,7 +42,17 @@ public sealed class FieldingSide
     private float _boundaryRadiusMeters = 42f;
 
     public IReadOnlyList<Vector3> Positions => _positions;
+    public IReadOnlyList<Vector3> StartingPositions => _startingPositions;
     public int ActiveChaserIndex => _activeChaser;
+    public bool IsRepositioning(int fielderIndex)
+    {
+        if ((uint)fielderIndex >= (uint)_positions.Length)
+            throw new ArgumentOutOfRangeException(nameof(fielderIndex));
+        if (_activeChaser >= 0)
+            return false;
+        var delta = _startingPositions[fielderIndex] - _positions[fielderIndex];
+        return delta.X * delta.X + delta.Z * delta.Z > 0.0025f;
+    }
 
     public void ConfigureBoundaryRadius(float boundaryRadiusMeters)
     {
@@ -51,7 +61,7 @@ public sealed class FieldingSide
         _boundaryRadiusMeters = boundaryRadiusMeters;
     }
 
-    public void ConfigureStartingPositions(IReadOnlyList<Vector3> positions)
+    public void ConfigureStartingPositions(IReadOnlyList<Vector3> positions, bool resetPositions = true)
     {
         ArgumentNullException.ThrowIfNull(positions);
         if (positions.Count != FielderCount)
@@ -63,14 +73,53 @@ public sealed class FieldingSide
                 throw new ArgumentException($"Fielder position {index + 1} must be finite.", nameof(positions));
             _startingPositions[index] = positions[index];
         }
-        Reset();
+        if (resetPositions)
+            Reset();
+        else
+            ResetActivity();
     }
 
     public void Reset()
     {
         Array.Copy(_startingPositions, _positions, _startingPositions.Length);
+        ResetActivity();
+    }
+
+    /// <summary>Clears the active chase while preserving each fielder's current position.</summary>
+    public void ResetActivity()
+    {
         _activeChaser = -1;
         _reactionRemaining = 0f;
+    }
+
+    /// <summary>Walks fielders toward their configured formation without teleporting them.</summary>
+    public bool WalkTowardStartingPositions(float deltaTime, float speedMetersPerSecond = 4f)
+    {
+        if (!float.IsFinite(deltaTime) || deltaTime < 0f)
+            throw new ArgumentOutOfRangeException(nameof(deltaTime));
+        if (!float.IsFinite(speedMetersPerSecond) || speedMetersPerSecond <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(speedMetersPerSecond));
+        if (_activeChaser >= 0)
+            return false;
+
+        var maximumStep = deltaTime * speedMetersPerSecond;
+        var arrived = true;
+        for (var index = 0; index < _positions.Length; index++)
+        {
+            var current = _positions[index];
+            var target = _startingPositions[index];
+            var delta = new Vector3(target.X - current.X, 0f, target.Z - current.Z);
+            var distance = delta.Length();
+            if (distance > 0.001f)
+            {
+                arrived = false;
+                var step = MathF.Min(distance, maximumStep);
+                if (step > 0f)
+                    current += delta / distance * step;
+            }
+            _positions[index] = new Vector3(current.X, target.Y, current.Z);
+        }
+        return arrived;
     }
 
     public static float EstimateReachTime(Vector3 start, Vector3 target)

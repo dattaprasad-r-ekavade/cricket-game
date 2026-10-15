@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Pace attack", "style": "pace", "intent": "attack", "bowlerPosition": "Bowler",
+  "positions": ["First slip", "Second slip", "Gully", "Point", "Cover", "Mid-off", "Mid-on", "Short leg", "Square leg", "Wicketkeeper"]
+}

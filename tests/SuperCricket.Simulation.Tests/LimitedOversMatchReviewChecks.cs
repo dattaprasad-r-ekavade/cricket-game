@@ -33,6 +33,8 @@ public static class LimitedOversMatchReviewChecks
         chase.CompleteDelivery();
         for (var ball = 1; ball < OverScoreboard.BallsPerOver; ball++)
             CompleteDotBall(chase);
+        Require(chase.LastOverBoundaryCount == 1,
+            "the previous over's boundary count was not retained for captain decisions");
         Require(ReferenceEquals(chase.CurrentBowler, secondTeam.Players[10]),
             "bowling ability did not order the over-to-over bowler rotation");
         var figuresAfterOpeningOver = chase.CurrentBowlingFigures;
@@ -91,6 +93,9 @@ public static class LimitedOversMatchReviewChecks
                 var delivery = allOut.BeginDelivery(isNoBall: false);
                 delivery.ResolveIncoming(isWide: false, hitsWickets: true);
                 allOut.CompleteDelivery();
+                if (wicket == 0)
+                    Require(allOut.LastDeliveryWasWicket && allOut.LastWicketLegalBall == allOut.LegalBalls,
+                        "the last-wicket ball was not recorded for the captain's recent-wicket decision");
                 Require(allOut.StrikerPlayer.BattingOrder is >= 1 and <= 11 &&
                     allOut.NonStrikerPlayer.BattingOrder is >= 1 and <= 11,
                     "all-out assigned a nonexistent twelfth batter to a displayed end");

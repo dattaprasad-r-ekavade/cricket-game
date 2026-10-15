@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Pace defend", "style": "pace", "intent": "defend", "bowlerPosition": "Bowler",
+  "positions": ["Deep point", "Deep cover", "Third man", "Cover", "Mid-off", "Mid-on", "Mid-wicket", "Square leg", "Fine leg", "Wicketkeeper"]
+}

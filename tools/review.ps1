@@ -84,6 +84,7 @@ try {
     Invoke-CheckedDotNet @($toolsDll, 'validate-deliveries', 'assets/bowling/deliveries.json')
     Invoke-CheckedDotNet @($toolsDll, 'verify-delivery-envelopes')
     Invoke-CheckedDotNet @($toolsDll, 'validate-field', 'assets/fields/practice-attack.json')
+    Invoke-CheckedDotNet @($toolsDll, 'validate-fields', 'assets/fields/positions.json', 'assets/fields/presets')
     Invoke-CheckedDotNet @($toolsDll, 'verify-batting', $shotsPath)
     Invoke-CheckedDotNet @($toolsDll, 'verify-match')
     Invoke-CheckedDotNet @($toolsDll, 'verify-match-batch')

@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Leg-spin attack", "style": "legSpin", "intent": "attack", "bowlerPosition": "Bowler",
+  "positions": ["First slip", "Second slip", "Silly point", "Short leg", "Gully", "Point", "Mid-on", "Mid-wicket", "Square leg", "Wicketkeeper"]
+}

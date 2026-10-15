@@ -1,0 +1,4 @@
+{
+  "version": 1, "name": "Off-spin defend", "style": "offSpin", "intent": "defend", "bowlerPosition": "Bowler",
+  "positions": ["Deep point", "Deep mid-wicket", "Third man", "Cover", "Extra cover", "Mid-off", "Mid-on", "Mid-wicket", "Fine leg", "Wicketkeeper"]
+}

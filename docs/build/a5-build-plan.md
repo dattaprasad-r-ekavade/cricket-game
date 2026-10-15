@@ -233,7 +233,7 @@ GamePad: left stick direction, A attack, X defend, RB loft, B leave, LB advance.
 
 ---
 
-### WP8 — Field presets and picker (M) · A5.10
+### WP8 — Field presets and picker (M) · A5.10 [x]
 
 - `assets/fields/positions.json`: a ring of named positions (slip 1–3, gully, point, cover, extra cover, mid-off, mid-on, mid-wicket, square leg, fine leg, third man, long-on, long-off, deep cover, deep mid-wicket, deep square, short leg, silly point, keeper…) as polar coordinates for a right-hander, mirrored for left-handers.
 - `assets/fields/presets/*.json`: for each bowler style (pace, off-spin, leg-spin) × intent (attack, standard, defend) = 9 presets of 9 fielders + keeper + bowler, referencing position names. Validator: 11 players, legal under limited-overs fielding restrictions if they are enabled (no more than 5 on the leg side; inner ring counts if a powerplay is active).

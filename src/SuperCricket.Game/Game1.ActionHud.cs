@@ -41,7 +41,9 @@ public partial class Game1
             _bowlingControlPage,
             _humanBowlingStarted,
             GetHumanBowlingPaceProgress(),
-            _humanBowlingPaceResult?.IsNoBall == true);
+            _humanBowlingPaceResult?.IsNoBall == true,
+            _fieldPickerOpen,
+            _previewFieldFormation?.Name);
         var hints = MatchHudPresenter.BuildActionHints(hudState);
         var controlsWidth = Math.Clamp(viewport.Width / 2 - HudMargin * 2, 280, 520);
         var scoreWidth = Math.Min(600, viewport.Width - controlsWidth - HudMargin * 3);

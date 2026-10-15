@@ -687,6 +687,24 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.InningsComplete));
 
     [Theory]
+    [InlineData(false, "S: choose")]
+    [InlineData(true, "A: choose")]
+    public void FieldPickerHintShowsPreviewAndSelectionControls(bool isGamePad, string expected)
+    {
+        var state = new MatchHudState(
+            isGamePad,
+            MatchHudPhase.Bowling,
+            "Yorker",
+            IsHumanBowling: true,
+            FieldPickerOpen: true,
+            FieldPickerOption: "Pace defend");
+
+        var hint = MatchHudPresenter.GetPrimaryControlHint(state);
+        Assert.Contains(expected, hint);
+        Assert.Contains("Pace defend", hint);
+    }
+
+    [Theory]
     [InlineData(false, "Bowling", "Next pitch: arrows aim    C: delivery (Yorker; next ball)    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
     [InlineData(true, "Bowling", "Next pitch: D-pad / left stick aim    LB: delivery (Yorker; next ball)    Start: pause    L3: camera")]
     [InlineData(false, "BowlingDeliveryComplete", "Next pitch: arrows aim    C: delivery (Yorker)    N: bowl next    P: pause    V: camera    PgDn: zoom in / PgUp: out")]

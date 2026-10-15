@@ -115,6 +115,44 @@ public sealed class MatchInputRouterTests
     }
 
     [Fact]
+    public void FieldPickerUsesArrowsToPreviewAndWP4KeysToSelectOrClose()
+    {
+        var router = new MatchInputRouter();
+        router.BeginKeyboardFrame(new KeyboardState(Keys.Up));
+        var open = router.ReadFieldPickerControls(default);
+        Assert.True(open.OpenRequested);
+        Assert.True(open.PreviousPressed);
+
+        router.EndKeyboardFrame();
+        router.BeginKeyboardFrame(new KeyboardState(Keys.S));
+        Assert.True(router.ReadFieldPickerControls(default).SelectPressed);
+        router.EndKeyboardFrame();
+        router.BeginKeyboardFrame(new KeyboardState(Keys.W));
+        Assert.True(router.ReadFieldPickerControls(default).ClosePressed);
+    }
+
+    [Fact]
+    public void FieldPickerUsesGamepadDpadAndFaceButtons()
+    {
+        var router = new MatchInputRouter();
+        var next = router.ReadController(
+            MatchControllerButtons.DPadDown, 0f, 0f, false, true, false, false, false);
+        var preview = router.ReadFieldPickerControls(next);
+        Assert.True(preview.NextPressed);
+        Assert.True(preview.OpenRequested);
+
+        router.ReadController(MatchControllerButtons.None, 0f, 0f, false, true, false, false, false);
+        var confirm = router.ReadController(
+            MatchControllerButtons.A, 0f, 0f, false, true, false, false, false);
+        Assert.True(router.ReadFieldPickerControls(confirm).SelectPressed);
+
+        router.ReadController(MatchControllerButtons.None, 0f, 0f, false, true, false, false, false);
+        var close = router.ReadController(
+            MatchControllerButtons.B, 0f, 0f, false, true, false, false, false);
+        Assert.True(router.ReadFieldPickerControls(close).ClosePressed);
+    }
+
+    [Fact]
     public void ControllerActionsAreEdgeTriggeredAndCarryAnalogAndHeldInput()
     {
         var router = new MatchInputRouter();

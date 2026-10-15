@@ -57,6 +57,7 @@ public partial class Game1
         var pressedKeys = keyboard.GetPressedKeys();
         var keyboardBattingInput = default(KeyboardBattingInputFrame);
         var hasKeyboardBattingInput = false;
+        var fieldPickerHandled = false;
         if (pressedKeys.Length > 0)
             _lastInputWasGamePad = false;
         if (controllerActions != MatchControllerActions.None || MathF.Abs(controllerAimAxis) > 0.2f ||
@@ -113,16 +114,20 @@ public partial class Game1
         if (HasHumanBowlingControls && !_simulationPaused && !_match.IsInningsComplete)
         {
             RefreshBowlingOptions();
-            var bowlingInput = _inputRouter.ReadBowlingControls(controllerFrame, _bowlingControlPage);
-            var pageCount = Math.Max(1, (_bowlingOptions.Length + 3) / 4);
-            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.PreviousPagePressed)
-                _bowlingControlPage = (_bowlingControlPage + pageCount - 1) % pageCount;
-            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.NextPagePressed)
-                _bowlingControlPage = (_bowlingControlPage + 1) % pageCount;
-            if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.DeliveryIndex is { } deliveryIndex)
-                SelectHumanBowlingDelivery(deliveryIndex);
-            if (bowlingInput.PacePressed && _humanBowlingStarted && !_bowlerReleased)
-                ResolveHumanBowlingPaceMeter(_paceMeterElapsedSeconds);
+            fieldPickerHandled = HandleFieldPickerInput(_inputRouter.ReadFieldPickerControls(controllerFrame));
+            if (!fieldPickerHandled)
+            {
+                var bowlingInput = _inputRouter.ReadBowlingControls(controllerFrame, _bowlingControlPage);
+                var pageCount = Math.Max(1, (_bowlingOptions.Length + 3) / 4);
+                if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.PreviousPagePressed)
+                    _bowlingControlPage = (_bowlingControlPage + pageCount - 1) % pageCount;
+                if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.NextPagePressed)
+                    _bowlingControlPage = (_bowlingControlPage + 1) % pageCount;
+                if (!_humanBowlingStarted && !_bowlerReleased && bowlingInput.DeliveryIndex is { } deliveryIndex)
+                    SelectHumanBowlingDelivery(deliveryIndex);
+                if (bowlingInput.PacePressed && _humanBowlingStarted && !_bowlerReleased)
+                    ResolveHumanBowlingPaceMeter(_paceMeterElapsedSeconds);
+            }
         }
         if (KeyPressed(Keys.V) || ControllerPressed(MatchControllerActions.CycleCamera)) _camera.CyclePreset();
         if (_developerMode && KeyPressed(Keys.F1)) _showDebugOverlay = !_showDebugOverlay;
@@ -218,7 +223,7 @@ public partial class Game1
             }
         }
         else if (IsCpuBattingControlled && !_developerMode && !_simulationPaused &&
-            !_match.IsInningsComplete && !_humanBowlingStarted)
+            !_match.IsInningsComplete && !_humanBowlingStarted && !fieldPickerHandled)
         {
             if (KeyPressed(Keys.Left) || ControllerPressed(MatchControllerActions.AimOffSide))
                 AdjustHumanBowlingAim(-0.4f, 0f);
@@ -350,6 +355,8 @@ public partial class Game1
         var flightElapsed = _simulationPaused ? 0f : UpdateBowler(elapsedSeconds);
         if (!_simulationPaused)
             UpdateCpuBatting(flightElapsed);
+        if (!_simulationPaused && !_battedBall && !_fielderThrowActive && !_deliveryComplete)
+            _fieldingSide.WalkTowardStartingPositions(elapsedSeconds);
         var runningElapsedDuringFielding = elapsedSeconds;
         if (_fielderSequencePhase == FielderSequencePhase.Throw)
             runningElapsedDuringFielding = MathF.Min(elapsedSeconds,
@@ -470,7 +477,7 @@ public partial class Game1
                         _shotResolved = true;
                         _battedBall = true;
                         _camera.SelectPreset("ball-follow");
-                        _fieldingSide.Reset();
+                        _fieldingSide.ResetActivity();
                         _shotOutcome = $"HIT: {_chosenShot.Name} {strokeOutcome.Zone}, {contactQuality:0.00} quality at {outgoingVelocity.Length():0.0} m/s";
                         if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
                         {

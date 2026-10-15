@@ -110,6 +110,9 @@ public partial class Game1
         ];
         _bowlingCatalogue = DeliveryCatalogue.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Bowling", "deliveries.json"));
         _fieldPreset = FieldPreset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "practice-attack.json"));
+        _fieldFormations = FieldFormationCatalog.Load(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "positions.json"),
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Fields", "Presets"));
         _matchController = new MatchController(new LimitedOversMatch(
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "coastal-xi.json")),
             TeamRosterAsset.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Teams", "highland-xi.json")),
@@ -173,6 +176,8 @@ public partial class Game1
                 PrepareBowlingTargetCapture();
             else if (_captureBowlingMeterPreview)
                 PrepareBowlingMeterPreviewCapture();
+            else if (_captureFieldPickerPreview)
+                PrepareFieldPickerPreviewCapture();
 
             if (_captureBatterFootworkActionClip is { } footworkClip &&
                 _captureBatterFootworkActionTimeSeconds is { } footworkTime)
@@ -217,6 +222,10 @@ public partial class Game1
             {
                 if (_bowlerRunUpDurationSeconds <= 0f)
                     throw new InvalidOperationException("The bowling meter preview requires a positive bowler run-up.");
+            }
+            else if (_captureFieldPickerPreview)
+            {
+                _bowlerAnimator.Play("practice-stance", 0.08f);
             }
             else
             {

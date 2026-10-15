@@ -163,8 +163,14 @@ public partial class Game1
         var position = _fieldingSide.Positions[fielderIndex];
         var isChasing = fielderIndex == _fieldingSide.ActiveChaserIndex && _battedBall && !_deliveryComplete;
         var isThrowing = fielderIndex == _fielderThrowerIndex && _fielderSequencePhase == FielderSequencePhase.Throw;
-        var targetX = isThrowing ? _fielderThrowTarget.X : isChasing ? ballPosition.X : 0f;
-        var targetZ = isThrowing ? _fielderThrowTarget.Z : isChasing ? ballPosition.Z : 0f;
+        var isRepositioning = _fieldingSide.IsRepositioning(fielderIndex);
+        var repositioningTarget = _fieldingSide.StartingPositions[fielderIndex];
+        var targetX = isThrowing ? _fielderThrowTarget.X
+            : isChasing ? ballPosition.X
+            : isRepositioning ? repositioningTarget.X : 0f;
+        var targetZ = isThrowing ? _fielderThrowTarget.Z
+            : isChasing ? ballPosition.Z
+            : isRepositioning ? repositioningTarget.Z : 0f;
         var yaw = MathF.Atan2(targetX - position.X, targetZ - position.Z);
         return Matrix.CreateRotationY(yaw) *
             Matrix.CreateScale(0.94f) *

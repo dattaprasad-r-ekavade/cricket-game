@@ -31,7 +31,9 @@ internal readonly record struct MatchHudState(
     int BowlingPage = 0,
     bool BowlingStarted = false,
     float BowlingMeterProgress = 0f,
-    bool BowlingNoBall = false);
+    bool BowlingNoBall = false,
+    bool FieldPickerOpen = false,
+    string? FieldPickerOption = null);
 
 internal readonly record struct MatchHudConditions(
     bool IsMatchComplete,
@@ -721,6 +723,11 @@ internal static class MatchHudPresenter
         var camera = state.IsGamePad ? "L3: camera" : "V: camera    PgDn: zoom in / PgUp: out";
         string WithCamera(string hint) => $"{hint}    {camera}";
 
+        if (state.FieldPickerOpen && state.IsHumanBowling)
+            return WithCamera(state.IsGamePad
+                ? $"D-pad: preview {state.FieldPickerOption}    A: choose    B: close    {pause}"
+                : $"Up/Down: preview {state.FieldPickerOption}    S: choose    W: close    {pause}");
+
         return state.Phase switch
         {
             MatchHudPhase.MatchComplete => WithCamera(state.IsGamePad
@@ -870,9 +877,13 @@ internal static class MatchHudPresenter
                 return state.IsGamePad
                     ? $"RT: set pace    {pause}"
                     : $"Space: set pace    {pause}";
+            if (!includeNextBall && state.FieldPickerOpen)
+                return state.IsGamePad
+                    ? $"D-pad: preview field    A: choose    B: close    {pause}"
+                    : $"Up/Down: preview field    S: choose    W: close    {pause}";
             return state.IsGamePad
-                ? $"D-pad: aim    A/X/Y/B: select delivery    LB/RB: page    {pause}"
-                : $"Arrows: aim    1-8: choose delivery and bowl    {pause}";
+                ? $"Stick: aim    D-pad: field picker    A/X/Y/B: delivery    LB/RB: page    {pause}"
+                : $"Left/Right: aim    Up/Down: field picker    1-8: choose delivery and bowl    {pause}";
         }
 
         var aim = state.IsGamePad ? "Next pitch: D-pad / left stick aim" : "Next pitch: arrows aim";
@@ -890,6 +901,12 @@ internal static class MatchHudPresenter
     private static IReadOnlyList<HudActionHint> BuildHumanBowlingHints(MatchHudState state)
     {
         var hints = new List<HudActionHint>();
+        if (state.FieldPickerOpen)
+        {
+            hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD" : "UP / DOWN", state.FieldPickerOption ?? "Preview field"));
+            hints.Add(new HudActionHint(state.IsGamePad ? "A / B" : "S / W", "Choose / close field"));
+            return hints;
+        }
         if (state.BowlingStarted)
         {
             hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD / STICK" : "ARROWS", "Aim locked for this delivery"));
@@ -901,7 +918,8 @@ internal static class MatchHudPresenter
 
         if (state.BowlingOptions is { Count: > 0 } options)
             hints.AddRange(options);
-        hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD / STICK" : "ARROWS", "Move pitch target"));
+        hints.Add(new HudActionHint(state.IsGamePad ? "LEFT STICK" : "LEFT / RIGHT", "Move pitch target"));
+        hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD" : "UP / DOWN", "Preview field preset"));
         if (state.IsGamePad && state.BowlingOptions is { Count: > 4 })
             hints.Add(new HudActionHint("LB / RB", $"Delivery page {state.BowlingPage + 1}"));
         return hints;

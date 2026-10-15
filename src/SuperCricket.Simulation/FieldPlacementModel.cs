@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Content.Bowling;
 
 namespace SuperCricket.Simulation;
 
@@ -13,6 +14,22 @@ public enum FieldingTactic
 public readonly record struct FieldPlacementDecision(
     FieldingTactic Tactic,
     IReadOnlyList<Vector3> StartingPositions);
+
+public readonly record struct FieldChoiceSituation(
+    int LegalBalls,
+    int OversPerInnings,
+    int Runs,
+    int Wickets,
+    int? Target,
+    int? LastWicketLegalBall,
+    int LastOverBoundaryCount);
+
+public readonly record struct AuthoredFieldPlacement(
+    string Name,
+    FieldingIntent Intent,
+    FieldingTactic Tactic,
+    IReadOnlyList<Vector3> StartingPositions,
+    Vector3 BowlerPosition);
 
 /// <summary>Adjusts a saved field to the current batter and chase situation.</summary>
 public static class FieldPlacementModel
@@ -76,6 +93,53 @@ public static class FieldPlacementModel
                 : FieldingTactic.Balanced;
     }
 
+    public static FieldingIntent ChooseIntent(FieldChoiceSituation situation)
+    {
+        ValidateChoiceSituation(situation);
+        var recentWicket = situation.LastWicketLegalBall is { } wicketBall &&
+            situation.LegalBalls >= wicketBall && situation.LegalBalls - wicketBall <= 12;
+        if (recentWicket)
+            return FieldingIntent.Attack;
+
+        var ballsRemaining = Math.Max(1,
+            situation.OversPerInnings * OverScoreboard.BallsPerOver - situation.LegalBalls);
+        var requiredRate = situation.Target is { } target
+            ? Math.Max(0, target - situation.Runs) * OverScoreboard.BallsPerOver / (float)ballsRemaining
+            : 0f;
+        return requiredRate >= 10f || situation.LastOverBoundaryCount >= 2
+            ? FieldingIntent.Defend
+            : FieldingIntent.Standard;
+    }
+
+    public static AuthoredFieldPlacement Resolve(
+        FieldFormationCatalog catalog,
+        BowlerStyle style,
+        FieldingIntent intent,
+        BatterHandedness handedness,
+        bool powerplayActive = false)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        var errors = catalog.Validate(limitedOversRestrictionsEnabled: true, powerplayActive: powerplayActive);
+        if (errors.Count > 0)
+            throw new ArgumentException($"Invalid field formations: {string.Join(" ", errors)}", nameof(catalog));
+        var formation = catalog.Get(style, intent);
+        var positions = formation.Positions
+            .Select(name => catalog.Positions.Resolve(name, handedness))
+            .ToArray();
+        var bowlerPosition = catalog.Positions.Resolve(formation.BowlerPosition, handedness);
+        return new AuthoredFieldPlacement(
+            formation.Name,
+            intent,
+            intent switch
+            {
+                FieldingIntent.Attack => FieldingTactic.AttackWickets,
+                FieldingIntent.Defend => FieldingTactic.ProtectBoundary,
+                _ => FieldingTactic.Balanced
+            },
+            Array.AsReadOnly(positions),
+            bowlerPosition);
+    }
+
     private static float GetPressure(BowlingSituation situation)
     {
         if (situation.Target is not { } target)
@@ -95,5 +159,23 @@ public static class FieldPlacementModel
         if (situation.Target is <= 0)
             return "A chase target must be positive when present.";
         return null;
+    }
+
+    private static void ValidateChoiceSituation(FieldChoiceSituation situation)
+    {
+        if (situation.OversPerInnings is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(situation), "Overs per innings must be between 1 and 10.");
+        var maximumBalls = situation.OversPerInnings * OverScoreboard.BallsPerOver;
+        if (situation.LegalBalls < 0 || situation.LegalBalls > maximumBalls)
+            throw new ArgumentOutOfRangeException(nameof(situation), "Legal balls must be within the innings.");
+        if (situation.Runs < 0 || situation.Wickets is < 0 or > OverScoreboard.MaximumWickets)
+            throw new ArgumentOutOfRangeException(nameof(situation), "Runs and wickets must describe an innings.");
+        if (situation.Target is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(situation), "A chase target must be positive when present.");
+        if (situation.LastWicketLegalBall is { } wicketBall &&
+            (wicketBall < 0 || wicketBall > situation.LegalBalls))
+            throw new ArgumentOutOfRangeException(nameof(situation), "The last wicket ball cannot be after the current ball count.");
+        if (situation.LastOverBoundaryCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(situation), "The last over boundary count cannot be negative.");
     }
 }

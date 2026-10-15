@@ -67,7 +67,9 @@ public partial class Game1
             _bowlingControlPage,
             _humanBowlingStarted,
             GetHumanBowlingPaceProgress(),
-            _humanBowlingPaceResult?.IsNoBall == true));
+            _humanBowlingPaceResult?.IsNoBall == true,
+            _fieldPickerOpen,
+            _previewFieldFormation?.Name));
     }
 
     private void DrawDebugOverlay()
@@ -95,7 +97,7 @@ public partial class Game1
             $"Player: {_playerAsset.Name}    animation {_playerAnimator.CurrentClipName}{(_playerAnimator.IsTransitioning ? " (crossfade)" : string.Empty)}",
             $"Batter footwork: {_batterFootworkOffsetX:+0.00;-0.00;0.00} m lateral",
             $"Bowler: {_bowlerAsset.Name}    {(_bowlerReleased ? "released" : _bowlerActionStarted ? "delivery stride" : "run-up")}    animation {_bowlerAnimator.CurrentClipName}",
-            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_fieldPreset.Name} ({_activeFieldingTactic}, {_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
+            $"Delivery: {(_deliveryComplete ? "complete" : "live")}    {_activeFieldFormation?.Name ?? _fieldPreset.Name} ({_activeFieldingTactic}, {_fieldingSide.Positions.Count} fielders)    run {(_isRunning ? $"{MathHelper.Clamp(_runElapsed / _runDurationSeconds, 0f, 1f):P0}" : "ready")}",
             $"Event: {_shotOutcome}",
             $"Release: {(_releaseMarkerPosition is { } release ? $"t=0.000 s @ {FormatPosition(release)} m" : "not yet released")}    Contact: {(_contactMarkerPosition is { } contact ? $"t={_contactTimeSeconds:0.000} s @ {FormatPosition(contact)} m" : "waiting")}",
             $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
