@@ -6,6 +6,7 @@ namespace SuperCricket.Simulation;
 /// <summary>Deterministic fixed-step ball flight and simple pitch/ground contacts.</summary>
 public sealed class BallFlightSimulator
 {
+    private const float PitchTurnMetersPerSecondPerSpinUnit = 1.2f;
     private readonly DeliveryPreset _preset;
     private Vector3 _position;
     private Vector3 _velocity;
@@ -15,6 +16,7 @@ public sealed class BallFlightSimulator
     private float? _battingRollingDeceleration;
     private float? _battedBallPitchBounceRestitution;
     private float? _battedBallTangentialRetention;
+    private bool _applyDeliverySpinAtPitch = true;
 
     public BallFlightSimulator(DeliveryPreset preset)
     {
@@ -46,6 +48,7 @@ public sealed class BallFlightSimulator
         _battingRollingDeceleration = rollingDecelerationMetersPerSecondSquared;
         _battedBallPitchBounceRestitution = _preset.BattedBallPitchBounceRestitution;
         _battedBallTangentialRetention = _preset.BattedBallTangentialRetention;
+        _applyDeliverySpinAtPitch = false;
         _bounceCount = 0;
         _phase = BallMotionPhase.InFlight;
     }
@@ -57,6 +60,7 @@ public sealed class BallFlightSimulator
 
         _position = contactPosition;
         _velocity = Vector3.Zero;
+        _applyDeliverySpinAtPitch = false;
         _phase = BallMotionPhase.Settled;
     }
 
@@ -124,11 +128,22 @@ public sealed class BallFlightSimulator
         var restitution = _bounceCount == 1
             ? _battedBallPitchBounceRestitution ?? _preset.PitchBounceRestitution
             : _preset.GroundBounceRestitution;
+        if (_bounceCount == 1 && _applyDeliverySpinAtPitch && MathF.Abs(_preset.SideSpin) <= 0.001f)
+        {
+            // Positive top-spin makes a sharp, lively bounce; negative spin skids lower.
+            restitution *= Math.Clamp(1f + _preset.TopSpin * 0.1f, 0.9f, 1.1f);
+        }
         var tangentialRetention = _battedBallTangentialRetention ?? _preset.TangentialRetention;
         _velocity = new Vector3(
             impactVelocity.X * tangentialRetention,
             -impactVelocity.Y * restitution,
             impactVelocity.Z * tangentialRetention);
+        if (_bounceCount == 1 && _applyDeliverySpinAtPitch && MathF.Abs(_preset.SideSpin) > 0.001f)
+        {
+            // Catalogue side-spin is signed to encode the named break/variation. The
+            // per-pitch multiplier carries the authored surface grip response.
+            _velocity.X += _preset.SideSpin * _preset.PitchSpinMultiplier * PitchTurnMetersPerSecondPerSpinUnit;
+        }
 
         if (_velocity.Y < 0.65f)
         {
