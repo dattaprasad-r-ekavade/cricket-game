@@ -20,7 +20,8 @@ public readonly record struct CpuBattingDecision(
     float TwoRunChance,
     float ThreeRunChance,
     float RunOutChance,
-    float BoundaryClearedChance);
+    float BoundaryClearedChance,
+    StrokeDefinition? SelectedStroke = null);
 
 /// <summary>Maps batting, bowling, fielding, and match ratings into CPU match-outcome probabilities.</summary>
 public static class CpuBattingOutcomeModel
@@ -35,15 +36,21 @@ public static class CpuBattingOutcomeModel
         bool leftHanded,
         bool assist,
         StrokeTableAsset strokeTable,
-        Random random)
+        Random random,
+        StrokeDefinition? selectedStroke = null)
     {
-        var request = new StrokeRequest(
-            StrokeDirectionModel.FromAim(horizontalAim, forwardAim),
-            shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack,
-            shot == CpuShotChoice.Loft,
-            StrokeFoot.Auto);
-        return StrokeOutcomeResolver.Resolve(
-            strokeTable, request, ball, distanceAtInputMeters, window, leftHanded, assist, random);
+        var request = selectedStroke is null
+            ? new StrokeRequest(
+                StrokeDirectionModel.FromAim(horizontalAim, forwardAim),
+                shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack,
+                shot == CpuShotChoice.Loft,
+                StrokeFoot.Auto)
+            : new StrokeRequest(selectedStroke.Direction, selectedStroke.Intent, selectedStroke.Loft, selectedStroke.Foot);
+        return selectedStroke is null
+            ? StrokeOutcomeResolver.Resolve(
+                strokeTable, request, ball, distanceAtInputMeters, window, leftHanded, assist, random)
+            : StrokeOutcomeResolver.ResolveSelected(
+                selectedStroke, request, ball, distanceAtInputMeters, window, leftHanded, assist, random);
     }
 
     public static CpuBattingDecision Choose(
@@ -52,7 +59,10 @@ public static class CpuBattingOutcomeModel
         IReadOnlyList<TeamPlayerData> fielders,
         BowlingSituation situation,
         FieldingTactic fieldingTactic,
-        CpuDifficulty difficulty = CpuDifficulty.Standard)
+        CpuDifficulty difficulty = CpuDifficulty.Standard,
+        StrokeTableAsset? strokeTable = null,
+        BallCategory? ball = null,
+        int scoringSeed = 0)
     {
         ArgumentNullException.ThrowIfNull(striker);
         ArgumentNullException.ThrowIfNull(bowler);
@@ -89,7 +99,35 @@ public static class CpuBattingOutcomeModel
         if (situation.Target is null && situation.Wickets >= 7)
             aggression *= 0.78f;
 
-        var shot = ChooseShot(aggression, power, situation.Wickets);
+        if ((strokeTable is null) != (ball is null))
+            throw new ArgumentException("A stroke table and classified ball must be provided together.");
+
+        StrokeDefinition? selectedStroke = null;
+        if (strokeTable is not null && ball is { } scoredBall)
+        {
+            var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
+            var cpuProfile = profile.Cpu
+                ?? throw new InvalidOperationException($"The {difficulty} CPU profile has no stroke-scoring settings.");
+            var pacing = CpuBattingPacingTable.Choose(
+                situation, striker.BattingStyle, cpuProfile.PacingAggressionOffset);
+            var playerSkill = (float)striker.BattingRatings.Values().Average() / 100f;
+            var difficultySkill = (int)difficulty / (float)(CpuDifficultyModel.Difficulties.Count - 1);
+            var cpuSkill = Math.Clamp(playerSkill * 0.6f + difficultySkill * 0.4f, 0f, 1f);
+            selectedStroke = CpuStrokeScorer.Select(
+                strokeTable.Strokes,
+                scoredBall,
+                pacing.WantedAggression,
+                pacing.WantedReward,
+                cpuSkill,
+                cpuProfile.ScoringWeights,
+                scoringSeed).Stroke;
+        }
+
+        var shot = selectedStroke is null
+            ? ChooseShot(aggression, power, situation.Wickets)
+            : selectedStroke.Loft
+                ? CpuShotChoice.Loft
+                : selectedStroke.Intent == StrokeIntent.Defend ? CpuShotChoice.Defence : CpuShotChoice.Drive;
         var wicketChance = shot switch
         {
             CpuShotChoice.Defence => 0.035f,
@@ -132,7 +170,8 @@ public static class CpuBattingOutcomeModel
             Math.Clamp((0.16f + aggression * 0.06f) * difficultyTuning.BattingRunChanceMultiplier, 0f, 0.5f),
             Math.Clamp((0.03f + aggression * 0.07f) * difficultyTuning.BattingRunChanceMultiplier, 0f, 0.5f),
             Math.Clamp(runOutChance, 0f, 0.1f),
-            Math.Clamp(boundaryClearedChance, 0f, 1f));
+            Math.Clamp(boundaryClearedChance, 0f, 1f),
+            selectedStroke);
     }
 
     private static CpuShotChoice ChooseShot(float aggression, float power, int wickets)

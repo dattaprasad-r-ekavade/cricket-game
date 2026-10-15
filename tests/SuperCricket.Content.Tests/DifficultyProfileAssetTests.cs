@@ -26,13 +26,19 @@ public sealed class DifficultyProfileAssetTests
     {
         var catalog = DifficultyProfileCatalog.LoadDirectory(DifficultyDirectory);
         var rookie = catalog.GetProfile("rookie", DifficultySide.Cpu).Cpu!;
+        var standard = catalog.GetProfile("standard", DifficultySide.Cpu).Cpu!;
         var legend = catalog.GetProfile("legend", DifficultySide.Cpu).Cpu!;
 
         Assert.True(legend.StrokeWeights.Drive > rookie.StrokeWeights.Drive);
         Assert.True(legend.StrokeWeights.Loft > rookie.StrokeWeights.Loft);
         Assert.True(legend.CommitSigmaSeconds < rookie.CommitSigmaSeconds);
+        Assert.True(legend.ScoringWeights.Fit > rookie.ScoringWeights.Fit);
+        Assert.True(legend.ScoringWeights.Random < rookie.ScoringWeights.Random);
+        Assert.Equal(-0.1f, standard.PacingAggressionOffset, 6);
         Assert.Equal(1f, rookie.StrokeWeights.Defence + rookie.StrokeWeights.Drive + rookie.StrokeWeights.Loft, 5);
         Assert.Equal(1f, legend.StrokeWeights.Defence + legend.StrokeWeights.Drive + legend.StrokeWeights.Loft, 5);
+        Assert.Equal(1f, rookie.ScoringWeights.Fit + rookie.ScoringWeights.Intent + rookie.ScoringWeights.Reward + rookie.ScoringWeights.Random, 5);
+        Assert.Equal(1f, legend.ScoringWeights.Fit + legend.ScoringWeights.Intent + legend.ScoringWeights.Reward + legend.ScoringWeights.Random, 5);
     }
 
     [Fact]
@@ -47,8 +53,19 @@ public sealed class DifficultyProfileAssetTests
         var badWeights = new DifficultyProfileAsset
         {
             Side = DifficultySide.Cpu,
-            Cpu = new CpuDecisionProfile { StrokeWeights = new CpuStrokeWeights { Defence = -1f, Drive = 0f, Loft = 0f } }
+            Cpu = new CpuDecisionProfile
+            {
+                StrokeWeights = new CpuStrokeWeights { Defence = -1f, Drive = 0f, Loft = 0f },
+                ScoringWeights = new CpuStrokeScoringWeights { Fit = 0f, Intent = 0f, Reward = 0f, Random = 0f }
+            }
         };
         Assert.Contains(badWeights.Validate(), message => message.Contains("weights must be finite", StringComparison.Ordinal));
+
+        var badPacing = new DifficultyProfileAsset
+        {
+            Side = DifficultySide.Cpu,
+            Cpu = new CpuDecisionProfile { PacingAggressionOffset = 1.1f }
+        };
+        Assert.Contains(badPacing.Validate(), message => message.Contains("pacing aggression offset", StringComparison.Ordinal));
     }
 }

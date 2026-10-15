@@ -125,11 +125,13 @@ public readonly record struct DifficultySettlePoint(int BallsFaced, float Fracti
 public sealed class CpuDecisionProfile
 {
     public CpuStrokeWeights StrokeWeights { get; set; } = new();
+    public CpuStrokeScoringWeights ScoringWeights { get; set; } = new();
     public float CommitSigmaSeconds { get; set; } = 0.1f;
     public float BattingTimingErrorMultiplier { get; set; } = 1f;
     public float ShotPlacementErrorMultiplier { get; set; } = 1f;
     public float BowlingAccuracySpreadMultiplier { get; set; } = 1f;
     public float BattingAggressionOffset { get; set; }
+    public float PacingAggressionOffset { get; set; }
     public float BattingWicketChanceMultiplier { get; set; } = 1f;
     public float BattingBoundaryChanceMultiplier { get; set; } = 1f;
     public float BattingRunChanceMultiplier { get; set; } = 1f;
@@ -142,12 +144,17 @@ public sealed class CpuDecisionProfile
             errors.Add("CPU stroke weights are required.");
         else
             errors.AddRange(StrokeWeights.Validate());
+        if (ScoringWeights is null)
+            errors.Add("CPU stroke-scoring weights are required.");
+        else
+            errors.AddRange(ScoringWeights.Validate());
         if (!float.IsFinite(CommitSigmaSeconds) || CommitSigmaSeconds is < 0f or > 1f)
             errors.Add("CPU commit sigma must be between 0 and 1 second.");
         CheckRange(errors, BattingTimingErrorMultiplier, 0f, 5f, "CPU batting timing-error multiplier");
         CheckRange(errors, ShotPlacementErrorMultiplier, 0f, 5f, "CPU shot-placement multiplier");
         CheckRange(errors, BowlingAccuracySpreadMultiplier, 0f, 5f, "CPU bowling-accuracy spread multiplier");
         CheckRange(errors, BattingAggressionOffset, -1f, 1f, "CPU batting aggression offset");
+        CheckRange(errors, PacingAggressionOffset, -1f, 1f, "CPU pacing aggression offset");
         CheckRange(errors, BattingWicketChanceMultiplier, 0f, 5f, "CPU wicket-chance multiplier");
         CheckRange(errors, BattingBoundaryChanceMultiplier, 0f, 5f, "CPU boundary-chance multiplier");
         CheckRange(errors, BattingRunChanceMultiplier, 0f, 5f, "CPU run-chance multiplier");
@@ -176,6 +183,27 @@ public sealed class CpuStrokeWeights
             !float.IsFinite(Loft) || Loft < 0f ||
             Defence + Drive + Loft <= 0f)
             errors.Add("CPU defence, drive, and loft weights must be finite, non-negative, and have a positive sum.");
+        return errors;
+    }
+}
+
+/// <summary>Relative weights for CPU stroke fit, intent, reward, and seeded variation.</summary>
+public sealed class CpuStrokeScoringWeights
+{
+    public float Fit { get; set; } = 0.30f;
+    public float Intent { get; set; } = 0.30f;
+    public float Reward { get; set; } = 0.25f;
+    public float Random { get; set; } = 0.15f;
+
+    public List<string> Validate()
+    {
+        var errors = new List<string>();
+        if (!float.IsFinite(Fit) || Fit < 0f ||
+            !float.IsFinite(Intent) || Intent < 0f ||
+            !float.IsFinite(Reward) || Reward < 0f ||
+            !float.IsFinite(Random) || Random < 0f ||
+            Fit + Intent + Reward + Random <= 0f)
+            errors.Add("CPU fit, intent, reward, and random scoring weights must be finite, non-negative, and have a positive sum.");
         return errors;
     }
 }

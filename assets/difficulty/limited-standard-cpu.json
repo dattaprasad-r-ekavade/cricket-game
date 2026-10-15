@@ -40,11 +40,18 @@
       "drive": 0.43,
       "loft": 0.25
     },
-    "commitSigmaSeconds": 0.1,
+    "scoringWeights": {
+      "fit": 0.3,
+      "intent": 0.3,
+      "reward": 0.25,
+      "random": 0.15
+    },
+    "commitSigmaSeconds": 0.08,
     "battingTimingErrorMultiplier": 1.0,
     "shotPlacementErrorMultiplier": 1.0,
     "bowlingAccuracySpreadMultiplier": 1.0,
     "battingAggressionOffset": 0.0,
+    "pacingAggressionOffset": -0.1,
     "battingWicketChanceMultiplier": 1.0,
     "battingBoundaryChanceMultiplier": 1.0,
     "battingRunChanceMultiplier": 1.0,

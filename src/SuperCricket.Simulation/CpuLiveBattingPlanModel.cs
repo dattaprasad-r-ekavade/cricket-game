@@ -60,7 +60,22 @@ public static class CpuLiveBattingPlanModel
                 Leave: true);
         }
 
-        var shotName = outcome.Shot switch
+        StrokeDefinition? selectedStroke = null;
+        BallCategory? selectedBall = null;
+        if (strokeTable is not null)
+        {
+            var leftHanded = striker.Handedness == BatterHandedness.Left;
+            selectedBall = BallCategoryClassifier.Classify(
+                delivery, BattingPracticeAnalyzer.BatterStanceX, leftHanded);
+            outcome = CpuBattingOutcomeModel.Choose(
+                striker, bowler, fielders, situation, fieldingTactic, difficulty,
+                strokeTable, selectedBall, seed ^ unchecked((int)0x6a09e667));
+            selectedStroke = outcome.SelectedStroke;
+        }
+
+        var shotName = selectedStroke is { } scoredStroke
+            ? scoredStroke.Loft ? "loft" : scoredStroke.Intent == StrokeIntent.Defend ? "defence" : "drive"
+            : outcome.Shot switch
         {
             CpuShotChoice.Defence => "defence",
             CpuShotChoice.Drive => "drive",
@@ -77,7 +92,8 @@ public static class CpuLiveBattingPlanModel
         var authoredShot = shotSet.Get(shotName);
         var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, difficulty);
         if (fieldingPositions is null)
-            return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState);
+            return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState,
+                selectedStroke, selectedBall);
 
         var fieldingRatings = fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray();
         var horizontalAim = CpuShotPlacementModel.ChooseHorizontalAim(
@@ -93,7 +109,8 @@ public static class CpuLiveBattingPlanModel
             seed ^ unchecked((int)0x4cf5ad43),
             difficulty);
         plan = plan with { HorizontalAim = executedAim };
-        return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState);
+        return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState,
+            selectedStroke, selectedBall);
     }
 
     private static CpuLiveBattingPlan WithStrokeOutcome(
@@ -105,21 +122,23 @@ public static class CpuLiveBattingPlanModel
         StrokeTableAsset? strokeTable,
         CpuDifficulty difficulty,
         int seed,
-        BatterTimingState timingState)
+        BatterTimingState timingState,
+        StrokeDefinition? selectedStroke,
+        BallCategory? selectedBall)
     {
         if (strokeTable is null || plan.Leave)
             return plan;
 
         var leftHanded = striker.Handedness == BatterHandedness.Left;
-        var ball = BallCategoryClassifier.Classify(delivery, BattingPracticeAnalyzer.BatterStanceX, leftHanded);
-        var direction = StrokeDirectionModel.FromAim(plan.HorizontalAim, forwardAim);
+        var ball = selectedBall ?? BallCategoryClassifier.Classify(delivery, BattingPracticeAnalyzer.BatterStanceX, leftHanded);
+        var direction = selectedStroke?.Direction ?? StrokeDirectionModel.FromAim(plan.HorizontalAim, forwardAim);
         var shot = plan.Shot;
         var request = new StrokeRequest(
             direction,
-            shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack,
-            shot == CpuShotChoice.Loft,
-            StrokeFoot.Auto);
-        var selectedStroke = StrokeSelector.Select(strokeTable, request, ball);
+            selectedStroke?.Intent ?? (shot == CpuShotChoice.Defence ? StrokeIntent.Defend : StrokeIntent.Attack),
+            selectedStroke?.Loft ?? (shot == CpuShotChoice.Loft),
+            selectedStroke?.Foot ?? StrokeFoot.Auto);
+        selectedStroke ??= StrokeSelector.Select(strokeTable, request, ball);
         var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
         if (profile.Cpu is not { } cpuProfile)
             throw new InvalidOperationException($"The {difficulty} CPU profile has no commit-timing settings.");
@@ -163,7 +182,8 @@ public static class CpuLiveBattingPlanModel
             leftHanded,
             profile.Timing.AssistEnabled,
             strokeTable,
-            new Random(seed ^ unchecked((int)0x27d4eb2d)));
+            new Random(seed ^ unchecked((int)0x27d4eb2d)),
+            selectedStroke);
         return plan with { StrokeOutcome = outcome, IdealWidthMeters = idealWidth };
     }
 

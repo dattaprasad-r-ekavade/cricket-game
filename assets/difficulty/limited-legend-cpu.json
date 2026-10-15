@@ -40,6 +40,12 @@
       "drive": 0.48,
       "loft": 0.36
     },
+    "scoringWeights": {
+      "fit": 0.36,
+      "intent": 0.3,
+      "reward": 0.28,
+      "random": 0.06
+    },
     "commitSigmaSeconds": 0.03,
     "battingTimingErrorMultiplier": 0.42,
     "shotPlacementErrorMultiplier": 0.48,

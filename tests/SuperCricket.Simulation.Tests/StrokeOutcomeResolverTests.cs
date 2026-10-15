@@ -9,17 +9,19 @@ public sealed class StrokeOutcomeResolverTests
     private static StrokeTableAsset LoadTable() => StrokeTableAsset.Load(TestAssets.Asset("batting", "strokes.json"));
 
     [Fact]
-    public void SameRequestAndSeedProduceIdenticalResolution()
+    public void SameDeliveryTimingAndSeedRepeatTheSameZoneAndShotClassTenTimes()
     {
         var table = LoadTable();
         var request = new StrokeRequest(ShotDirection8.Cover, StrokeIntent.Attack, Loft: false, StrokeFoot.Front);
         var ball = new BallCategory(BallLength.Good, BallLine.OutsideOff, 0.5f);
         var window = TimingWindowModel.Build(0f, 2f, 0.6f);
 
-        var first = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, false, false, new Random(15));
-        var replay = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, false, false, new Random(15));
+        var repeats = new StrokeResolution[10];
+        for (var index = 0; index < repeats.Length; index++)
+            repeats[index] = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, false, false, new Random(15));
 
-        Assert.Equal(first, replay);
+        Assert.All(repeats, resolution => Assert.Equal(repeats[0], resolution));
+        var first = repeats[0];
         Assert.False(first.Missed);
         Assert.Equal(TimingZone.Ideal, first.Zone);
     }

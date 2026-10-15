@@ -17,12 +17,32 @@ public static class StrokeOutcomeResolver
         Random random)
     {
         ArgumentNullException.ThrowIfNull(table);
+        var stroke = StrokeSelector.Select(table, request, ball);
+        return ResolveSelected(stroke, request, ball, distanceAtInputMeters, window, leftHanded, assist, random);
+    }
+
+    public static StrokeResolution ResolveSelected(
+        StrokeDefinition stroke,
+        StrokeRequest request,
+        BallCategory ball,
+        float distanceAtInputMeters,
+        TimingWindow window,
+        bool leftHanded,
+        bool assist,
+        Random random)
+    {
+        ArgumentNullException.ThrowIfNull(stroke);
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(random);
+        if (!Enum.IsDefined(request.Direction) || !Enum.IsDefined(request.Intent) ||
+            request.Intent == StrokeIntent.Leave || !Enum.IsDefined(request.Foot))
+            throw new ArgumentOutOfRangeException(nameof(request));
+        if (!Enum.IsDefined(ball.Length) || !Enum.IsDefined(ball.Line) ||
+            !float.IsFinite(ball.ArrivalHeightMeters) || ball.ArrivalHeightMeters < 0f)
+            throw new ArgumentOutOfRangeException(nameof(ball));
         if (!float.IsFinite(distanceAtInputMeters))
             throw new ArgumentOutOfRangeException(nameof(distanceAtInputMeters));
 
-        var stroke = StrokeSelector.Select(table, request, ball);
         var zone = TimingWindowModel.ApplyAssist(
             TimingWindowModel.Classify(window, distanceAtInputMeters),
             assist);
