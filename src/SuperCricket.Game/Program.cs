@@ -18,6 +18,8 @@ var captureTimingGaugePreview = false;
 var captureBowlingMeterPreview = false;
 var captureFieldInsetPreview = false;
 var captureFieldPickerPreview = false;
+var captureLbwReplayPreview = false;
+var capturePracticeSetupPreview = false;
 CpuDifficulty? captureDifficultyOverride = null;
 var developerMode = args.Length == 1 && args[0] == "--debug";
 var verifyGameplay = args.Length == 1 && args[0] == "--verify-gameplay";
@@ -89,6 +91,18 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode &
             argumentIndex++;
             continue;
         }
+        if (option == "--lbw-replay-preview" && !captureLbwReplayPreview)
+        {
+            captureLbwReplayPreview = true;
+            argumentIndex++;
+            continue;
+        }
+        if (option == "--practice-setup-preview" && !capturePracticeSetupPreview)
+        {
+            capturePracticeSetupPreview = true;
+            argumentIndex++;
+            continue;
+        }
         if (argumentIndex + 1 >= args.Length)
             throw new ArgumentException(GetCaptureUsage());
 
@@ -146,6 +160,8 @@ if (args.Length > 0 && !verifyGameplay && !profileMode && !liveMatchReviewMode &
         captureFieldPickerPreview && (hasActionCapture || captureTimeCount > 0 || captureBowlingTarget || captureFeedbackPreview || captureFieldInsetPreview || captureTimingGaugePreview || captureBowlingMeterPreview) ||
         captureTimingGaugePreview && (hasActionCapture || captureTimeCount > 0 || captureBowlingTarget || captureFieldInsetPreview) ||
         captureFieldInsetPreview && (hasActionCapture || captureTimeCount > 0 || captureBowlingTarget || captureFeedbackPreview || captureTimingGaugePreview) ||
+        captureLbwReplayPreview && (hasActionCapture || captureTimeCount > 0 || captureBowlingTarget || captureFeedbackPreview || captureFieldInsetPreview || captureTimingGaugePreview || captureBowlingMeterPreview || captureFieldPickerPreview) ||
+        capturePracticeSetupPreview && (captureBowlingTarget || captureFeedbackPreview || captureTimingGaugePreview || captureBowlingMeterPreview || captureFieldInsetPreview || captureFieldPickerPreview || captureLbwReplayPreview || hasActionCapture || captureTimeCount > 0) ||
         captureFielderAction is not null && captureBatterFootworkAction is not null ||
         hasActionCapture && captureTimeCount > 0 ||
         captureBatterFootworkAction is not null && captureBatterFootworkAction is not
@@ -174,8 +190,10 @@ using var game = new SuperCricket.Game.Game1(
     captureFieldInsetPreview,
     captureTimingGaugePreview,
     captureBowlingMeterPreview,
-    captureFieldPickerPreview);
+    captureFieldPickerPreview,
+    captureLbwReplayPreview,
+    capturePracticeSetupPreview);
 game.Run();
 
 static string GetCaptureUsage() =>
-    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|behind-striker|bowler-end|square-leg|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target | --bowling-meter-preview | --live-field-preview | --field-picker-preview] [--feedback-preview | --timing-gauge-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";
+    "Usage: SuperCricket.Game --debug | --capture-frame <output.png> [--camera broadcast|field-overview|behind-striker|bowler-end|square-leg|umpire-close-up|ball-follow] [--run-up-time <seconds> | --delivery-time <seconds> | --ball-flight-time <seconds> | --fielder-action fielder-catch|fielder-pickup|fielder-throw --action-time <seconds> | --batter-footwork batting-step-offside|batting-step-legside --action-time <seconds> | --bowling-target | --bowling-meter-preview | --live-field-preview | --field-picker-preview | --lbw-replay-preview | --practice-setup-preview] [--feedback-preview | --timing-gauge-preview] [--contact-zone-preview Rookie|Standard|Pro] [--show-debug-overlay] | --profile-frames <1..36000> | --verify-gameplay | --verify-live-match [results.csv]";

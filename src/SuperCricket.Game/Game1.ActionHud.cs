@@ -171,7 +171,7 @@ public partial class Game1
 
         var footer = _lastInputWasGamePad
             ? "START  PAUSE     L3  CAMERA"
-            : "P  PAUSE     V  CAMERA     PGDN  CLOSER / PGUP  FARTHER";
+            : "P PAUSE   V CAMERA   M MODES   PGDN CLOSER / PGUP FARTHER";
         DrawOverlayText(footer,
             new Vector2(panel.X + 14, panel.Bottom - 22),
             _gameSettings.HighContrast ? Color.Yellow : new Color(200, 214, 220),

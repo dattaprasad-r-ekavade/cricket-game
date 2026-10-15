@@ -27,16 +27,32 @@ public partial class Game1
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         GraphicsDevice.BlendState = BlendState.Opaque;
 
+        var replayFrame = ReplayFrameForDraw;
+        var cameraPosition = replayFrame?.CameraPosition ?? _camera.Position;
+        var cameraTarget = replayFrame?.CameraTarget ?? _camera.Target;
+        var cameraFieldOfView = replayFrame?.CameraFieldOfViewDegrees ?? _camera.FieldOfViewDegrees;
+        if (_replayPlayback is { } playback &&
+            !string.Equals(playback.CurrentCameraPreset, "recorded", StringComparison.OrdinalIgnoreCase))
+        {
+            _replayCamera.SelectPreset(playback.CurrentCameraPreset);
+            cameraPosition = _replayCamera.Position;
+            cameraTarget = _replayCamera.Target;
+            cameraFieldOfView = _replayCamera.FieldOfViewDegrees;
+        }
         _worldEffect.World = Matrix.Identity;
-        _worldEffect.View = Matrix.CreateLookAt(_camera.Position, _camera.Target, Vector3.Up);
+        _worldEffect.View = Matrix.CreateLookAt(cameraPosition, cameraTarget, Vector3.Up);
         _worldEffect.Projection = Matrix.CreatePerspectiveFieldOfView(
-            MathHelper.ToRadians(_camera.FieldOfViewDegrees),
+            MathHelper.ToRadians(cameraFieldOfView),
             GraphicsDevice.Viewport.AspectRatio,
             0.05f,
             250f);
         DrawTexturedSurfaces();
-        var (strikerWorld, nonStrikerWorld) = GetBatterWorlds();
-        var ballPosition = _fielderThrowActive
+        var liveBatterWorlds = GetBatterWorlds();
+        var strikerWorld = replayFrame?.Actors[0].World ?? liveBatterWorlds.Striker;
+        var nonStrikerWorld = replayFrame?.Actors[1].World ?? liveBatterWorlds.NonStriker;
+        var ballPosition = replayFrame is not null
+            ? ToNumerics(replayFrame.BallPosition)
+            : _fielderThrowActive
             ? GetFielderThrowBallPosition()
             : _ballFlight.CurrentFrame.Position;
         BuildShadowVertices(strikerWorld, nonStrikerWorld, ballPosition);
@@ -53,10 +69,11 @@ public partial class Game1
 
         }
 
+        _stadiumPropRenderer.Draw(_worldEffect, _worldEffect.View, _worldEffect.Projection);
         DrawCrowd();
         DrawShadows();
 
-        if (_bowlerReleased)
+        if (replayFrame?.BallVisible ?? _bowlerReleased)
         {
             _worldEffect.World = Matrix.CreateScale(_deliveryPreset.BallRadiusMeters)
                 * Matrix.CreateTranslation(ToXna(ballPosition));
@@ -72,17 +89,17 @@ public partial class Game1
         _lineEffect.View = _worldEffect.View;
         _lineEffect.Projection = _worldEffect.Projection;
         DrawBowlingTargetMarker();
-        if (_bowlerReleased && _trajectoryVertices.Count >= 2)
+        var trajectoryVertices = replayFrame?.Trajectory ?? _trajectoryVertices.ToArray();
+        if ((replayFrame?.BallVisible ?? _bowlerReleased) && trajectoryVertices.Length >= 2)
         {
-            var trajectory = _trajectoryVertices.ToArray();
             foreach (var pass in _lineEffect.CurrentTechnique.Passes)
             {
                 pass.Apply();
                 GraphicsDevice.DrawUserPrimitives(
                     PrimitiveType.LineStrip,
-                    trajectory,
+                    trajectoryVertices,
                     0,
-                    trajectory.Length - 1);
+                    trajectoryVertices.Length - 1);
             }
         }
 
@@ -92,34 +109,53 @@ public partial class Game1
         var fieldingAccentColor = ToXna(_match.FieldingTeam.AccentKitColor);
         for (var fielderIndex = 0; fielderIndex < _fielderAnimators.Length; fielderIndex++)
         {
-            _bowlerRenderer.Draw(
-                GetFielderWorld(fielderIndex, ballPosition),
+            var actorPose = replayFrame?.Actors[fielderIndex + 3];
+            _playerAppearanceRenderer.Draw(
+                "balanced",
+                actorPose?.World ?? GetFielderWorld(fielderIndex, ballPosition),
+                cameraPosition,
                 _worldEffect.View,
                 _worldEffect.Projection,
-                _fielderAnimators[fielderIndex].GetSkinMatrices(),
+                actorPose?.SkinMatrices ?? _fielderAnimators[fielderIndex].GetSkinMatrices(),
                 fieldingPrimaryColor,
                 fieldingAccentColor);
         }
 
-        var skinMatrices = _playerAnimator.GetSkinMatrices();
-        _playerRenderer.Draw(strikerWorld, _worldEffect.View, _worldEffect.Projection,
+        var skinMatrices = replayFrame?.Actors[0].SkinMatrices ?? _playerAnimator.GetSkinMatrices();
+        _playerAppearanceRenderer.Draw(_match.StrikerPlayer.BodyVariant, strikerWorld, cameraPosition,
+            _worldEffect.View, _worldEffect.Projection,
             skinMatrices, battingPrimaryColor, battingAccentColor);
-        _playerRenderer.Draw(nonStrikerWorld, _worldEffect.View, _worldEffect.Projection,
-            _batterAnimations.NonStriker.GetSkinMatrices(), battingPrimaryColor, battingAccentColor);
-        _bowlerRenderer.Draw(GetBowlerWorld(), _worldEffect.View, _worldEffect.Projection,
-            _bowlerAnimator.GetSkinMatrices(), fieldingPrimaryColor, fieldingAccentColor);
-        DrawWorldFeedbackMarkers();
+        _playerAppearanceRenderer.Draw(_match.NonStrikerPlayer.BodyVariant, nonStrikerWorld, cameraPosition,
+            _worldEffect.View, _worldEffect.Projection,
+            replayFrame?.Actors[1].SkinMatrices ?? _batterAnimations.NonStriker.GetSkinMatrices(), battingPrimaryColor, battingAccentColor);
+        _playerAppearanceRenderer.Draw(_match.CurrentBowler.BodyVariant,
+            replayFrame?.Actors[2].World ?? GetBowlerWorld(), cameraPosition,
+            _worldEffect.View, _worldEffect.Projection,
+            replayFrame?.Actors[2].SkinMatrices ?? _bowlerAnimator.GetSkinMatrices(), fieldingPrimaryColor, fieldingAccentColor);
+        if (replayFrame is null)
+            DrawWorldFeedbackMarkers();
         if (_showDebugOverlay)
         {
             GraphicsDevice.DepthStencilState = DepthStencilState.None;
             DrawDebugMarkers();
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         }
-        DrawDeliveryFeedbackCard();
-        DrawDebugOverlay();
-        DrawTimingZoneInset();
-        DrawLiveFeedbackBanner();
-        DrawBattingFieldInset();
+        if (replayFrame is null)
+        {
+            if (_practiceSetupOpen || _titleMenuOpen)
+            {
+                DrawDebugOverlay();
+            }
+            else
+            {
+                DrawDeliveryFeedbackCard();
+                DrawDebugOverlay();
+                DrawTimingZoneInset();
+                DrawLiveFeedbackBanner();
+                DrawBattingFieldInset();
+            }
+        }
+        DrawReplayOverlay();
         base.Draw(gameTime);
         _drawMilliseconds = Stopwatch.GetElapsedTime(drawStart).TotalMilliseconds;
 
@@ -193,6 +229,11 @@ public partial class Game1
 
     private void DrawBowlingTargetMarker()
     {
+        var practiceTarget = _practiceNetsMode && _practiceNetsSetup.Drill == PracticeNetDrill.BowlingTarget
+            ? _practiceTargetCenter
+            : null;
+        if (practiceTarget is { } fixedPracticeTarget)
+            _bowlingTargetMarkerPosition = fixedPracticeTarget;
         if (_bowlingTargetMarkerPosition is not { } center)
             return;
 
@@ -200,7 +241,9 @@ public partial class Game1
         var runUpProgress = HasHumanBowlingControls && _humanBowlingStarted
             ? Math.Clamp(_bowlerRunUpElapsed / MathF.Max(0.001f, _bowlerRunUpDurationSeconds), 0f, 1f)
             : 0f;
-        var ringRadius = HasHumanBowlingControls
+        var ringRadius = practiceTarget is not null
+            ? PracticeTargetRadiusMeters
+            : HasHumanBowlingControls
             ? MathHelper.Lerp(MathF.Max(0.68f, _bowlingTargetRadiusMeters), _bowlingTargetRadiusMeters, runUpProgress)
             : 0.55f;
         const float crossHalfLength = 0.16f;

@@ -238,7 +238,8 @@ public sealed class MatchHudPresenterTests
         Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new UmpireDecision(1f, true, "LBW")));
         Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new WicketBroken(1f, "Bowled")));
         Assert.Equal("OUT", MatchHudPresenter.GetUmpireSignalLabel(new Dismissal(1f, "Caught", "Striker")));
-        Assert.Null(MatchHudPresenter.GetUmpireSignalLabel(new UmpireDecision(1f, false, "LBW")));
+        Assert.Equal("NOT OUT", MatchHudPresenter.GetUmpireSignalLabel(new UmpireDecision(1f, false, "LBW")));
+        Assert.Equal("HOWZAT?", MatchHudPresenter.GetUmpireSignalLabel(new Appeal(1f, "LBW")));
         Assert.Null(MatchHudPresenter.GetUmpireSignalLabel(new RunCompleted(1f, 1, 1, 0, 1)));
     }
 
@@ -514,7 +515,7 @@ public sealed class MatchHudPresenterTests
         Assert.Contains("Keyboard: I toggles Directional / Classic chords | F toggles automatic", lines);
         Assert.Contains("GamePad batting: left stick direction | A attack | X defend | RB loft | B leave/run | LB advance", lines);
         Assert.Contains("Running: D/B starts or repeats; tap A to run back (GamePad: hold B to turn back)", lines);
-        Assert.Contains("Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls", lines);
+        Assert.Contains("Bowling: arrows/D-pad aim | C/LB changes delivery | N/RB bowls | A/X appeals LBW", lines);
         Assert.Contains("Paused: P/Start resumes | Esc/Back quits | H/Y contrast ON", lines);
         Assert.Contains("T/Pad X: larger text OFF | -/LB volume down | +/RB volume up 75%", lines);
         Assert.Contains("Match, audio, and accessibility settings save on this device.", lines);
@@ -707,9 +708,9 @@ public sealed class MatchHudPresenterTests
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.Batting));
 
     [Theory]
-    [InlineData(false, "R: replay    D: difficulty    O: overs    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
-    [InlineData(true, "A: replay    LB: difficulty    RB: overs    Start: pause    L3: camera")]
-    public void CompletedMatchHintShowsReplayAndMatchOptions(bool isGamePad, string expected) =>
+    [InlineData(false, "R: restart match    D: difficulty    O: overs    P: pause    V: camera    PgDn: zoom in / PgUp: out")]
+    [InlineData(true, "A: restart match    LB: difficulty    RB: overs    Start: pause    L3: camera")]
+    public void CompletedMatchHintShowsRestartAndMatchOptions(bool isGamePad, string expected) =>
         Assert.Equal(expected, Hint(isGamePad, MatchHudPhase.MatchComplete));
 
     [Theory]

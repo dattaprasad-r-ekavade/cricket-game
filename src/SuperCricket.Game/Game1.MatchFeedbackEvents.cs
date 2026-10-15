@@ -21,6 +21,8 @@ public partial class Game1
         _matchFeedbackSubscriptions.Add(events.Subscribe<Dismissal>(HandleDismissalSignal));
         _matchFeedbackSubscriptions.Add(events.Subscribe<WicketBroken>(HandleWicketSignal));
         _matchFeedbackSubscriptions.Add(events.Subscribe<UmpireDecision>(HandleUmpireDecisionSignal));
+        _matchFeedbackSubscriptions.Add(events.Subscribe<Appeal>(HandleAppealSignal));
+        _matchFeedbackSubscriptions.Add(events.Subscribe<NearRunOut>(HandleNearRunOut));
     }
 
     private void HandleTimingFeedbackEvent(MatchEvent matchEvent)
@@ -41,6 +43,8 @@ public partial class Game1
 
     private void HandleBoundarySignal(Boundary boundary)
     {
+        if (boundary.Runs == 6)
+            QueueReplayEvent("six");
         if (IsReviewRun)
             return;
         PlayAudio(CricketAudioCue.Boundary);
@@ -57,20 +61,52 @@ public partial class Game1
 
     private void HandleDismissalSignal(Dismissal dismissal)
     {
+        var replayType = dismissal.Kind.ToLowerInvariant() switch
+        {
+            "bowled" => "bowled",
+            "caught" => "caught",
+            "lbw" => "lbw",
+            "runout" or "run-out" => "run-out",
+            _ => null
+        };
+        if (replayType is not null)
+            QueueReplayEvent(replayType, caption: BuildFallOfWicketsCaption(dismissal.Kind));
+        if (dismissal.Kind is "RunOut" or "Lbw")
+            _camera.SelectPreset("umpire-close-up");
         if (!IsReviewRun)
             ShowUmpireSignal(MatchHudPresenter.GetUmpireSignalLabel(dismissal));
     }
 
     private void HandleWicketSignal(WicketBroken wicket)
     {
+        if (wicket.DismissalType is "Bowled" or "RunOut")
+            _camera.SelectPreset("umpire-close-up");
         if (!IsReviewRun)
             ShowUmpireSignal(MatchHudPresenter.GetUmpireSignalLabel(wicket));
     }
 
     private void HandleUmpireDecisionSignal(UmpireDecision decision)
     {
+        if (decision.IsOut && string.Equals(decision.DecisionType, "Lbw", StringComparison.OrdinalIgnoreCase))
+            QueueReplayEvent("lbw", decision.ProjectedImpactX, decision.ProjectedImpactHeightMeters);
+        if (string.Equals(decision.DecisionType, "Lbw", StringComparison.OrdinalIgnoreCase))
+            _camera.SelectPreset("umpire-close-up");
         if (!IsReviewRun)
             ShowUmpireSignal(MatchHudPresenter.GetUmpireSignalLabel(decision));
+    }
+
+    private void HandleAppealSignal(Appeal appeal)
+    {
+        if (!IsReviewRun)
+            ShowUmpireSignal(MatchHudPresenter.GetUmpireSignalLabel(appeal));
+    }
+
+    private void HandleNearRunOut(NearRunOut nearRunOut)
+    {
+        _camera.SelectPreset("umpire-close-up");
+        QueueReplayEvent("near-run-out", creaseDistanceMeters: nearRunOut.ClosestCreaseDistanceMeters);
+        if (!IsReviewRun)
+            ShowUmpireSignal("SAFE");
     }
 
     private void ShowUmpireSignal(string? signal)

@@ -17,7 +17,13 @@ public sealed record BallBeatBat(float TimeSeconds, string? TimingZone = null) :
 public sealed record BodyHit(float TimeSeconds, Vector3 Position) : MatchEvent(TimeSeconds);
 public sealed record DeliveryExtraSignalled(float TimeSeconds, string Extra) : MatchEvent(TimeSeconds);
 public sealed record Appeal(float TimeSeconds, string DecisionType) : MatchEvent(TimeSeconds);
-public sealed record UmpireDecision(float TimeSeconds, bool IsOut, string DecisionType) : MatchEvent(TimeSeconds);
+public sealed record UmpireDecision(
+    float TimeSeconds,
+    bool IsOut,
+    string DecisionType,
+    float? ProjectedImpactX = null,
+    float? ProjectedImpactHeightMeters = null,
+    string? DecisionBand = null) : MatchEvent(TimeSeconds);
 public sealed record WicketBroken(float TimeSeconds, string DismissalType) : MatchEvent(TimeSeconds);
 public sealed record RunCompleted(
     float TimeSeconds,

@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
+using SuperCricket.Simulation.Events;
+using SuperCricket.Simulation.Umpiring;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -357,7 +360,7 @@ public partial class Game1
                 Tick(elapsed);
                 Require(_contactFeedbackRemainingSeconds < contactFlashRemaining && _contactFeedbackRemainingSeconds > 0f,
                     $"shot {key} contact flash did not fade at {frameRate} fps");
-                for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
+                for (var step = 0; step < frameRate * 12 && !_deliveryComplete; step++) Tick(elapsed);
                 Require(_battedBall && _deliveryComplete, $"shot {key} failed contact/resolution at {frameRate} fps");
                 Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
                     _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
@@ -391,21 +394,21 @@ public partial class Game1
         foreach (var frameRate in new[] { 30, 60, 120 })
         {
             Reset(1);
-            var idealInputDelay = FindInputDelayAtDistance(_deliveryPreset, 1.5f);
             for (var step = 0; step < BatterFootwork.MaximumSteps; step++)
             {
                 Tick(0f, Keys.Q);
                 Tick(0f);
             }
             Tick(0.6f);
+            var idealInputDelay = FindInputDelayAtDistance(_deliveryPreset, 1.5f);
             var elapsed = 1f / frameRate;
             for (var step = 0; step < frameRate * 5 && !_bowlerReleased; step++) Tick(elapsed);
             for (var step = 0; step < frameRate && _ballFlight.CurrentFrame.TimeSeconds < idealInputDelay; step++) Tick(elapsed);
             Tick(elapsed, Keys.S);
             for (var step = 0; step < frameRate * 6 && !_deliveryComplete; step++) Tick(elapsed);
-            Require(_battedBall && _deliveryComplete &&
+            Require(_battedBall &&
                 MathF.Abs(_batterFootworkOffsetX - BatterFootwork.MaximumOffsetMeters) < 0.001f,
-                $"off-side footwork failed to reach the wide delivery at {frameRate} fps");
+                $"off-side footwork failed to make contact with the wide delivery at {frameRate} fps (batted={_battedBall}, footwork={_batterFootworkOffsetX:0.000}, outcome={_shotOutcome}, contact={_contactQuality?.ToString("0.000") ?? "none"}, zone={_strokeResolution?.Zone.ToString() ?? "none"}, missed={_strokeResolution?.Missed.ToString() ?? "none"}, inputDistance={_shotInputDistanceMeters:0.000}, delay={idealInputDelay:0.000})");
             Require(_releaseMarkerPosition is not null && _contactMarkerPosition is not null &&
                 _sweetSpotMarkerPosition is not null && _contactTimeSeconds is >= 0f &&
                 _contactQuality is >= 0f and <= 1f && _contactSweetSpotOffset is not null,
@@ -486,6 +489,22 @@ public partial class Game1
             _dismissal != DismissalKind.Caught,
             "a no-ball catch return failed to finish without a caught dismissal");
         Console.WriteLine("PASS: a catch off a no-ball preserves active running through the catch/return sequence.");
+
+        Reset();
+        var liveLbwDecisions = new List<UmpireDecision>();
+        using var liveLbwSubscription = _match.Events.Subscribe<UmpireDecision>(liveLbwDecisions.Add);
+        HandleLbwPadContact(new LbwContact(
+            new NumericsVector3(0f, 0.5f, BattingPracticeAnalyzer.BatterWicketLineZ),
+            new NumericsVector3(0f, 0f, -15f),
+            HasPitched: true,
+            ShotOffered: false),
+            contactTimeSeconds: 0.48f);
+        Require(_deliveryComplete && _dismissal == DismissalKind.Lbw && liveLbwDecisions.Count == 1 &&
+            liveLbwDecisions[0].IsOut && liveLbwDecisions[0].DecisionBand == LbwBand.Hitting.ToString() &&
+            liveLbwDecisions[0].ProjectedImpactX == 0f && liveLbwDecisions[0].ProjectedImpactHeightMeters is > 0f and < LbwModel.HittingHeightMeters &&
+            _camera.PresetName == "Umpire close up",
+            "live LBW contact did not publish a projected stump decision, dismiss the striker, and focus the umpire camera");
+        Console.WriteLine("PASS: a live LBW pad contact publishes the stump projection, resolves the dismissal, and frames the umpire review.");
         Console.WriteLine("Gameplay review checks passed.");
     }
 

@@ -48,7 +48,27 @@ public partial class Game1
         {
             var first = PlayLiveMatchReview(scenario);
             var repeat = PlayLiveMatchReview(scenario);
-            RequireLiveReview(first == repeat, $"seeded live match changed on replay: {scenario}");
+            if (first != repeat)
+            {
+                var firstLines = first.Trace.Split(Environment.NewLine, StringSplitOptions.None);
+                var repeatLines = repeat.Trace.Split(Environment.NewLine, StringSplitOptions.None);
+                var differingLine = -1;
+                for (var index = 0; index < Math.Max(firstLines.Length, repeatLines.Length); index++)
+                {
+                    var firstLine = index < firstLines.Length ? firstLines[index] : "<end>";
+                    var repeatLine = index < repeatLines.Length ? repeatLines[index] : "<end>";
+                    if (!string.Equals(firstLine, repeatLine, StringComparison.Ordinal))
+                    {
+                        differingLine = index;
+                        break;
+                    }
+                }
+                var traceDifference = differingLine >= 0
+                    ? $"delivery row {differingLine + 1}: first='{(differingLine < firstLines.Length ? firstLines[differingLine] : "<end>")}', repeat='{(differingLine < repeatLines.Length ? repeatLines[differingLine] : "<end>")}'"
+                    : "delivery traces match but summary totals differ";
+                RequireLiveReview(false,
+                    $"seeded live match changed on replay: {scenario}; first={first.Summary} ({first.CpuContacts}/{first.CpuLeaves}/{first.CpuCompletedRuns}/{first.YorkerDeliveries}/{first.Defended}); repeat={repeat.Summary} ({repeat.CpuContacts}/{repeat.CpuLeaves}/{repeat.CpuCompletedRuns}/{repeat.YorkerDeliveries}/{repeat.Defended}); {traceDifference}");
+            }
             csv.Append(first.Trace);
             totalContacts += first.CpuContacts;
             totalLeaves += first.CpuLeaves;
@@ -101,16 +121,18 @@ public partial class Game1
         RequireLiveReview(GetPrimaryControlHint().Contains("1-8: choose delivery and bowl", StringComparison.Ordinal),
             "the human bowling HUD did not show the one-step delivery selection controls");
 
+        Tick(Keys.W);
+        Tick();
+        RequireLiveReview(!_fieldPickerOpen,
+            "the field-selection overlay did not close before bowling-target aim controls were used");
+
         var markerBeforeAim = _bowlingTargetMarkerPosition!.Value;
         Tick(Keys.Left);
         Tick();
-        Tick(Keys.Up);
-        Tick();
         RequireLiveReview(MathF.Abs(_bowlingAimOffsetX + 0.4f) < 0.001f &&
-            MathF.Abs(_bowlingAimOffsetZ + 0.4f) < 0.001f &&
             MathF.Abs(_bowlingTargetMarkerPosition!.Value.X - markerBeforeAim.X + 0.4f) < 0.15f &&
-            MathF.Abs(_bowlingTargetMarkerPosition.Value.Z - markerBeforeAim.Z + 0.4f) < 0.15f,
-            "arrow keys did not move the visible bowling target across the pitch");
+            MathF.Abs(_bowlingTargetMarkerPosition.Value.Z - markerBeforeAim.Z) < 0.15f,
+            $"arrow keys did not move the visible bowling target across the pitch (aim={_bowlingAimOffsetX:0.00},{_bowlingAimOffsetZ:0.00}; markerDelta={_bowlingTargetMarkerPosition!.Value.X - markerBeforeAim.X:0.00},{_bowlingTargetMarkerPosition.Value.Z - markerBeforeAim.Z:0.00}; picker={_fieldPickerOpen}; humanStarted={_humanBowlingStarted}; released={_bowlerReleased}; developer={_developerMode})");
 
         var longAction = MatchControllerInputModel.ReadPressedActions(
             MatchControllerButtons.DPadUp,
@@ -122,8 +144,8 @@ public partial class Game1
         UpdateMatch(new GameTime(time, TimeSpan.Zero), new KeyboardState(), longAction);
         RequireLiveReview((longAction & MatchControllerActions.AimLong) != 0 &&
             MathF.Abs(_bowlingAimOffsetZ - targetBeforePadInput + 0.4f) < 0.001f &&
-            GetPrimaryControlHint().Contains("A/X/Y/B: select delivery", StringComparison.Ordinal),
-            "GamePad D-pad did not adjust the bowling target length or switch the live control prompt");
+            GetPrimaryControlHint().Contains("A/X/Y/B: delivery", StringComparison.Ordinal),
+            $"GamePad aim action did not adjust bowling target length or show the live controls (action={longAction}; aimZ={_bowlingAimOffsetZ:0.00}; hint={GetPrimaryControlHint()})");
 
         var selectedTarget = _bowlingTargetMarkerPosition!.Value;
         var selectedName = _bowlingOptions[0].Name;

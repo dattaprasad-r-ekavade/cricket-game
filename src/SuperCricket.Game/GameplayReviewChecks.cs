@@ -251,6 +251,10 @@ public partial class Game1
             MathF.Abs(ballCamera.FieldOfViewDegrees - 44f) < 0.001f &&
             ballCamera.Target == new Vector3(0f, 0f, -1f),
             "switching camera presets did not stop ball tracking and restore the broadcast view");
+        Require(ballCamera.SelectPreset("field-overview") && ballCamera.PresetName == "Field overview" &&
+            MathF.Abs(ballCamera.Distance - 165f) < 0.001f && MathF.Abs(ballCamera.FieldOfViewDegrees - 55f) < 0.001f &&
+            ballCamera.Target == Vector3.Zero && MathF.Abs(ballCamera.Elevation - 0.72f) < 0.001f,
+            "field-overview camera did not frame the full outfield and stadium");
         Require(ballCamera.SelectPreset("behind-striker") && MathF.Abs(ballCamera.Distance - 8f) < 0.001f &&
             MathF.Abs(ballCamera.FieldOfViewDegrees - 45f) < 0.001f && MathF.Abs(ballCamera.Target.Z - NearBatterZ) < 0.001f &&
             MathF.Abs(ballCamera.Target.Y - 0.9f) < 0.001f &&

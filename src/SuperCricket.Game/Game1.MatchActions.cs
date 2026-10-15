@@ -15,6 +15,7 @@ using SuperCricket.Simulation;
 using SuperCricket.Simulation.Batting;
 using SuperCricket.Simulation.Events;
 using SuperCricket.Simulation.Bowling;
+using SuperCricket.Simulation.Fielding;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -41,8 +42,11 @@ public partial class Game1
         }
 
         var bowler = _match.CurrentBowler;
+        var requestedStyle = _practiceNetsMode && _practiceNetsSetup.Drill == PracticeNetDrill.BowlingTarget
+            ? _practiceNetsSetup.BowlerStyle
+            : bowler.BowlingAttributes.Style;
         _bowlingOptions = _bowlingCatalogue.Deliveries
-            .Where(delivery => delivery.Style == bowler.BowlingAttributes.Style)
+            .Where(delivery => delivery.Style == requestedStyle)
             .ToArray();
         if (_bowlingOptions.Length == 0)
             _bowlingOptions = _bowlingCatalogue.Deliveries.ToArray();
@@ -635,13 +639,25 @@ public partial class Game1
         _fielderSequencePhase = FielderSequencePhase.None;
         _fielderActionClips[_fielderThrowerIndex] = null;
         _fielderActionHoldAtEnd[_fielderThrowerIndex] = false;
-        if (_runners.TryResolveRunOut(WicketEnd.Near, wicketBroken, out var runOut))
+        var runnerWorlds = GetBatterWorlds();
+        var creaseZ = -PracticeGround.WicketOffset + RunOutModel.PoppingCreaseOffsetMeters;
+        var closestCreaseDistance = MathF.Min(
+            MathF.Abs(runnerWorlds.Striker.Translation.Z - creaseZ),
+            MathF.Abs(runnerWorlds.NonStriker.Translation.Z - creaseZ));
+        var runOut = RunOutModel.ResolveAtBrokenWicket(
+            _runners,
+            WicketEnd.Near,
+            wicketBroken,
+            closestCreaseDistance);
+        if (runOut.IsOut)
         {
             CurrentDelivery.ResolveRunOut(runOut.DismissedEnd, runOut.SwapEnds);
             _shotOutcome = $"OUT: fielder {_fielderThrowerIndex + 1} threw to the wicketkeeper";
         }
         else
         {
+            if (runOut.NearRunOut)
+                _match.Events.Publish(new NearRunOut(_ballFlight.CurrentFrame.TimeSeconds, closestCreaseDistance));
             _shotOutcome = $"Wicketkeeper received fielder {_fielderThrowerIndex + 1}'s throw";
         }
         FinishDelivery();
@@ -780,6 +796,32 @@ public partial class Game1
     {
         if (_deliveryComplete)
             return;
+
+        if (_practiceNetsMode)
+        {
+            if (_practiceNetsSetup.Drill == PracticeNetDrill.BattingTutorial)
+            {
+                var resolution = _strokeResolution;
+                _practiceNetsPresenter.RecordBattingBall(
+                    resolution?.Zone,
+                    madeContact: resolution is { Missed: false },
+                    addedDirection: MathF.Abs(_humanShotAimOffset) > 0.12f,
+                    lofted: string.Equals(_chosenShot?.Name, "loft", StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                _practiceNetsPresenter.RecordBowlingBall(_strokeResolution?.Zone, _practiceTargetHitThisDelivery);
+                if (_practiceTargetHitThisDelivery)
+                {
+                    _umpireSignalText = $"TARGET HIT  {_practiceNetsPresenter.BowlingTargetHits}/5";
+                    _umpireSignalRemainingSeconds = 1.2f;
+                }
+            }
+            _practiceRepeatDelaySeconds = 0.9f;
+        }
+
+        _pendingLbwContact = null;
+        _lbwAppealWindowRemainingSeconds = 0f;
 
         if (_bowlerReleased && CurrentDelivery.Extra != DeliveryExtra.Wide)
         {

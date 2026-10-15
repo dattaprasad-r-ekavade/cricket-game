@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
 using SuperCricket.Content.Bowling;
+using SuperCricket.Content.Replays;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
@@ -41,6 +42,8 @@ public partial class Game1
 
     protected override void LoadContent()
     {
+        _replayScriptCatalog = ReplayScriptCatalog.Load(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Replays", "replay-scripts.json"));
         CpuDifficultyModel.ConfigureProfiles(DifficultyProfileCatalog.LoadDirectory(
             Path.Combine(AppContext.BaseDirectory, "Assets", "Difficulty")));
         _spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -81,6 +84,9 @@ public partial class Game1
         _surfaceEffect.DirectionalLight0.SpecularColor = _worldEffect.DirectionalLight0.SpecularColor;
         _surfaceEffect.DirectionalLight1.Enabled = false;
         _surfaceEffect.DirectionalLight2.Enabled = false;
+        _stadiumPropRenderer = new StadiumPropRenderer(
+            GraphicsDevice,
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Stadium", "stadium-layout.json"));
         _outfieldTexture = LoadTexture(Path.Combine(AppContext.BaseDirectory, "Assets", "Textures", "outfield-grass.png"));
         _pitchTexture = LoadTexture(Path.Combine(AppContext.BaseDirectory, "Assets", "Textures", "cricket-pitch-clay.png"));
         _lineEffect = new BasicEffect(GraphicsDevice)
@@ -120,11 +126,11 @@ public partial class Game1
         var playerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-batter-humanoid.glb");
         _playerAsset = PlayerAsset.Load(playerPath);
         _batterAnimations = new BatterAnimationController(_playerAsset);
-        _playerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _playerAsset);
+        var playerVariantManifest = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "wp19", "character-variants.json");
+        _playerAppearanceRenderer = new PlayerAppearanceRenderer(GraphicsDevice, playerVariantManifest, _playerAsset);
         var bowlerPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Characters", "practice-bowler-humanoid.glb");
         _bowlerAsset = PlayerAsset.Load(bowlerPath);
         _bowlerAnimator = new PlayerAnimator(_bowlerAsset);
-        _bowlerRenderer = new SkinnedPlayerRenderer(GraphicsDevice, _bowlerAsset);
         _fielderAnimators = new PlayerAnimator[FieldingSide.FielderCount];
         for (var fielderIndex = 0; fielderIndex < _fielderAnimators.Length; fielderIndex++)
             _fielderAnimators[fielderIndex] = new PlayerAnimator(_bowlerAsset);
@@ -170,9 +176,13 @@ public partial class Game1
         LoadAudioCues();
         SubscribeToMatchFeedbackEvents();
         StartNewMatch();
+        _titleMenuOpen = !IsReviewRun && _captureTarget is null;
+        _practiceSetupOpen = _capturePracticeSetupPreview;
         if (_captureTarget is not null)
         {
-            if (_captureBowlingTarget)
+            if (_captureLbwReplayPreview)
+                PrepareLbwReplayPreview();
+            else if (_captureBowlingTarget)
                 PrepareBowlingTargetCapture();
             else if (_captureBowlingMeterPreview)
                 PrepareBowlingMeterPreviewCapture();
@@ -227,7 +237,7 @@ public partial class Game1
             {
                 _bowlerAnimator.Play("practice-stance", 0.08f);
             }
-            else
+            else if (!_captureLbwReplayPreview)
             {
                 SetBowlerCaptureReleasePose();
             }

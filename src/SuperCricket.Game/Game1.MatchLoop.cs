@@ -13,6 +13,7 @@ using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Batting;
 using SuperCricket.Simulation.Events;
+using SuperCricket.Simulation.Umpiring;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -47,13 +48,48 @@ public partial class Game1
     {
         var updateStart = Stopwatch.GetTimestamp();
         var elapsedSeconds = MathF.Max(0f, (float)gameTime.ElapsedGameTime.TotalSeconds);
+        _replayFrameTimestampSeconds = _replayClockSeconds + elapsedSeconds;
+        if (_replayPlayback is not null)
+        {
+            UpdateReplay(gameTime, keyboard, controllerPressedButtons);
+            base.Update(gameTime);
+            _frameTimeMilliseconds = gameTime.ElapsedGameTime.TotalMilliseconds;
+            _updateMilliseconds = Stopwatch.GetElapsedTime(updateStart).TotalMilliseconds;
+            return;
+        }
         UpdateGamePadFeedback(elapsedSeconds);
+        if (_titleMenuOpen || _practiceSetupOpen)
+        {
+            HandleModeMenuInput(keyboard, controllerPressedButtons);
+            base.Update(gameTime);
+            return;
+        }
         _inputRouter.BeginKeyboardFrame(keyboard);
         bool ControllerPressed(MatchControllerActions action) => (controllerActions & action) != 0;
         var controllerFrame = new ControllerInputFrame(
             controllerActions, controllerAimAxis, controllerAimLengthAxis, controllerRunHeld,
             controllerPressedButtons, controllerPacePressed);
         bool KeyPressed(Keys key) => _inputRouter.WasKeyPressed(key);
+        if (HasHumanBowlingControls && !_simulationPaused && !_deliveryComplete &&
+            (KeyPressed(Keys.A) || ControllerPressed(MatchControllerActions.Appeal)))
+        {
+            _appealRequestedThisDelivery = true;
+            if (_pendingLbwContact is { } pendingContact)
+                ResolveLbwAppeal(pendingContact, _pendingLbwContactTimeSeconds, humanAppeal: true);
+        }
+        if (!_simulationPaused && _pendingLbwContact is not null)
+        {
+            _lbwAppealWindowRemainingSeconds = MathF.Max(0f, _lbwAppealWindowRemainingSeconds - elapsedSeconds);
+            if (_lbwAppealWindowRemainingSeconds <= 0f)
+            {
+                _pendingLbwContact = null;
+                if (_umpireSignalText == "APPEAL? PRESS A/X")
+                {
+                    _umpireSignalText = null;
+                    _umpireSignalRemainingSeconds = 0f;
+                }
+            }
+        }
         var pressedKeys = keyboard.GetPressedKeys();
         var keyboardBattingInput = default(KeyboardBattingInputFrame);
         var hasKeyboardBattingInput = false;
@@ -63,6 +99,15 @@ public partial class Game1
         if (controllerActions != MatchControllerActions.None || MathF.Abs(controllerAimAxis) > 0.2f ||
             MathF.Abs(controllerAimLengthAxis) > 0.2f)
             _lastInputWasGamePad = true;
+        if (KeyPressed(Keys.M) && !_simulationPaused && !_developerMode)
+        {
+            OpenModeMenuFromMatch();
+            _inputRouter.EndKeyboardFrame();
+            base.Update(gameTime);
+            _frameTimeMilliseconds = gameTime.ElapsedGameTime.TotalMilliseconds;
+            _updateMilliseconds = Stopwatch.GetElapsedTime(updateStart).TotalMilliseconds;
+            return;
+        }
         if (ControllerPressed(MatchControllerActions.Exit) ||
             keyboard.IsKeyDown(Keys.Escape))
         {
@@ -76,7 +121,8 @@ public partial class Game1
         }
         if ((KeyPressed(Keys.N) ||
              ControllerPressed(MatchControllerActions.NextBall)) &&
-            !_simulationPaused && _deliveryComplete && !_match.IsMatchComplete)
+            !_simulationPaused && _deliveryComplete && !_match.IsMatchComplete &&
+            _replayPlayback is null && _pendingReplayEvent is null && _queuedReplayEvents.Count == 0)
         {
             if (_match.IsInningsComplete)
                 StartNextInnings();
@@ -382,6 +428,7 @@ public partial class Game1
             var physicsElapsedThisFrame = 0f;
             _simulationAccumulator += MathF.Min(flightElapsed, 0.25f);
             while (_simulationAccumulator >= _ballFlight.FixedTimeStepSeconds &&
+                   _pendingLbwContact is null &&
                    BattedBallFieldingModel.CanAdvance(_battedBall, _deliveryComplete,
                        _fielderThrowActive, _ballFlight.CurrentFrame.Phase))
             {
@@ -396,6 +443,15 @@ public partial class Game1
                 {
                     _match.Events.Publish(new BallPitched(frame.TimeSeconds, frame.Position, frame.BounceCount));
                     _firstBouncePosition = ToXna(frame.Position);
+                    if (_practiceNetsMode && !CurrentDelivery.IsNoBall &&
+                        _practiceNetsSetup.Drill == PracticeNetDrill.BowlingTarget &&
+                        _practiceTargetCenter is { } practiceTarget)
+                    {
+                        var deltaX = frame.Position.X - practiceTarget.X;
+                        var deltaZ = frame.Position.Z - practiceTarget.Z;
+                        _practiceTargetHitThisDelivery = deltaX * deltaX + deltaZ * deltaZ <=
+                            PracticeTargetRadiusMeters * PracticeTargetRadiusMeters;
+                    }
                     _bounceSpotFeedbackRemainingSeconds = BounceSpotFeedbackDurationSeconds;
                     _liveFeedbackBannerRemainingSeconds = LiveFeedbackBannerDurationSeconds;
                 }
@@ -516,6 +572,40 @@ public partial class Game1
                     _match.Events.Publish(new BallBeatBat(frame.TimeSeconds, _strokeResolution?.Zone.ToString()));
                 }
 
+                if (!_verifyGameplay && !_deliveryComplete && !_battedBall && !_lbwPadContactThisDelivery &&
+                    !CurrentDelivery.IsNoBall &&
+                    LbwModel.TryFindPadContact(
+                        previousFrame,
+                        frame,
+                        _deliveryPreset,
+                        _strokeResolution?.FootPlayed ?? StrokeFoot.Back,
+                        out var padContact))
+                {
+                    _lbwPadContactThisDelivery = true;
+                    _match.Events.Publish(new BodyHit(padContact.TimeSeconds, padContact.Position));
+                    var contact = new LbwContact(
+                        padContact.Position,
+                        padContact.Velocity,
+                        _deliveryPreset.BallRadiusMeters,
+                        _deliveryPreset.PitchSurfaceHeightMeters,
+                        _deliveryPreset.GravityMetersPerSecondSquared,
+                        _deliveryPreset.PitchBounceRestitution,
+                        HasPitched: padContact.BounceCount > 0,
+                        PitchedOutsideLeg: _firstBouncePosition is { } bounce &&
+                            bounce.X < -CricketPitchGeometry.WicketHalfWidthMeters,
+                        ImpactOutsideOffStump: padContact.Position.X > CricketPitchGeometry.WicketHalfWidthMeters,
+                        ShotOffered: _chosenShot is not null,
+                        WicketPlaneZ: -PracticeGround.WicketOffset);
+                    HandleLbwPadContact(contact, padContact.TimeSeconds);
+                }
+
+                if (_pendingLbwContact is not null)
+                {
+                    _simulationAccumulator -= _ballFlight.FixedTimeStepSeconds;
+                    physicsElapsedThisFrame += _ballFlight.FixedTimeStepSeconds;
+                    break;
+                }
+
                 if (!_deliveryComplete && !_battedBall && IncomingDeliveryModel.TryResolve(
                     CurrentDelivery, previousFrame.Position, frame.Position, _deliveryPreset,
                     out var wicketLinePosition, out var incomingResolution))
@@ -573,6 +663,8 @@ public partial class Game1
             _camera.TrackTarget(GetBowlerWorld().Translation + new Vector3(0f, 0.9f, 0f), elapsedSeconds);
         }
         _camera.FollowBall(cameraBallPosition, elapsedSeconds);
+        RecordReplayFrame();
+        UpdatePracticeNets(elapsedSeconds);
         if (!_simulationPaused)
         {
             _bounceSpotFeedbackRemainingSeconds = MathF.Max(0f, _bounceSpotFeedbackRemainingSeconds - elapsedSeconds);

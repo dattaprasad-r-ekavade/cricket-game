@@ -67,4 +67,16 @@ public sealed class CameraDirectorTests
         director.ZoomBy(100f);
         Assert.Equal(28f, director.Distance);
     }
+
+    [Fact]
+    public void UmpireCloseUpPresetFramesTheNearWicket()
+    {
+        var director = new CameraDirector();
+
+        Assert.True(director.SelectPreset("umpire-close-up"));
+
+        Assert.Equal("Umpire close up", director.PresetName);
+        Assert.Equal(-8.72f, director.Target.Z);
+        Assert.InRange(director.Distance, 7f, 8f);
+    }
 }

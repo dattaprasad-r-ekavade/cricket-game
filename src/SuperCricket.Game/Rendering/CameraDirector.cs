@@ -8,7 +8,7 @@ namespace SuperCricket.Game.Rendering;
 public sealed class CameraDirector
 {
     private const float MinDistance = 4f;
-    private const float MaxDistance = 100f;
+    private const float MaxDistance = 180f;
     private const float MinPlayerZoomDistance = 4.5f;
     private const float MaxPlayerZoomDistance = 28f;
     private const float MinElevation = 0.12f;
@@ -16,11 +16,13 @@ public sealed class CameraDirector
     private readonly (string Name, float Yaw, float Elevation, float Distance, float FieldOfViewDegrees, Vector3 Target, bool FollowsBall)[] _presets =
     [
         ("Broadcast", 0.34f, 0.32f, 20f, 44f, new Vector3(0f, 0f, -1f), false),
+        ("Field overview", 0.35f, 0.72f, 165f, 55f, Vector3.Zero, false),
         // Aim at the active crease/player. Keeping the focus at mid-pitch made
         // zooming move the end-on cameras away from the person being controlled.
         ("Behind striker", MathHelper.Pi, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, -8.72f), false),
         ("Bowler end", 0.22f, 0.30f, 8f, 45f, new Vector3(0f, 0.9f, 8.72f), false),
         ("Square leg", MathHelper.PiOver2, 0.34f, 24f, 44f, Vector3.Zero, false),
+        ("Umpire close up", MathHelper.PiOver2, 0.55f, 7.5f, 42f, new Vector3(0f, 0.8f, -8.72f), false),
         ("Ball follow", 0f, 0.36f, 8f, 43f, Vector3.Zero, true)
     ];
     private int _presetIndex;

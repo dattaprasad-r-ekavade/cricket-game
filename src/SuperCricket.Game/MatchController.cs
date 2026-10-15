@@ -88,7 +88,8 @@ internal sealed class MatchController
     public AuthoredFieldPlacement ChooseCpuFieldFormation(
         FieldingSide fieldingSide,
         FieldFormationCatalog catalog,
-        bool powerplayActive = false)
+        bool powerplayActive = false,
+        bool resetPositions = false)
     {
         ArgumentNullException.ThrowIfNull(fieldingSide);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -101,7 +102,7 @@ internal sealed class MatchController
             Match.LastWicketLegalBall,
             Match.LastOverBoundaryCount));
         return ConfigureFieldFormation(
-            fieldingSide, catalog, intent, Match.StrikerPlayer.Handedness, powerplayActive);
+            fieldingSide, catalog, intent, Match.StrikerPlayer.Handedness, powerplayActive, resetPositions);
     }
 
     public AuthoredFieldPlacement ConfigureFieldFormation(
@@ -109,13 +110,14 @@ internal sealed class MatchController
         FieldFormationCatalog catalog,
         FieldingIntent intent,
         BatterHandedness handedness,
-        bool powerplayActive = false)
+        bool powerplayActive = false,
+        bool resetPositions = false)
     {
         ArgumentNullException.ThrowIfNull(fieldingSide);
         ArgumentNullException.ThrowIfNull(catalog);
         var placement = FieldPlacementModel.Resolve(
             catalog, Match.CurrentBowler.BowlingAttributes.Style, intent, handedness, powerplayActive);
-        fieldingSide.ConfigureStartingPositions(placement.StartingPositions, resetPositions: false);
+        fieldingSide.ConfigureStartingPositions(placement.StartingPositions, resetPositions);
 
         var players = Match.FieldingPlayers;
         var ratings = new int[players.Count];

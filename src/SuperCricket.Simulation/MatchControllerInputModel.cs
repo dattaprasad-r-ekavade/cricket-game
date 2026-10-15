@@ -52,7 +52,8 @@ public enum MatchControllerActions
     CycleCamera = 1 << 26,
     Attack = 1 << 27,
     Leave = 1 << 28,
-    Advance = 1 << 29
+    Advance = 1 << 29,
+    Appeal = 1 << 30
 }
 
 /// <summary>Maps edge-triggered controller buttons to the current match context.</summary>
@@ -108,6 +109,11 @@ public static class MatchControllerInputModel
 
         if (isCpuBattingControlled)
         {
+            if (Has(pressed, MatchControllerButtons.X))
+            {
+                actions &= ~MatchControllerActions.Defend;
+                actions |= MatchControllerActions.Appeal;
+            }
             if (developerMode)
             {
                 if (Has(pressed, MatchControllerButtons.DPadLeft)) actions |= MatchControllerActions.SelectStandardDelivery;

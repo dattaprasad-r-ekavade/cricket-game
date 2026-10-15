@@ -21,6 +21,13 @@ public partial class Game1
     private void StartNewMatch(int? seed = null)
     {
         _matchController.StartNewMatch(_selectedOversPerInnings, seed);
+        _inningsWicketReplays.Clear();
+        _replayBookmarkInningsNumber = _match.InningsNumber;
+        _fallOfWicketsInningsNumber = -1;
+        _fallOfWicketsReplayIndex = 0;
+        _pendingReplayEvent = null;
+        _replayPlayback = null;
+        _queuedReplayEvents.Clear();
         _activeFieldFormation = null;
         _previewFieldFormation = null;
         _fieldPickerOpen = false;
@@ -39,6 +46,11 @@ public partial class Game1
     private void StartNextInnings()
     {
         _matchController.StartNextInnings();
+        _inningsWicketReplays.Clear();
+        _replayBookmarkInningsNumber = _match.InningsNumber;
+        _queuedReplayEvents.Clear();
+        _fallOfWicketsInningsNumber = -1;
+        _fallOfWicketsReplayIndex = 0;
         _activeFieldFormation = null;
         _previewFieldFormation = null;
         _fieldPickerOpen = false;
@@ -106,7 +118,10 @@ public partial class Game1
         if (mustChooseCpuField)
         {
             var fieldPlacement = _matchController.ChooseCpuFieldFormation(
-                _fieldingSide, _fieldFormations, IsFieldingPowerplayActive);
+                _fieldingSide,
+                _fieldFormations,
+                IsFieldingPowerplayActive,
+                resetPositions: _match.LegalBalls == 0 && _match.Wickets == 0);
             _activeFieldFormation = _fieldFormations.Get(
                 _match.CurrentBowler.BowlingAttributes.Style, fieldPlacement.Intent);
             _activeFieldingTactic = fieldPlacement.Tactic;
@@ -121,15 +136,20 @@ public partial class Game1
             _activeFieldingTactic = fieldPlacement.Tactic;
         }
         _fieldingSide.ResetActivity();
-        _deliveryPreset = _matchController.PrepareDeliveryForCurrentMatch(
-            selectedPreset,
-            _activeDeliveryPresetIndex,
-            cpuBattingControlled: IsCpuBattingControlled,
-            bowlingAimOffsetX: _bowlingAimOffsetX,
-            bowlingAimOffsetZ: _bowlingAimOffsetZ,
-            developerMode: _developerMode,
-            verificationRun: _verifyGameplay,
-            difficulty: _cpuDifficulty);
+        _deliveryPreset = _practiceNetsMode &&
+            _practiceNetsSetup.Drill == PracticeNetDrill.BattingTutorial
+                ? PracticeNetsSetup.CreateDelivery(_practiceNetsSetup, _bowlingCatalogue, _deliveryPresets[0])
+                : _matchController.PrepareDeliveryForCurrentMatch(
+                    selectedPreset,
+                    _activeDeliveryPresetIndex,
+                    cpuBattingControlled: IsCpuBattingControlled,
+                    bowlingAimOffsetX: _bowlingAimOffsetX,
+                    bowlingAimOffsetZ: _bowlingAimOffsetZ,
+                    developerMode: _developerMode,
+                    verificationRun: _verifyGameplay,
+                    difficulty: _cpuDifficulty);
+        _deliveryStrikerName = _match.StrikerPlayer.Name;
+        _deliveryNonStrikerName = _match.NonStrikerPlayer.Name;
         _matchController.BeginDelivery(_deliveryPreset.IsNoBall);
         _ballFlight = new BallFlightSimulator(_deliveryPreset);
         _fieldingSide.ConfigureBoundaryRadius(_deliveryPreset.FieldBoundaryRadiusMeters);
@@ -192,6 +212,8 @@ public partial class Game1
         _bowlerAnimator.Play("bowling-run-up", 0.08f);
         _trajectoryVertices.Clear();
         UpdateBowlingTargetPreview();
+        if (_practiceNetsMode && _practiceNetsSetup.Drill == PracticeNetDrill.BowlingTarget)
+            _bowlingTargetMarkerPosition = _practiceTargetCenter;
         _deliverySpeedKilometersPerHour = _deliveryPreset.ReleaseVelocity.ToVector3().Length() * 3.6f;
         _firstBouncePosition = null;
         _bounceSpotFeedbackRemainingSeconds = 0f;
@@ -202,6 +224,12 @@ public partial class Game1
         _umpireSignalText = null;
         _umpireSignalRemainingSeconds = 0f;
         _bodyHitThisDelivery = false;
+        _appealRequestedThisDelivery = false;
+        _lbwPadContactThisDelivery = false;
+        _pendingLbwContact = null;
+        _pendingLbwContactTimeSeconds = 0f;
+        _lbwAppealWindowRemainingSeconds = 0f;
+        _practiceTargetHitThisDelivery = false;
         _contactFeedbackQuality = null;
         _contactFeedbackIsMiss = false;
         _activeBowlingTargetPosition = IsCpuBattingControlled && !_developerMode

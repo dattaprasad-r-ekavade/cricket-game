@@ -315,6 +315,8 @@ internal static class MatchHudPresenter
         DeliveryExtraSignalled { Extra: "Wide" } => "WIDE",
         DeliveryExtraSignalled { Extra: "NoBall" } => "NO BALL",
         UmpireDecision { IsOut: true } or WicketBroken or Dismissal => "OUT",
+        UmpireDecision decision when string.Equals(decision.DecisionType, "Lbw", StringComparison.OrdinalIgnoreCase) => "NOT OUT",
+        Appeal => "HOWZAT?",
         _ => null
     };
 
@@ -486,8 +488,15 @@ internal static class MatchHudPresenter
 
     public static int GetBattingContactZoneAlpha(CpuDifficulty difficulty)
     {
-        var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Human);
-        return Math.Clamp((int)MathF.Round((profile.Timing.WindowMeters - 6.4f) * 150f), 0, 220);
+        return difficulty switch
+        {
+            CpuDifficulty.Rookie => 220,
+            CpuDifficulty.Amateur => 180,
+            CpuDifficulty.Standard => 120,
+            CpuDifficulty.Pro => 60,
+            CpuDifficulty.Legend => 0,
+            _ => throw new ArgumentOutOfRangeException(nameof(difficulty), difficulty, "Unknown difficulty.")
+        };
     }
 
     public static string GetContactFeedbackLabel(ContactFeedbackPresentationState state) => state.IsMiss
@@ -570,8 +579,8 @@ internal static class MatchHudPresenter
             $"Keyboard: I toggles Directional / Classic chords | F toggles {keyboardFoot}",
             "GamePad batting: left stick direction | A attack | X defend | RB loft | B leave/run | LB advance",
             "Running: D/B starts or repeats; tap A to run back (GamePad: hold B to turn back)",
-            "Bowling: arrows/D-pad move pitch target | C/LB changes delivery | N/RB bowls",
-            "V/L3: camera | PgDn zoom in / PgUp out | R/A replay | D/LB difficulty | O/RB overs when match ends",
+            "Bowling: arrows/D-pad aim | C/LB changes delivery | N/RB bowls | A/X appeals LBW",
+            "V/L3: camera | PgDn zoom in / PgUp out | Any key skips replay | R/A restarts match",
             $"Paused: P/Start resumes | Esc/Back quits | H/Y contrast {(state.HighContrast ? "ON" : "OFF")}",
             $"T/Pad X: larger text {(state.LargeText ? "ON" : "OFF")} | -/LB volume down | +/RB volume up {state.EffectsVolume:P0}",
             state.SettingsStatusMessage ?? (state.AudioUnavailable
@@ -765,8 +774,8 @@ internal static class MatchHudPresenter
         return state.Phase switch
         {
             MatchHudPhase.MatchComplete => WithCamera(state.IsGamePad
-                ? $"A: replay    LB: difficulty    RB: overs    {pause}"
-                : $"R: replay    D: difficulty    O: overs    {pause}"),
+                ? $"A: restart match    LB: difficulty    RB: overs    {pause}"
+                : $"R: restart match    D: difficulty    O: overs    {pause}"),
             MatchHudPhase.InningsComplete => WithCamera(state.IsGamePad
                 ? $"RB: start the chase    {pause}"
                 : $"N: start the chase    {pause}"),
@@ -909,8 +918,8 @@ internal static class MatchHudPresenter
         {
             if (state.BowlingStarted)
                 return state.IsGamePad
-                    ? $"RT: set pace    {pause}"
-                    : $"Space: set pace    {pause}";
+                    ? $"RT: set pace    X: appeal LBW    {pause}"
+                    : $"Space: set pace    A: appeal LBW    {pause}";
             if (!includeNextBall && state.FieldPickerOpen)
                 return state.IsGamePad
                     ? $"D-pad: preview field    A: choose    B: close    {pause}"
@@ -945,6 +954,7 @@ internal static class MatchHudPresenter
         {
             hints.Add(new HudActionHint(state.IsGamePad ? "D-PAD / STICK" : "ARROWS", "Aim locked for this delivery"));
             hints.Add(new HudActionHint(state.IsGamePad ? "RT" : "SPACE", "Set pace in the meter"));
+            hints.Add(new HudActionHint(state.IsGamePad ? "X" : "A", "Appeal an LBW decision"));
             if (state.BowlingNoBall)
                 hints.Add(new HudActionHint("CALL", "NO BALL"));
             return hints;

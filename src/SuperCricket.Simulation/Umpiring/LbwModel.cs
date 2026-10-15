@@ -1,5 +1,6 @@
 using System.Numerics;
 using SuperCricket.Content;
+using SuperCricket.Simulation.Batting;
 
 namespace SuperCricket.Simulation.Umpiring;
 
@@ -34,6 +35,47 @@ public static class LbwModel
     public const float UmpiresCallHalfWidthMeters = 0.15f;
     public const float HittingHeightMeters = 0.69f;
     public const float UmpiresCallHeightMeters = 0.74f;
+
+    public static bool TryFindPadContact(
+        BallFlightFrame previous,
+        BallFlightFrame current,
+        DeliveryPreset delivery,
+        StrokeFoot foot,
+        out BallFlightFrame contact)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        const float batterX = -0.48f;
+        const float frontFootAdvanceMeters = 0.6f;
+        const float padRadiusMeters = 0.42f;
+        const float padTopMeters = 0.98f;
+        if (foot is not (StrokeFoot.Front or StrokeFoot.Back or StrokeFoot.Auto))
+            throw new ArgumentOutOfRangeException(nameof(foot));
+        var padCenterZ = BattingPracticeAnalyzer.BatterWicketLineZ +
+            (foot == StrokeFoot.Front ? frontFootAdvanceMeters : 0f);
+        contact = default;
+        if (previous.Position.Z <= padCenterZ || current.Position.Z > padCenterZ ||
+            current.Position.Z >= previous.Position.Z)
+            return false;
+
+        var fraction = (padCenterZ - previous.Position.Z) / (current.Position.Z - previous.Position.Z);
+        var position = Vector3.Lerp(previous.Position, current.Position, fraction);
+        var lineReach = foot == StrokeFoot.Front
+            ? Math.Clamp(position.X - batterX, -0.35f, 0.35f)
+            : 0f;
+        var padCenterX = batterX + lineReach;
+        var minimumHeight = delivery.PitchSurfaceHeightMeters + delivery.BallRadiusMeters;
+        if (MathF.Abs(position.X - padCenterX) > padRadiusMeters ||
+            position.Y < minimumHeight || position.Y > padTopMeters)
+            return false;
+
+        contact = new BallFlightFrame(
+            previous.TimeSeconds + (current.TimeSeconds - previous.TimeSeconds) * fraction,
+            position,
+            Vector3.Lerp(previous.Velocity, current.Velocity, fraction),
+            current.BounceCount,
+            current.Phase);
+        return true;
+    }
 
     public static LbwDecision Evaluate(LbwContact contact, float umpiresCallProbability, int seed)
     {

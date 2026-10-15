@@ -24,8 +24,8 @@ public partial class Game1
         _matchFeedbackSubscriptions.Clear();
         StopGamePadFeedback();
         CancelBattingTiming();
-        _playerRenderer?.Dispose();
-        _bowlerRenderer?.Dispose();
+        _playerAppearanceRenderer?.Dispose();
+        _stadiumPropRenderer?.Dispose();
         _crowdVertexBuffer?.Dispose();
         _worldEffect?.Dispose();
         _crowdEffect?.Dispose();
@@ -74,6 +74,16 @@ public partial class Game1
 
     private void DrawDebugOverlay()
     {
+        if (_practiceSetupOpen)
+        {
+            DrawPracticeSetupMenu();
+            return;
+        }
+        if (_titleMenuOpen)
+        {
+            DrawPracticeModeMenu();
+            return;
+        }
         if (_simulationPaused && _captureTarget is null)
         {
             DrawPauseMenu();
@@ -83,6 +93,7 @@ public partial class Game1
         if (!_showDebugOverlay)
         {
             DrawMatchHud();
+            DrawPracticeNetsPanel();
             return;
         }
 
@@ -102,7 +113,7 @@ public partial class Game1
             $"Release: {(_releaseMarkerPosition is { } release ? $"t=0.000 s @ {FormatPosition(release)} m" : "not yet released")}    Contact: {(_contactMarkerPosition is { } contact ? $"t={_contactTimeSeconds:0.000} s @ {FormatPosition(contact)} m" : "waiting")}",
             $"Sweet spot: {(_sweetSpotMarkerPosition is { } sweetSpot && _contactSweetSpotOffset is { } offset && _contactQuality is { } quality ? $"q={quality:0.00} offset ({offset.X:+0.00;-0.00;0.00}, {offset.Y:+0.00;-0.00;0.00}) @ {FormatPosition(sweetSpot)} m" : "waiting for bat contact")}    Markers: gold / orange / cyan",
             $"View {_camera.PresetName}    distance {_camera.Distance:0.0} m    elevation {MathHelper.ToDegrees(_camera.Elevation):0}°    FPS {_framesPerSecond}    frame {_frameTimeMilliseconds:0.0} ms    CPU update/draw {_updateMilliseconds:0.00}/{_drawMilliseconds:0.00} ms",
-            $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    material batches batter/bowler {_playerRenderer.MaterialBatchCount}/{_bowlerRenderer.MaterialBatchCount}",
+            $"Skinned players {_fielderAnimators.Length + 3} ({_fielderAnimators.Length} fielders)    WP19 LOD meshes {_playerAppearanceRenderer.MaterialBatchCount} material batches per variant",
             "Debug: --debug enables A/S/D shots, J/L aim, Q/E steps, T animations, digits, orbit and developer overlay."
         };
         var debugScale = _gameSettings.LargeText ? 1.2f : 1f;
@@ -122,6 +133,7 @@ public partial class Game1
             DrawOverlayText(lines[index], new Vector2(30, 17 + index * debugLineSpacing), color, debugScale);
         }
         _spriteBatch.End();
+        DrawPracticeNetsPanel();
     }
 
     private void DrawPauseMenu()

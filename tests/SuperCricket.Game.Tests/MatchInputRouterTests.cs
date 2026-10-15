@@ -100,6 +100,33 @@ public sealed class MatchInputRouterTests
     }
 
     [Fact]
+    public void AppealButtonIsAvailableWhenThePlayerControlsTheBowler()
+    {
+        var router = new MatchInputRouter();
+        var appeal = router.ReadController(
+            MatchControllerButtons.X,
+            0f,
+            0f,
+            false,
+            isCpuBattingControlled: true,
+            isMatchComplete: false,
+            isPaused: false,
+            developerMode: false);
+        var battingDefend = new MatchInputRouter().ReadController(
+            MatchControllerButtons.X,
+            0f,
+            0f,
+            false,
+            isCpuBattingControlled: false,
+            isMatchComplete: false,
+            isPaused: false,
+            developerMode: false);
+
+        Assert.Equal(MatchControllerActions.Appeal, appeal.Actions);
+        Assert.Equal(MatchControllerActions.Defend, battingDefend.Actions);
+    }
+
+    [Fact]
     public void PaceTriggerIsEdgeTriggeredForTheBowlingMeter()
     {
         var router = new MatchInputRouter();

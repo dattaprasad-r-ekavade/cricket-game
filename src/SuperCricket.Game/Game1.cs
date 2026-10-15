@@ -9,11 +9,13 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SuperCricket.Content;
 using SuperCricket.Content.Bowling;
+using SuperCricket.Content.Replays;
 using SuperCricket.Game.Animation;
 using SuperCricket.Game.Rendering;
 using SuperCricket.Simulation;
 using SuperCricket.Simulation.Batting;
 using SuperCricket.Simulation.Bowling;
+using SuperCricket.Simulation.Umpiring;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace SuperCricket.Game;
@@ -58,6 +60,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private readonly bool _captureBowlingMeterPreview;
     private readonly bool _captureFieldInsetPreview;
     private readonly bool _captureFieldPickerPreview;
+    private readonly bool _captureLbwReplayPreview;
+    private readonly bool _capturePracticeSetupPreview;
+    private bool _titleMenuOpen;
+    private bool _practiceSetupOpen;
+    private bool _returnToActiveMatchOnMenuCancel;
+    private int _titleMenuSelectionIndex;
+    private int _practiceMenuSelectionIndex;
+    private PracticeNetsSetup _practiceNetsSetup = PracticeNetsSetup.Default;
+    private PracticeNetsPresenter _practiceNetsPresenter = new();
+    private bool _practiceNetsMode;
+    private float _practiceRepeatDelaySeconds;
+    private bool _practiceTargetHitThisDelivery;
+    private Vector3? _practiceTargetCenter;
+    private const float PracticeTargetRadiusMeters = 0.82f;
     private readonly CpuDifficulty? _captureDifficultyOverride;
     private readonly bool _captureCameraPresetSpecified;
     private bool _developerMode;
@@ -79,6 +95,20 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private VertexBuffer? _crowdVertexBuffer;
     private RenderTarget2D? _captureTarget;
     private readonly CameraDirector _camera = new();
+    private readonly CameraDirector _replayCamera = new();
+    private readonly ReplayRecorder _replayRecorder = new();
+    private readonly List<ReplayBookmark> _inningsWicketReplays = [];
+    private readonly List<ReplayEventCapture> _queuedReplayEvents = [];
+    private ReplayScriptCatalog _replayScriptCatalog = null!;
+    private ReplayPlayback? _replayPlayback;
+    private ReplayEventCapture? _pendingReplayEvent;
+    private int _replayBookmarkInningsNumber = 1;
+    private int _fallOfWicketsInningsNumber = -1;
+    private int _fallOfWicketsReplayIndex;
+    private string? _deliveryStrikerName;
+    private string? _deliveryNonStrikerName;
+    private double _replayClockSeconds;
+    private double _replayFrameTimestampSeconds;
     private Rectangle _matchHudBounds;
     private Rectangle _scoreHudBounds;
     private readonly List<VertexPositionColor> _trajectoryVertices = [];
@@ -109,10 +139,10 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private PlayerAsset _playerAsset = null!;
     private BatterAnimationController _batterAnimations = null!;
     private PlayerAnimator _playerAnimator => _batterAnimations.Striker;
-    private SkinnedPlayerRenderer _playerRenderer = null!;
+    private PlayerAppearanceRenderer _playerAppearanceRenderer = null!;
+    private StadiumPropRenderer _stadiumPropRenderer = null!;
     private PlayerAsset _bowlerAsset = null!;
     private PlayerAnimator _bowlerAnimator = null!;
-    private SkinnedPlayerRenderer _bowlerRenderer = null!;
     private PlayerAnimator[] _fielderAnimators = [];
     private readonly string?[] _fielderActionClips = new string?[FieldingSide.FielderCount];
     private readonly bool[] _fielderActionHoldAtEnd = new bool[FieldingSide.FielderCount];
@@ -124,7 +154,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private int _fieldFormationDecisionLegalBalls = -1;
     private int _fieldFormationDecisionWickets = -1;
     private bool _fieldPickerOpen;
-    private static readonly int[] OversChoices = [1, 2, 5, 10];
+    private static readonly int[] OversChoices = [1, 2, 5, 10, 20];
     private MatchController _matchController = null!;
     private LimitedOversMatch _match => _matchController.Match;
     private readonly FieldingSide _fieldingSide = new();
@@ -153,6 +183,11 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
     private bool _showDebugOverlay;
     private bool _lastInputWasGamePad;
     private bool _bodyHitThisDelivery;
+    private bool _appealRequestedThisDelivery;
+    private bool _lbwPadContactThisDelivery;
+    private LbwContact? _pendingLbwContact;
+    private float _pendingLbwContactTimeSeconds;
+    private float _lbwAppealWindowRemainingSeconds;
     private float _runHoldElapsed;
     private GamePadFeedbackCue _activeGamePadFeedbackCue;
     private float _gamePadFeedbackElapsedSeconds;
@@ -266,7 +301,9 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         bool captureFieldInsetPreview = false,
         bool captureTimingGaugePreview = false,
         bool captureBowlingMeterPreview = false,
-        bool captureFieldPickerPreview = false)
+        bool captureFieldPickerPreview = false,
+        bool captureLbwReplayPreview = false,
+        bool capturePracticeSetupPreview = false)
     {
         if ((captureRunUpTimeSeconds is not null && captureDeliveryTimeSeconds is not null) ||
             captureBallFlightTimeSeconds is not null &&
@@ -301,7 +338,12 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
                 captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
                 captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
                 captureBowlingTarget || captureFeedbackPreview || captureFieldInsetPreview ||
-                captureTimingGaugePreview || captureBowlingMeterPreview) ||
+                captureTimingGaugePreview || captureBowlingMeterPreview || captureLbwReplayPreview) ||
+            captureLbwReplayPreview && (capturePath is null || captureRunUpTimeSeconds is not null ||
+                captureDeliveryTimeSeconds is not null || captureBallFlightTimeSeconds is not null ||
+                captureFielderActionClip is not null || captureBatterFootworkActionClip is not null ||
+                captureBowlingTarget || captureFeedbackPreview || captureFieldInsetPreview ||
+                captureTimingGaugePreview || captureBowlingMeterPreview || captureFieldPickerPreview) ||
             captureDifficultyOverride is not null && capturePath is null ||
             profileFrameCount is < 0 or > 36000)
             throw new ArgumentException("Choose one bowler preview time, fielder action, or batter-footwork action and its preview time.");
@@ -322,6 +364,8 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureBowlingMeterPreview = captureBowlingMeterPreview;
         _captureFieldInsetPreview = captureFieldInsetPreview;
         _captureFieldPickerPreview = captureFieldPickerPreview;
+        _captureLbwReplayPreview = captureLbwReplayPreview;
+        _capturePracticeSetupPreview = capturePracticeSetupPreview;
         _captureDifficultyOverride = captureDifficultyOverride;
         _captureCameraPresetSpecified = captureCameraPreset is not null;
         _captureFielderActionClip = captureFielderActionClip;
@@ -329,7 +373,7 @@ public partial class Game1 : Microsoft.Xna.Framework.Game
         _captureBatterFootworkActionClip = captureBatterFootworkActionClip;
         _captureBatterFootworkActionTimeSeconds = captureBatterFootworkActionTimeSeconds;
         if (captureCameraPreset is not null && !_camera.SelectPreset(captureCameraPreset))
-            throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, behind-striker, bowler-end, square-leg, or ball-follow.", nameof(captureCameraPreset));
+            throw new ArgumentException($"Unknown capture camera '{captureCameraPreset}'. Use broadcast, field-overview, behind-striker, bowler-end, square-leg, umpire-close-up, or ball-follow.", nameof(captureCameraPreset));
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;

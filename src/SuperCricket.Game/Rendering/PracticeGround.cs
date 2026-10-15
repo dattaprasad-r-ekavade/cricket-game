@@ -13,6 +13,7 @@ public static class PracticeGround
     public const float PitchWidth = CricketPitchGeometry.PitchWidthMeters;
     public const float WicketHeight = CricketPitchGeometry.WicketHeightMeters;
     public const float BallRadius = 0.036f;
+    public const float FieldBoundaryRadius = 62.5f;
     public const float WicketOffset = CricketPitchGeometry.WicketOffsetMeters;
     public const int CrowdRows = 15;
     public const int CrowdSpectatorsPerRow = 320;
@@ -22,8 +23,8 @@ public static class PracticeGround
     {
         const int segments = 256;
         const int bands = 8;
-        const float radiusX = 42f;
-        const float radiusZ = 42f;
+        const float radiusX = FieldBoundaryRadius;
+        const float radiusZ = FieldBoundaryRadius;
         const float tileSizeMeters = 6f;
         const float surfaceY = -0.08f;
         var vertices = new List<VertexPositionColorNormalTexture>(segments * bands * 6 + segments * 3);
@@ -135,14 +136,15 @@ public static class PracticeGround
 
     private static void AddBoundaryRope(MeshBuilder mesh)
     {
-        AddOvalBand(mesh, 42.05f, 42.05f, 0.14f, -0.035f, new Color(233, 224, 196), 256);
+        AddOvalBand(mesh, FieldBoundaryRadius + 0.05f, FieldBoundaryRadius + 0.05f,
+            0.14f, -0.035f, new Color(233, 224, 196), 256);
     }
 
     private static void AddAdvertisingBoards(MeshBuilder mesh)
     {
         const int segments = 256;
-        const float innerRadius = 42.8f;
-        const float outerRadius = 43.0f;
+        const float innerRadius = FieldBoundaryRadius + 0.8f;
+        const float outerRadius = FieldBoundaryRadius + 1.0f;
         var colors = new[]
         {
             new Color(24, 51, 72), new Color(191, 137, 57),
@@ -173,8 +175,8 @@ public static class PracticeGround
     {
         const int segments = 192;
         const int rows = 15;
-        const float startX = 44.0f;
-        const float startZ = 44.0f;
+        const float startX = FieldBoundaryRadius + 2f;
+        const float startZ = FieldBoundaryRadius + 2f;
         const float rowWidth = 0.67f;
         const float rowRise = 0.43f;
         const float seatDepth = 0.60f;
@@ -228,14 +230,17 @@ public static class PracticeGround
             }
         }
 
-        AddOvalBand(mesh, 54.2f, 53.1f, 6.85f, 0.9f, new Color(47, 58, 66), 256);
-        AddOvalWall(mesh, 55.0f, 53.9f, 0.05f, 7.6f, new Color(35, 46, 56), 256);
-        AddOvalBand(mesh, 54.5f, 53.6f, 7.5f, 0.9f, new Color(82, 94, 98), 256);
+        AddOvalBand(mesh, FieldBoundaryRadius + 12.2f, FieldBoundaryRadius + 11.1f,
+            6.85f, 0.9f, new Color(47, 58, 66), 256);
+        AddOvalWall(mesh, FieldBoundaryRadius + 13f, FieldBoundaryRadius + 11.4f,
+            0.05f, 7.6f, new Color(35, 46, 56), 256);
+        AddOvalBand(mesh, FieldBoundaryRadius + 12.5f, FieldBoundaryRadius + 11.6f,
+            7.5f, 0.9f, new Color(82, 94, 98), 256);
     }
 
     private static void AddCrowd(MeshBuilder mesh)
     {
-        const float firstRowRadius = 44.0f;
+        const float firstRowRadius = FieldBoundaryRadius + 2f;
         const float rowWidth = 0.67f;
         const float rowRise = 0.43f;
         const float ellipseRatio = 0.91f;
@@ -320,14 +325,15 @@ public static class PracticeGround
     private static void AddScoreScreen(MeshBuilder mesh)
     {
         // The in-world board supplies stadium scale; the live score remains in the readable HUD.
-        mesh.Cuboid(new Vector3(0f, 10.0f, -47.0f), new Vector3(15.0f, 5.4f, 0.75f), new Color(24, 39, 54));
-        mesh.Cuboid(new Vector3(0f, 10.2f, -46.58f), new Vector3(13.7f, 4.25f, 0.08f), new Color(18, 63, 65));
-        mesh.Cuboid(new Vector3(0f, 11.55f, -46.50f), new Vector3(11.5f, 0.16f, 0.04f), new Color(238, 196, 99));
-        mesh.Cuboid(new Vector3(0f, 9.98f, -46.50f), new Vector3(9.2f, 0.12f, 0.04f), new Color(190, 206, 191));
-        mesh.Cuboid(new Vector3(-4.4f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
-        mesh.Cuboid(new Vector3(-3.1f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
-        mesh.Cuboid(new Vector3(3.7f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
-        mesh.Cuboid(new Vector3(5.0f, 9.35f, -46.50f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        var screenZ = -(FieldBoundaryRadius + 5f);
+        mesh.Cuboid(new Vector3(0f, 10.0f, screenZ), new Vector3(15.0f, 5.4f, 0.75f), new Color(24, 39, 54));
+        mesh.Cuboid(new Vector3(0f, 10.2f, screenZ + 0.42f), new Vector3(13.7f, 4.25f, 0.08f), new Color(18, 63, 65));
+        mesh.Cuboid(new Vector3(0f, 11.55f, screenZ + 0.5f), new Vector3(11.5f, 0.16f, 0.04f), new Color(238, 196, 99));
+        mesh.Cuboid(new Vector3(0f, 9.98f, screenZ + 0.5f), new Vector3(9.2f, 0.12f, 0.04f), new Color(190, 206, 191));
+        mesh.Cuboid(new Vector3(-4.4f, 9.35f, screenZ + 0.5f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(-3.1f, 9.35f, screenZ + 0.5f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(3.7f, 9.35f, screenZ + 0.5f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
+        mesh.Cuboid(new Vector3(5.0f, 9.35f, screenZ + 0.5f), new Vector3(1.1f, 0.46f, 0.04f), new Color(233, 231, 205));
     }
 
     private static void AddFloodlights(MeshBuilder mesh)
@@ -336,8 +342,8 @@ public static class PracticeGround
         for (var tower = 0; tower < 4; tower++)
         {
             var angle = MathHelper.PiOver4 + tower * MathHelper.PiOver2;
-            var x = 58.5f * MathF.Cos(angle);
-            var z = 53.2f * MathF.Sin(angle);
+            var x = (FieldBoundaryRadius + 16.5f) * MathF.Cos(angle);
+            var z = (FieldBoundaryRadius + 11.2f) * MathF.Sin(angle);
             var mastColor = new Color(118, 130, 136);
             mesh.Cuboid(new Vector3(x, towerHeight / 2f, z), new Vector3(0.58f, towerHeight, 0.58f), mastColor);
             mesh.Cuboid(new Vector3(x, towerHeight - 0.2f, z), new Vector3(5.8f, 0.46f, 0.72f), new Color(73, 87, 94));
