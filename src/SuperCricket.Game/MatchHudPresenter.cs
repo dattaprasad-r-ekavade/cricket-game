@@ -247,7 +247,8 @@ internal static class MatchHudPresenter
 
     public static CricketAudioCue? GetTimingAudioCue(MatchEvent matchEvent) => matchEvent switch
     {
-        BatContact contact when Enum.TryParse<TimingZone>(contact.TimingZone, out var zone) => GetTimingAudioCue(zone),
+        BatContact { Edged: true } => CricketAudioCue.BatContactEdge,
+        BatContact => CricketAudioCue.BatContact,
         BallBeatBat { TimingZone: { } zoneName } when Enum.TryParse<TimingZone>(zoneName, out var zone) =>
             GetTimingAudioCue(zone, missed: true),
         BodyHit => CricketAudioCue.BodyHit,
@@ -257,9 +258,10 @@ internal static class MatchHudPresenter
     public static GamePadFeedbackCue GetGamePadFeedbackCue(MatchEvent matchEvent) => matchEvent switch
     {
         BodyHit => GamePadFeedbackCue.BodyHit,
+        BatContact { Edged: true } => GamePadFeedbackCue.EdgeContact,
         BatContact contact when Enum.TryParse<TimingZone>(contact.TimingZone, out var zone) && zone == TimingZone.Ideal =>
             GamePadFeedbackCue.IdealContact,
-        BatContact => GamePadFeedbackCue.EdgeContact,
+        BatContact => GamePadFeedbackCue.None,
         BallBeatBat { TimingZone: { } zoneName } when Enum.TryParse<TimingZone>(zoneName, out var zone) &&
             zone is not (TimingZone.TooEarly or TimingZone.TooLate) => GamePadFeedbackCue.EdgeContact,
         _ => GamePadFeedbackCue.None

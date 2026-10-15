@@ -12,7 +12,8 @@ public readonly record struct CpuLiveBattingPlan(
     float? PredictedContactQuality,
     float HorizontalAim,
     bool Leave = false,
-    StrokeResolution? StrokeOutcome = null);
+    StrokeResolution? StrokeOutcome = null,
+    float? IdealWidthMeters = null);
 
 /// <summary>Chooses a repeatable live shot, timing, footwork, placement, and running intent.</summary>
 public static class CpuLiveBattingPlanModel
@@ -32,13 +33,15 @@ public static class CpuLiveBattingPlanModel
         int seed,
         IReadOnlyList<Vector3>? fieldingPositions = null,
         CpuDifficulty difficulty = CpuDifficulty.Standard,
-        StrokeTableAsset? strokeTable = null)
+        StrokeTableAsset? strokeTable = null,
+        BatterTimingState? timingState = null)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(batterAsset);
         ArgumentNullException.ThrowIfNull(bowlerAsset);
         ArgumentNullException.ThrowIfNull(shotSet);
         ArgumentNullException.ThrowIfNull(fielders);
+        timingState ??= new BatterTimingState();
         var outcome = CpuBattingOutcomeModel.Choose(striker, bowler, fielders, situation, fieldingTactic, difficulty);
         var deliveryErrors = delivery.Validate();
         if (deliveryErrors.Count > 0)
@@ -74,7 +77,7 @@ public static class CpuLiveBattingPlanModel
         var authoredShot = shotSet.Get(shotName);
         var plan = ChooseFromSamples(striker, outcome, delivery, samples, seed, authoredShot.HorizontalAim, difficulty);
         if (fieldingPositions is null)
-            return WithStrokeOutcome(plan, striker, situation, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed);
+            return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState);
 
         var fieldingRatings = fielders.Select(fielder => fielder.FieldingAttributes.Speed).ToArray();
         var horizontalAim = CpuShotPlacementModel.ChooseHorizontalAim(
@@ -90,19 +93,19 @@ public static class CpuLiveBattingPlanModel
             seed ^ unchecked((int)0x4cf5ad43),
             difficulty);
         plan = plan with { HorizontalAim = executedAim };
-        return WithStrokeOutcome(plan, striker, situation, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed);
+        return WithStrokeOutcome(plan, striker, delivery, samples, authoredShot.ForwardAim, strokeTable, difficulty, seed, timingState);
     }
 
     private static CpuLiveBattingPlan WithStrokeOutcome(
         CpuLiveBattingPlan plan,
         TeamPlayerData striker,
-        BowlingSituation situation,
         DeliveryPreset delivery,
         IReadOnlyList<BattingPracticeSample> samples,
         float forwardAim,
         StrokeTableAsset? strokeTable,
         CpuDifficulty difficulty,
-        int seed)
+        int seed,
+        BatterTimingState timingState)
     {
         if (strokeTable is null || plan.Leave)
             return plan;
@@ -120,7 +123,6 @@ public static class CpuLiveBattingPlanModel
         var profile = CpuDifficultyModel.GetProfile(difficulty, DifficultySide.Cpu);
         if (profile.Cpu is not { } cpuProfile)
             throw new InvalidOperationException($"The {difficulty} CPU profile has no commit-timing settings.");
-        var timingState = new BatterTimingState(situation.LegalBalls);
         var idealWidth = TimingWindowModel.IdealWidth(
             profile, timingState, striker, selectedStroke.Foot, direction, request.Loft);
         var window = TimingWindowModel.Build(
@@ -162,7 +164,7 @@ public static class CpuLiveBattingPlanModel
             profile.Timing.AssistEnabled,
             strokeTable,
             new Random(seed ^ unchecked((int)0x27d4eb2d)));
-        return plan with { StrokeOutcome = outcome };
+        return plan with { StrokeOutcome = outcome, IdealWidthMeters = idealWidth };
     }
 
     private static float DistanceAtInput(DeliveryPreset delivery, float inputDelaySeconds)

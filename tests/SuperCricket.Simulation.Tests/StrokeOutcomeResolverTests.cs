@@ -45,7 +45,9 @@ public sealed class StrokeOutcomeResolverTests
                 Assert.Equal(TimingZone.Ideal, resolution.Zone);
                 Assert.Equal(stroke.Id, resolution.StrokeId);
                 var speed = resolution.OutgoingVelocity.Length();
-                Assert.InRange(speed, ideal.MinSpeedMetersPerSecond * (resolution.Edged ? 0.5f : 1f), ideal.MaxSpeedMetersPerSecond);
+                Assert.InRange(speed,
+                    ideal.MinSpeedMetersPerSecond * (resolution.Edged ? 0.4f : 1f),
+                    ideal.MaxSpeedMetersPerSecond * (resolution.Edged ? 0.6f : 1f));
                 var elevation = MathF.Atan2(
                     resolution.OutgoingVelocity.Y,
                     new Vector2(resolution.OutgoingVelocity.X, resolution.OutgoingVelocity.Z).Length()) * (180f / MathF.PI);
@@ -92,5 +94,51 @@ public sealed class StrokeOutcomeResolverTests
         Assert.Equal(right.OutgoingVelocity.Y, left.OutgoingVelocity.Y, 5);
         Assert.Equal(right.OutgoingVelocity.Z, left.OutgoingVelocity.Z, 5);
         Assert.Equal(-right.OutgoingVelocity.X, left.OutgoingVelocity.X, 5);
+    }
+
+    [Fact]
+    public void EdgedCoverDriveDeflectsFineBehindTheOffSideAndReplaysDeterministically()
+    {
+        var table = LoadTable();
+        var request = new StrokeRequest(ShotDirection8.Cover, StrokeIntent.Attack, false, StrokeFoot.Front);
+        var ball = new BallCategory(BallLength.Good, BallLine.OutsideOff, 0.5f);
+        var window = TimingWindowModel.Build(0f, 2f, 0.6f);
+        StrokeResolution? edged = null;
+        var edgeSeed = 0;
+
+        for (; edgeSeed < 10_000; edgeSeed++)
+        {
+            var result = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, false, false, new Random(edgeSeed));
+            if (result.Edged)
+            {
+                edged = result;
+                break;
+            }
+        }
+
+        Assert.True(edged.HasValue, "No deterministic seed produced the authored cover-drive edge.");
+        var resolution = edged.Value;
+        var replay = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, false, false, new Random(edgeSeed));
+        var yawDegrees = MathF.Atan2(resolution.OutgoingVelocity.X, resolution.OutgoingVelocity.Z) * (180f / MathF.PI);
+        var ideal = table.Strokes.Single(stroke => stroke.Id == resolution.StrokeId).Zones[TimingZone.Ideal];
+        var speed = resolution.OutgoingVelocity.Length();
+
+        Assert.Equal(resolution, replay);
+        Assert.True(resolution.Edged);
+        Assert.True(resolution.OutgoingVelocity.Z < 0f, "The edge did not travel behind the batter.");
+        Assert.True(resolution.OutgoingVelocity.X > 0f, "The right-handed cover edge did not stay on the off side.");
+        Assert.InRange(yawDegrees, 154.99f, 180.01f);
+        Assert.InRange(speed, ideal.MinSpeedMetersPerSecond * 0.4f, ideal.MaxSpeedMetersPerSecond * 0.6f);
+        Assert.InRange(MathF.Atan2(
+            resolution.OutgoingVelocity.Y,
+            new Vector2(resolution.OutgoingVelocity.X, resolution.OutgoingVelocity.Z).Length()) * (180f / MathF.PI),
+            4.99f,
+            20.01f);
+
+        var leftHanded = StrokeOutcomeResolver.Resolve(table, request, ball, 0f, window, true, false, new Random(edgeSeed));
+        Assert.True(leftHanded.Edged);
+        Assert.True(leftHanded.OutgoingVelocity.X < 0f, "The left-handed edge was not mirrored across the pitch.");
+        Assert.Equal(resolution.OutgoingVelocity.Y, leftHanded.OutgoingVelocity.Y, 5);
+        Assert.Equal(resolution.OutgoingVelocity.Z, leftHanded.OutgoingVelocity.Z, 5);
     }
 }

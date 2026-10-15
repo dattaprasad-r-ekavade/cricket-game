@@ -229,7 +229,8 @@ public partial class Game1
                 _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
                 _fieldingSide.Positions,
                 _cpuDifficulty,
-                _strokeTable);
+                _strokeTable,
+                GetCurrentBatterTimingState());
             _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
             _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
             _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;

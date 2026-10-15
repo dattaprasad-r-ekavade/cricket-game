@@ -470,7 +470,8 @@ public partial class Game1
                         _match.Events.Publish(new BatContact(
                             _contactTimeSeconds.Value,
                             ToNumerics(resolvedContactPosition),
-                            strokeOutcome.Zone.ToString()));
+                            strokeOutcome.Zone.ToString(),
+                            strokeOutcome.Edged));
                         frame = _ballFlight.CurrentFrame;
                         fieldingPreviousFrame = frame;
                         fieldingElapsed *= 1f - contactFraction;
@@ -478,7 +479,7 @@ public partial class Game1
                         _battedBall = true;
                         _camera.SelectPreset("ball-follow");
                         _fieldingSide.ResetActivity();
-                        _shotOutcome = $"HIT: {_chosenShot.Name} {strokeOutcome.Zone}, {contactQuality:0.00} quality at {outgoingVelocity.Length():0.0} m/s";
+                        _shotOutcome = $"{(strokeOutcome.Edged ? "EDGE" : "HIT")}: {_chosenShot.Name} {strokeOutcome.Zone}, {contactQuality:0.00} quality at {outgoingVelocity.Length():0.0} m/s";
                         if (IsCpuBattingControlled && _cpuBattingPlan is { } cpuPlan)
                         {
                             var fieldingPlayers = _match.FieldingPlayers;

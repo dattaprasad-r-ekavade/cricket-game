@@ -45,8 +45,9 @@ public static class StrokeOutcomeResolver
         var edged = random.NextDouble() < outcome.EdgeChance;
         if (edged)
         {
-            yawDegrees += random.NextDouble() < 0.5 ? -15f : 15f;
-            speed *= 0.5f;
+            var (minimumFineYaw, maximumFineYaw) = FineYawRange(request.Direction);
+            yawDegrees = Sample(random, minimumFineYaw, maximumFineYaw);
+            speed *= Sample(random, 0.4f, 0.6f);
             elevationDegrees = Sample(random, 5f, 20f);
         }
 
@@ -73,4 +74,12 @@ public static class StrokeOutcomeResolver
 
     private static float Sample(Random random, float minimum, float maximum) =>
         minimum + (float)random.NextDouble() * (maximum - minimum);
+
+    private static (float Minimum, float Maximum) FineYawRange(ShotDirection8 direction) => direction switch
+    {
+        ShotDirection8.OffDrive or ShotDirection8.Cover or ShotDirection8.Square or ShotDirection8.Fine => (155f, 180f),
+        ShotDirection8.LegFine or ShotDirection8.LegSquare or ShotDirection8.MidWicket => (180f, 205f),
+        ShotDirection8.Straight => (155f, 205f),
+        _ => throw new ArgumentOutOfRangeException(nameof(direction))
+    };
 }

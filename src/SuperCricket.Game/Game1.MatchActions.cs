@@ -104,7 +104,8 @@ public partial class Game1
             _matchController.CreateBowlingDecisionSeed() ^ unchecked((int)0x6d2b79f5),
             _fieldingSide.Positions,
             _cpuDifficulty,
-            _strokeTable);
+            _strokeTable,
+            GetCurrentBatterTimingState());
         _targetBatterFootworkOffsetX = _cpuBattingPlan.Value.FootworkOffsetMeters;
         _footworkTransitionActive = MathF.Abs(_targetBatterFootworkOffsetX) > 0.0001f;
         _runRequestedPending = _cpuBattingPlan.Value.AttemptRun;
@@ -301,9 +302,7 @@ public partial class Game1
         var profile = CpuDifficultyModel.GetProfile(
             _cpuDifficulty,
             IsCpuBattingControlled ? DifficultySide.Cpu : DifficultySide.Human);
-        var timingState = IsCpuBattingControlled
-            ? new BatterTimingState(_match.LegalBalls)
-            : GetCurrentBatterTimingState();
+        var timingState = GetCurrentBatterTimingState();
         var idealWidth = TimingWindowModel.IdealWidth(
             profile,
             timingState,
@@ -782,7 +781,7 @@ public partial class Game1
         if (_deliveryComplete)
             return;
 
-        if (!IsCpuBattingControlled && _bowlerReleased && CurrentDelivery.Extra != DeliveryExtra.Wide)
+        if (_bowlerReleased && CurrentDelivery.Extra != DeliveryExtra.Wide)
         {
             var zone = _strokeResolution?.Zone ?? TimingZone.Early;
             GetCurrentBatterTimingState().RegisterBall(zone, _bodyHitThisDelivery, _strokeResolution?.Missed == true);

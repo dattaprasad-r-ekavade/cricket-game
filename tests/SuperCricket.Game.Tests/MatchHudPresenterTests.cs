@@ -215,18 +215,16 @@ public sealed class MatchHudPresenterTests
         {
             var eventName = zone.ToString();
             var contact = new BatContact(1f, System.Numerics.Vector3.Zero, eventName);
-            var expectedAudio = zone switch
-            {
-                TimingZone.Ideal => CricketAudioCue.BatContact,
-                TimingZone.TooEarly or TimingZone.TooLate => CricketAudioCue.BatBeaten,
-                _ => CricketAudioCue.BatContactEdge
-            };
             var expectedRumble = zone == TimingZone.Ideal
                 ? GamePadFeedbackCue.IdealContact
-                : GamePadFeedbackCue.EdgeContact;
-            Assert.Equal(expectedAudio, MatchHudPresenter.GetTimingAudioCue(contact));
+                : GamePadFeedbackCue.None;
+            Assert.Equal(CricketAudioCue.BatContact, MatchHudPresenter.GetTimingAudioCue(contact));
             Assert.Equal(expectedRumble, MatchHudPresenter.GetGamePadFeedbackCue(contact));
         }
+
+        var edge = new BatContact(1f, System.Numerics.Vector3.Zero, TimingZone.Ideal.ToString(), Edged: true);
+        Assert.Equal(CricketAudioCue.BatContactEdge, MatchHudPresenter.GetTimingAudioCue(edge));
+        Assert.Equal(GamePadFeedbackCue.EdgeContact, MatchHudPresenter.GetGamePadFeedbackCue(edge));
 
         var missed = new BallBeatBat(1f, TimingZone.Early.ToString());
         Assert.Equal(CricketAudioCue.BatBeaten, MatchHudPresenter.GetTimingAudioCue(missed));

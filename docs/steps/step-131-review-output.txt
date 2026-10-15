@@ -1,0 +1,319 @@
+Mode: headless review; game checks and visual captures are opt-in.
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Content.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Content.Tests\bin\Release\net9.0\SuperCricket.Content.Tests.dll
+  SuperCricket.Tools -> D:\Projects\super-cricket\src\SuperCricket.Tools\bin\Release\net9.0\SuperCricket.Tools.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+  SuperCricket.Game -> D:\Projects\super-cricket\src\SuperCricket.Game\bin\Release\net9.0-windows\SuperCricket.Game.dll
+  SuperCricket.Game.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Game.Tests\bin\Release\net9.0-windows\SuperCricket.Game.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.71
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.GodotTrial -> D:\Projects\super-cricket\trials\godot\.godot\mono\temp\bin\Release\SuperCricket.GodotTrial.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.70
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.841s
+
+OK
+PASS: D:\Projects\super-cricket\assets\characters\practice-batter-humanoid.glb is glTF 2.0 with 61 humanoid joints, 10 clips, 89 skinned primitives, all 30 finger segments in the grip animation, preserved events/root-motion for 9 gameplay clips.
+PASS: D:\Projects\super-cricket\assets\characters\practice-bowler-humanoid.glb is glTF 2.0 with 61 humanoid joints, 10 clips, 38 skinned primitives, preserved events/root-motion for 10 gameplay clips.
+Valid player asset: Practice Batter
+Rig: 61 bones, 89 meshes, 10 animation clips.
+  back-foot-drive: 2.00 s, 61 sampled poses.
+  back-foot-loft: 2.00 s, 61 sampled poses.
+  batting-step-legside: 0.60 s, 19 sampled poses.
+  batting-step-offside: 0.60 s, 19 sampled poses.
+  between-wickets: 2.00 s, 61 sampled poses.
+  defensive-block: 2.00 s, 61 sampled poses.
+  finger-grip-preview: 0.97 s, 30 sampled poses.
+  front-foot-drive: 2.00 s, 61 sampled poses.
+  lofted-drive: 2.00 s, 61 sampled poses.
+  practice-stance: 2.00 s, 61 sampled poses.
+Valid player asset: Practice Bowler
+Rig: 61 bones, 38 meshes, 10 animation clips.
+  between-wickets: 2.00 s, 61 sampled poses.
+  bowling-run-up: 2.00 s, 61 sampled poses.
+    root motion 15.00 m (0.00, 0.00, 15.00)
+  defensive-block: 2.00 s, 61 sampled poses.
+  fielder-catch: 1.00 s, 31 sampled poses.
+    event catch-secured at 0.467 s
+  fielder-pickup: 0.50 s, 16 sampled poses.
+    event ball-secured at 0.400 s
+  fielder-throw: 0.60 s, 19 sampled poses.
+    event ball-release at 0.300 s
+  front-foot-drive: 2.00 s, 61 sampled poses.
+  lofted-drive: 2.00 s, 61 sampled poses.
+  overarm-delivery: 2.00 s, 61 sampled poses.
+    root motion 0.45 m (0.00, 0.00, 0.45)
+    event ball-release at 0.667 s
+  practice-stance: 2.00 s, 61 sampled poses.
+Valid team roster: Coastal XI (COA), 11 players; kit #1575B8/#F2BB46.
+   1. Mira Sen (Wicketkeeper, Anchor, Right) — bat 77/74/77/77/66/76; bowl Pace 40/64/59/62/70; field 94/94/94/94
+   2. Rian Das (Batter, Anchor, Left) — bat 83/80/84/83/75/82; bowl Pace 40/65/60/63/70; field 66/66/66/66
+   3. Ishaan Rao (Batter, Balanced, Right) — bat 75/72/74/75/72/74; bowl Pace 40/63/59/62/70; field 70/70/70/70
+   4. Tara Nair (Batter, Balanced, Right) — bat 73/70/73/73/74/72; bowl Pace 40/65/61/64/70; field 64/64/64/64
+   5. Dev Malik (AllRounder, Aggressor, Left) — bat 66/63/67/66/68/65; bowl Pace 74/80/78/79/77; field 76/76/76/76
+   6. Neel Dutta (AllRounder, Balanced, Right) — bat 63/60/62/63/65/62; bowl OffSpin 68/78/75/76/77; field 73/73/73/73
+   7. Anika Bose (AllRounder, Balanced, Right) — bat 61/58/61/61/59/60; bowl Pace 65/77/74/75/77; field 79/79/79/79
+   8. Kabir Shah (Bowler, Aggressor, Right) — bat 49/46/50/49/53/48; bowl Pace 84/83/82/82/77; field 60/60/60/60
+   9. Zoya Iyer (Bowler, Aggressor, Left) — bat 43/40/42/43/47/42; bowl OffSpin 91/86/84/85/77; field 63/63/63/63
+  10. Arin Roy (Bowler, Aggressor, Right) — bat 40/40/40/40/43/40; bowl LegSpin 80/82/80/81/77; field 60/60/60/60
+  11. Kavi Menon (Bowler, Aggressor, Right) — bat 40/40/40/40/40/40; bowl Pace 86/84/82/83/77; field 60/60/60/60
+Valid team roster: Highland XI (HIG), 11 players; kit #8F2443/#F1E4C2.
+   1. Asha Balan (Wicketkeeper, Anchor, Right) — bat 71/68/71/71/65/70; bowl Pace 40/65/61/64/70; field 96/96/96/96
+   2. Naren Gill (Batter, Balanced, Left) — bat 76/73/77/76/75/75; bowl Pace 40/64/60/62/70; field 72/72/72/72
+   3. Veer Sethi (Batter, Aggressor, Right) — bat 69/66/68/69/74/68; bowl Pace 40/66/62/64/70; field 68/68/68/68
+   4. Lina Khurana (Batter, Anchor, Right) — bat 79/76/79/79/72/78; bowl Pace 40/64/60/63/70; field 74/74/74/74
+   5. Omi Kapoor (AllRounder, Balanced, Left) — bat 67/64/68/67/68/66; bowl Pace 76/81/78/79/77; field 80/80/80/80
+   6. Rhea Bedi (AllRounder, Balanced, Right) — bat 64/61/63/64/65/63; bowl OffSpin 70/78/76/77/77; field 75/75/75/75
+   7. Tanish Rao (AllRounder, Balanced, Right) — bat 60/57/60/60/61/59; bowl Pace 68/78/75/76/77; field 71/71/71/71
+   8. Eshan Lal (Bowler, Aggressor, Right) — bat 51/48/52/51/55/50; bowl Pace 83/83/81/82/77; field 62/62/62/62
+   9. Ira Vora (Bowler, Aggressor, Left) — bat 45/42/44/45/49/44; bowl OffSpin 92/86/85/85/77; field 65/65/65/65
+  10. Mahir Dev (Bowler, Aggressor, Right) — bat 41/40/41/41/45/40; bowl LegSpin 85/84/82/83/77; field 60/60/60/60
+  11. Sana Jaiswal (Bowler, Aggressor, Right) — bat 40/40/40/40/41/40; bowl Pace 89/85/84/84/77; field 63/63/63/63
+PASS: invalid team batting rating rejected.
+PASS: invalid team kit color rejected.
+PASS: invalid team accent kit color rejected.
+Valid batting shot set: 3 shots.
+  defence: defensive-block, 3° launch, 0.41 speed transfer
+  drive: front-foot-drive, 12° launch, 0.67 speed transfer
+  loft: lofted-drive, 35° launch, 0.79 speed transfer
+Valid stroke table: 40 strokes.
+Valid delivery catalogue: 17 deliveries.
+  pace-stock: Pace, 120–145 km/h
+  pace-outswing: Pace, 120–142 km/h
+  pace-inswing: Pace, 120–142 km/h
+  pace-off-cutter: Pace, 120–136 km/h
+  pace-leg-cutter: Pace, 120–136 km/h
+  pace-bouncer: Pace, 128–145 km/h
+  pace-yorker: Pace, 128–145 km/h
+  pace-slower-ball: Pace, 72–88 km/h
+  off-spin-off-break: OffSpin, 70–90 km/h
+  off-spin-arm-ball: OffSpin, 76–98 km/h
+  off-spin-doosra: OffSpin, 68–88 km/h
+  off-spin-flighted: OffSpin, 48–68 km/h
+  leg-spin-leg-break: LegSpin, 68–90 km/h
+  leg-spin-googly: LegSpin, 72–92 km/h
+  leg-spin-top-spinner: LegSpin, 68–90 km/h
+  leg-spin-flipper: LegSpin, 82–102 km/h
+  leg-spin-flighted: LegSpin, 48–68 km/h
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+Test run for D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 185 ms - SuperCricket.Simulation.Tests.dll (net9.0)
+Valid field preset: Practice attacking ring
+Boundary: 42 m; 10 fielders.
+  First slip: (-3.2, -0.08, -16) m
+  Second slip: (3.2, -0.08, -17.5) m
+  Gully: (-10, -0.08, -18) m
+  Short cover: (0, -0.08, -20) m
+  Deep point: (-20, -0.08, -7) m
+  Cover: (2.25, -0.08, -24) m
+  Long leg: (-17, -0.08, 16) m
+  Deep midwicket: (16, -0.08, 16) m
+  Long off: (0, -0.08, -31) m
+  Wicketkeeper (wicketkeeper): (0, -0.08, -11.2) m
+Valid field formation catalogue: 9 presets, 25 named positions.
+  Leg-spin attack: LegSpin/Attack, nine fielders, keeper and bowler.
+  Leg-spin defend: LegSpin/Defend, nine fielders, keeper and bowler.
+  Leg-spin standard: LegSpin/Standard, nine fielders, keeper and bowler.
+  Off-spin attack: OffSpin/Attack, nine fielders, keeper and bowler.
+  Off-spin defend: OffSpin/Defend, nine fielders, keeper and bowler.
+  Off-spin standard: OffSpin/Standard, nine fielders, keeper and bowler.
+  Pace attack: Pace/Attack, nine fielders, keeper and bowler.
+  Pace defend: Pace/Defend, nine fielders, keeper and bowler.
+  Pace standard: Pace/Standard, nine fielders, keeper and bowler.
+defence: sweet spot 1.00, edge 0.62, swing gain 1.44 m/s
+drive: sweet spot 1.00, edge 0.62, swing gain 1.40 m/s
+loft: sweet spot 1.00, edge 0.62, swing gain 1.11 m/s
+Swept collision and batting impact checks passed.
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+Test run for D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    10, Skipped:     0, Total:    10, Duration: 162 ms - SuperCricket.Simulation.Tests.dll (net9.0)
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+Test run for D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 95 ms - SuperCricket.Simulation.Tests.dll (net9.0)
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+Test run for D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 23 ms - SuperCricket.Simulation.Tests.dll (net9.0)
+Completed 32 seeded synthetic matches at 2 overs per innings (seed 3026 onward).
+Coastal XI wins 11; Highland XI wins 20; ties 1; average combined score 26.3 runs.
+Match results written to D:\Projects\super-cricket\artifacts\review-match-batch.csv
+PASS: match batch CSV contains 32 completed, scored matches.
+Valid delivery preset: Standard pace
+Release speed: 39.6 m/s (143 km/h)
+Simulated 'Standard pace' to 1.858s: 3 bounces, settled.
+Final position: (0.00, -0.04, -42.00) m.
+Trajectory written to D:\Projects\super-cricket\artifacts\review-standard-flight.csv
+Analyzed 126 input timings for Standard pace with the exported batter and bowler clips.
+  defence: 30/42 timings contact; best 0.90 at +0.100 s, step 0.00 m, result InPlay.
+  drive: 24/42 timings contact; best 0.89 at +0.150 s, step 0.00 m, result InPlay.
+  loft: 19/42 timings contact; best 0.90 at +0.175 s, step 0.00 m, result Four.
+Batting-practice results written to D:\Projects\super-cricket\artifacts\review-standard-batting.csv
+Valid delivery preset: Wide pace
+Release speed: 34.3 m/s (123 km/h)
+Simulated 'Wide pace' to 2.250s: 3 bounces, settled.
+Final position: (6.20, -0.04, -41.64) m.
+Trajectory written to D:\Projects\super-cricket\artifacts\review-wide-flight.csv
+Analyzed 138 input timings for Wide pace with the exported batter and bowler clips.
+  defence: 21/46 timings contact; best 0.82 at +0.275 s, step +2.25 m, result InPlay.
+  drive: 18/46 timings contact; best 0.81 at +0.325 s, step +2.25 m, result InPlay.
+  loft: 18/46 timings contact; best 0.81 at +0.325 s, step +2.25 m, result Four.
+Batting-practice results written to D:\Projects\super-cricket\artifacts\review-wide-batting.csv
+Valid delivery preset: No-ball pace
+Release speed: 34.0 m/s (123 km/h)
+Simulated 'No-ball pace' to 2.275s: 3 bounces, settled.
+Final position: (0.00, -0.04, -42.05) m.
+Trajectory written to D:\Projects\super-cricket\artifacts\review-no-ball-flight.csv
+Analyzed 138 input timings for No-ball pace with the exported batter and bowler clips.
+  defence: 35/46 timings contact; best 0.90 at +0.175 s, step 0.00 m, result InPlay.
+  drive: 26/46 timings contact; best 0.89 at +0.250 s, step 0.00 m, result InPlay.
+  loft: 23/46 timings contact; best 0.89 at +0.250 s, step 0.00 m, result Four.
+Batting-practice results written to D:\Projects\super-cricket\artifacts\review-no-ball-batting.csv
+Valid delivery preset: Yorker pace
+Release speed: 34.0 m/s (122 km/h)
+Simulated 'Yorker pace' to 2.167s: 3 bounces, settled.
+Final position: (0.00, -0.04, -42.03) m.
+Trajectory written to D:\Projects\super-cricket\artifacts\review-yorker-flight.csv
+Analyzed 135 input timings for Yorker pace with the exported batter and bowler clips.
+  defence: 33/45 timings contact; best 0.85 at +0.175 s, step 0.00 m, result InPlay.
+  drive: 24/45 timings contact; best 0.85 at +0.250 s, step 0.00 m, result InPlay.
+  loft: 22/45 timings contact; best 0.85 at +0.250 s, step 0.00 m, result Four.
+Batting-practice results written to D:\Projects\super-cricket\artifacts\review-yorker-batting.csv
+PASS: early/perfect/late timing targets match the highest-quality analyzer samples for all four delivery presets.
+PASS: yorker bounced at z=-9.407092 m and crossed the wicket line at y=0.168421 m.
+PASS: real-asset straight drive travels toward positive Z from contact at -8.45 m.
+defence: best quality 0.90 at +0.100 s; InPlay, 11.7 m/s
+drive: best quality 0.89 at +0.150 s; InPlay, 18.8 m/s
+loft: best quality 0.90 at +0.175 s; Four, 22.2 m/s
+Real-asset batting practice passed for Standard pace.
+PASS: real-asset straight drive travels toward positive Z from contact at -8.45 m.
+defence: best quality 0.85 at +0.175 s; InPlay, 12.0 m/s
+drive: best quality 0.85 at +0.250 s; InPlay, 19.6 m/s
+loft: best quality 0.85 at +0.250 s; Four, 23.1 m/s
+Real-asset batting practice passed for Yorker pace.
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SuperCricket.Contracts -> D:\Projects\super-cricket\src\SuperCricket.Contracts\bin\Release\net9.0\SuperCricket.Contracts.dll
+  SuperCricket.Content -> D:\Projects\super-cricket\src\SuperCricket.Content\bin\Release\net9.0\SuperCricket.Content.dll
+  SuperCricket.Simulation -> D:\Projects\super-cricket\src\SuperCricket.Simulation\bin\Release\net9.0\SuperCricket.Simulation.dll
+  SuperCricket.Simulation.Tests -> D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll
+Test run for D:\Projects\super-cricket\tests\SuperCricket.Simulation.Tests\bin\Release\net9.0\SuperCricket.Simulation.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 2 s - SuperCricket.Simulation.Tests.dll (net9.0)
+Completed 3 physics-grounded matches at 1 overs per innings (seed 3710 onward).
+Coastal XI wins 0; Highland XI wins 3; ties 0; average combined score 14.3 runs.
+Physics events: 25 contacts, 3 misses, 4 leaves, 0 catches, 17 pickups, 8 boundaries.
+Running: 15 intents, 10 safe runs, 3 double plans, 2 doubles scored, 0 run-outs.
+Match results written to D:\Projects\super-cricket\artifacts\review-physics-match-batch.csv
+Completed 3 physics-grounded matches at 1 overs per innings (seed 3710 onward).
+Coastal XI wins 0; Highland XI wins 3; ties 0; average combined score 14.3 runs.
+Physics events: 25 contacts, 3 misses, 4 leaves, 0 catches, 17 pickups, 8 boundaries.
+Running: 15 intents, 10 safe runs, 3 double plans, 2 doubles scored, 0 run-outs.
+Match results written to D:\Projects\super-cricket\artifacts\review-physics-match-batch-repeat.csv
+PASS: physics match batch replayed exactly with 28 shot plans, 4 leaves, 8 boundaries, and 10 completed runs.
+Completed 6 physics-grounded matches at 10 overs per innings (seed 7300 onward).
+Coastal XI wins 0; Highland XI wins 6; ties 0; average combined score 227.3 runs.
+Physics events: 578 contacts, 33 misses, 15 leaves, 4 catches, 275 pickups, 299 boundaries.
+Running: 291 intents, 318 safe runs, 110 double plans, 39 doubles scored, 2 run-outs.
+Match results written to D:\Projects\super-cricket\artifacts\review-physics-balance-10-over.csv
+PASS: six physics-grounded 10-over matches averaged 113.7 runs per innings with 15 leaves, 299 boundaries, 275 pickups, 39 results of 2+ runs from 110 multi-run plans, and a 8.3% run-out share across 24 dismissals.
+defence: 21 wide contacts with a +2.25 m step; best quality 0.82 at +0.275 s.
+drive: 18 wide contacts with a +2.25 m step; best quality 0.81 at +0.325 s.
+loft: 18 wide contacts with a +2.25 m step; best quality 0.81 at +0.325 s.
+Wide-ball footwork checks passed for Wide pace.
+Scenario: Rules practice over
+  1. legal, 1 batter, 0 extra: 1/0 after 0.1
+  2. legal, 4 batter, 0 extra: 5/0 after 0.2
+  3. Wide, 0 batter, 1 extra: 6/0 after 0.2
+  4. legal, Bowled (striker): 6/1 after 0.3
+  5. legal, 0 batter, 1 extra: 7/1 after 0.4
+  6. NoBall, 0 batter, 1 extra: 8/1 after 0.4
+  7. legal, 2 batter, 0 extra: 10/1 after 0.5
+  8. legal, RunOut (nonstriker): 10/2 after 1.0
+Completed over: 10/2 in 1.0 overs.
+Striker 4, non-striker 1.
+Field: Practice attacking ring (10 fielders, 42 m boundary)
+Coverage grid: 1373 points at 2 m spacing.
+Estimated reach within 1 s: 263/1373 (19.2%).
+Estimated reach within 2 s: 784/1373 (57.1%).
+Reach time P95/max: 3.623/4.966 s.
+  First slip: fastest for 14 points.
+  Second slip: fastest for 125 points.
+  Gully: fastest for 95 points.
+  Short cover: fastest for 9 points.
+  Deep point: fastest for 190 points.
+  Cover: fastest for 69 points.
+  Long leg: fastest for 280 points.
+  Deep midwicket: fastest for 393 points.
+  Long off: fastest for 104 points.
+  Wicketkeeper: fastest for 94 points.
+Coverage CSV written to D:\Projects\super-cricket\artifacts\review-field.csv
+Analyzed 126 input timings for Standard pace with the exported batter and bowler clips.
+  defence: 30/42 timings contact; best 0.90 at +0.100 s, step 0.00 m, result InPlay.
+  drive: 24/42 timings contact; best 0.89 at +0.150 s, step 0.00 m, result InPlay.
+  loft: 19/42 timings contact; best 0.90 at +0.175 s, step 0.00 m, result Four.
+Batting-practice results written to D:\Projects\super-cricket\artifacts\review-standard-batting-repeat.csv
+Input-delay step must be between 0.01 and 0.25 seconds. (Parameter 'inputDelayStepSeconds')
+PASS: repeated batting CSV hash D3A15279CE9E7B9577A3FEF91D93282AF7AAEB57AC5955BD0AAFEDF748BB538E; wide-ball footwork contacts; invalid input rejected.
+Review checks passed. CSVs and any requested renderer captures are in artifacts/.

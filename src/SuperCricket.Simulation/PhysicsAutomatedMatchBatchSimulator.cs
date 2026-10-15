@@ -78,6 +78,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         var random = new Random(seed);
         var match = new LimitedOversMatch(firstTeam, secondTeam, oversPerInnings);
         var telemetry = new PhysicsMatchTelemetry();
+        var batterTimingStates = new Dictionary<string, BatterTimingState>(StringComparer.Ordinal);
         var deliveries = 0;
         var deliveriesThisInnings = 0;
         var maximumDeliveriesThisInnings = oversPerInnings * OverScoreboard.BallsPerOver +
@@ -90,6 +91,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
                 if (match.InningsNumber != 1)
                     throw new InvalidOperationException("The second physics innings reached its limit without completing the match.");
                 match.StartNextInnings();
+                batterTimingStates.Clear();
                 deliveriesThisInnings = 0;
                 continue;
             }
@@ -99,7 +101,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
 
             SimulateDelivery(
                 match, random, fieldPreset, batterAsset, bowlerAsset, shotSet,
-                stockDelivery, wideDelivery, noBallDelivery, telemetry, strokeTable);
+                stockDelivery, wideDelivery, noBallDelivery, telemetry, strokeTable, batterTimingStates);
             deliveriesThisInnings++;
             deliveries++;
         }
@@ -120,9 +122,12 @@ public static class PhysicsAutomatedMatchBatchSimulator
         DeliveryPreset wideDelivery,
         DeliveryPreset noBallDelivery,
         PhysicsMatchTelemetry telemetry,
-        StrokeTableAsset strokeTable)
+        StrokeTableAsset strokeTable,
+        IDictionary<string, BatterTimingState> batterTimingStates)
     {
         var striker = match.StrikerPlayer;
+        if (!batterTimingStates.TryGetValue(striker.Id, out var batterTimingState))
+            batterTimingStates.Add(striker.Id, batterTimingState = new BatterTimingState());
         var situation = new BowlingSituation(
             match.LegalBalls,
             match.OversPerInnings,
@@ -156,12 +161,16 @@ public static class PhysicsAutomatedMatchBatchSimulator
             random.Next(),
             fielding.Positions,
             CpuDifficulty.Standard,
-            strokeTable);
+            strokeTable,
+            batterTimingState);
+        var timingZone = decision.StrokeOutcome?.Zone ?? TimingZone.Early;
+        var beaten = decision.StrokeOutcome?.Missed == true;
         if (decision.Leave)
         {
             telemetry.Leaves++;
             match.Events.Publish(new BallBeatBat(0f));
             ResolveMissedDeliveryWithPad(session, delivery, random, telemetry, shotOffered: false, match.Events);
+            RegisterBatterTimingState(session, batterTimingState, timingZone, bodyHit: false, beaten: false);
             match.CompleteDelivery();
             if (session.Dismissal == DismissalKind.Bowled)
                 telemetry.BowledDismissals++;
@@ -188,6 +197,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
         {
             ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
                 decision.StrokeOutcome?.Zone);
+            RegisterBatterTimingState(session, batterTimingState, timingZone, bodyHit: false, beaten: true);
             return;
         }
 
@@ -198,6 +208,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
             {
                 ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
                     decision.StrokeOutcome?.Zone);
+                RegisterBatterTimingState(session, batterTimingState, timingZone, bodyHit: false, beaten: true);
                 return;
             }
         }
@@ -217,6 +228,7 @@ public static class PhysicsAutomatedMatchBatchSimulator
             {
                 ResolveMissedShot(match, session, delivery, random, telemetry, decision.InputDelaySeconds,
                     decision.StrokeOutcome?.Zone);
+                RegisterBatterTimingState(session, batterTimingState, timingZone, bodyHit: false, beaten: true);
                 return;
             }
         }
@@ -232,7 +244,8 @@ public static class PhysicsAutomatedMatchBatchSimulator
         if (BowlingAimModel.FindFirstBounce(delivery) is { } firstBounce && firstBounce.TimeSeconds <= contactTimeSeconds)
             match.Events.Publish(new BallPitched(firstBounce.TimeSeconds, firstBounce.Position, firstBounce.BounceCount));
         match.Events.Publish(new BatContact(contactTimeSeconds, contactPosition,
-            decision.StrokeOutcome?.Zone.ToString() ?? TimingZone.Ideal.ToString()));
+            decision.StrokeOutcome?.Zone.ToString() ?? TimingZone.Ideal.ToString(),
+            decision.StrokeOutcome?.Edged == true));
 
         var pickupDuration = GetAnimationDuration(bowlerAsset, "fielder-pickup");
         var throwDuration = GetAnimationDuration(bowlerAsset, "fielder-throw");
@@ -268,10 +281,22 @@ public static class PhysicsAutomatedMatchBatchSimulator
             catchingRatings,
             throwingRatings,
             throwingAccuracyRatings);
+        RegisterBatterTimingState(session, batterTimingState, timingZone, bodyHit: false, beaten: beaten);
         if (session.Extra == DeliveryExtra.Wide)
             telemetry.WideDeliveries++;
         if (session.Extra == DeliveryExtra.NoBall)
             telemetry.NoBallDeliveries++;
+    }
+
+    private static void RegisterBatterTimingState(
+        DeliverySession session,
+        BatterTimingState timingState,
+        TimingZone zone,
+        bool bodyHit,
+        bool beaten)
+    {
+        if (session.Extra != DeliveryExtra.Wide)
+            timingState.RegisterBall(zone, bodyHit, beaten);
     }
 
     private static DeliveryPreset ChooseDelivery(
