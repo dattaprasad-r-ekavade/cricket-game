@@ -195,6 +195,10 @@ The 1.05 Human-proxy run-out chance multiplier moved Rookie above the wicket flo
 
 The five 50-match CSVs use seeds 9100–9149: [Rookie](../../artifacts/wp13-human-final08-runsafe105-full-rookie.csv), [Amateur](../../artifacts/wp13-human-final08-runsafe105-full-amateur.csv), [Standard](../../artifacts/wp13-human-final08-runsafe105-full-standard.csv), [Pro](../../artifacts/wp13-human-final08-runsafe105-full-pro.csv), [Legend](../../artifacts/wp13-human-final08-runsafe105-full-legend.csv).
 
+### Reproduced in the full review on 17 October 2026
+
+`pwsh tools/review.ps1 -RunGameChecks -CaptureVisuals` reran the same five 50-match Human-profile samples with seeds 9100–9149. All profile metrics reproduced the table above and stayed within every unchanged section 6 item 6 band. The fresh review CSVs are [Rookie](../../artifacts/review-physics-balance-20-over-human-Rookie.csv), [Amateur](../../artifacts/review-physics-balance-20-over-human-Amateur.csv), [Standard](../../artifacts/review-physics-balance-20-over-human-Standard.csv), [Pro](../../artifacts/review-physics-balance-20-over-human-Pro.csv), and [Legend](../../artifacts/review-physics-balance-20-over-human-Legend.csv). The batches report score and dismissal balance; they do not measure the item 3 unpracticed contact/Ideal rates or replace that human feel check.
+
 CSV artifacts: [Rookie](../../artifacts/wp13-human-t20-rookie.csv), [Amateur](../../artifacts/wp13-human-t20-amateur.csv), [Standard](../../artifacts/wp13-human-t20-standard.csv), [Pro](../../artifacts/wp13-human-t20-pro.csv), [Legend](../../artifacts/wp13-human-t20-legend.csv).
 
 ## Open questions

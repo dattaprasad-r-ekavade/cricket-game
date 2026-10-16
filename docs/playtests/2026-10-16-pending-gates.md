@@ -1,6 +1,6 @@
 # A5 human acceptance review — pending
 
-This worksheet captures the human checks left after the automated review on 16 October 2026. No human results have been entered; keep each gate open until someone runs it and records an outcome.
+This worksheet captures the human checks left after the automated review on 16 October 2026. The automated balance review was rerun successfully on 17 October; no human results have been entered, so keep each person-led gate open until someone runs it and records an outcome.
 
 ## Session details
 
@@ -18,7 +18,7 @@ This worksheet captures the human checks left after the automated review on 16 O
 | 3. Difficulty feel | Without practice, record Rookie attacking contacts on good-length deliveries and Legend Ideal contacts. Confirm Rookie contact is at least 60% and Legend Ideal is below 30%. Include numerator and denominator for both. | Pending |
 | 4. Bowling feedback | Bowl a delivery, identify its type and where it landed, then cause a no-ball with a late meter press. Record whether the player understands both the delivery feedback and the no-ball reason. | Pending |
 | 5. Decision replays | Trigger an out and a not-out LBW, a run-out, and a near miss. While bowling, check that the A/X appeal prompt appears only during its window and that letting it time out resumes play. Record whether each OUT / NOT OUT / SAFE signal, close-up, replay, stump-line or crease overlay explains the result, including the grounded-bat line on a near miss. | Pending |
-| 6. Human-profile balance batch | Automated: 50 seeded T20s for each Human profile meet all unchanged RPO, wicket and dismissal-share bands. Rookie averages 305.6 combined runs to Legend's 255.4. Full 1.05 results and CSV links are in [Step 134](../steps/step-134-cpu-stroke-acceptance.md). | PASS (automated) |
+| 6. Human-profile balance batch | Automated: 50 seeded T20s for each Human profile meet all unchanged RPO, wicket and dismissal-share bands. Rerun on 17 October reproduced the 1.05 results: Rookie averages 305.6 combined runs to Legend's 255.4. Details and both original/refreshed CSV links are in [Step 134](../steps/step-134-cpu-stroke-acceptance.md). | PASS (automated; rerun 17 Oct) |
 
 ## Art-track visual review
 
