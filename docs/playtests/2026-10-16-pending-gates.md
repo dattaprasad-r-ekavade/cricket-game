@@ -1,6 +1,6 @@
 # A5 human acceptance review — pending
 
-This worksheet captures the human checks left after the automated review on 16 October 2026. The automated balance review was rerun successfully on 17 October; no human results have been entered, so keep each person-led gate open until someone runs it and records an outcome.
+This worksheet captures the human checks left after the automated review. The full automated review passed again on 31 October 2026, and the WP18 dive/stumping preview audit and correction are recorded in [Step 144](../steps/step-144-wp18-dive-and-stumping-clips.md). No human results have been entered, so keep each person-led gate open until someone runs it and records an outcome.
 
 ## Session details
 
@@ -18,13 +18,15 @@ This worksheet captures the human checks left after the automated review on 16 O
 | 3. Difficulty feel | Without practice, record Rookie attacking contacts on good-length deliveries and Legend Ideal contacts. Confirm Rookie contact is at least 60% and Legend Ideal is below 30%. Include numerator and denominator for both. | Pending |
 | 4. Bowling feedback | Bowl a delivery, identify its type and where it landed, then cause a no-ball with a late meter press. Record whether the player understands both the delivery feedback and the no-ball reason. | Pending |
 | 5. Decision replays | Trigger an out and a not-out LBW, a run-out, and a near miss. While bowling, check that the A/X appeal prompt appears only during its window and that letting it time out resumes play. Record whether each OUT / NOT OUT / SAFE signal, close-up, replay, stump-line or crease overlay explains the result, including the grounded-bat line on a near miss. | Pending |
-| 6. Human-profile balance batch | Automated: 50 seeded T20s for each Human profile meet all unchanged RPO, wicket and dismissal-share bands. Rerun on 17 October reproduced the 1.05 results: Rookie averages 305.6 combined runs to Legend's 255.4. Details and both original/refreshed CSV links are in [Step 134](../steps/step-134-cpu-stroke-acceptance.md). | PASS (automated; rerun 17 Oct) |
+| 6. Human-profile balance batch | Automated: 50 seeded T20s for each Human profile meet all unchanged RPO, wicket and dismissal-share bands. Reruns on 17 and 31 October reproduced the 1.05 results: Rookie averages 305.6 combined runs to Legend's 255.4. Details and refreshed CSV links are in [Step 134](../steps/step-134-cpu-stroke-acceptance.md). | PASS (automated; rerun 31 Oct) |
 
 ## Art-track visual review
 
+An automated multi-frame preview audit on 31 October found and corrected the WP18 dive and stumping poses; details and structural/parity checks are in [Step 144](../steps/step-144-wp18-dive-and-stumping-clips.md). The WP18–WP20 entries below remain Pending until a person completes the in-game visual review.
+
 | Package | In-game checks | Result and notes |
 | --- | --- | --- |
-| WP18 clips | Inspect batting attack/defence/loft, footwork, fielding run/pickup/dive/catch/throw, keeper, and umpire actions. Check pose readability, bat contact timing, and return to stance. Previews: `artifacts/wp18/previews/`. | Pending |
+| WP18 clips | Inspect batting attack/defence/loft, footwork, fielding run/pickup/dive/catch/throw, keeper, and umpire actions. Check pose readability, bat contact timing, and return to stance. Previews: `artifacts/wp18/previews/`. | Pending. Automated dive/stumping corrections are recorded in [Step 144](../steps/step-144-wp18-dive-and-stumping-clips.md); human visual review remains open. |
 | WP19 players | Compare agile, balanced, and power bodies; check body proportions, kit fit/clipping, team-color masks, and transitions among LOD0/LOD1/LOD2. Preview: `artifacts/wp19/character-variants.png`; runtime capture: `artifacts/wp19-runtime-behind-striker.png`. | Pending |
 | WP20 props/stadium | Check in-game scale and placement of stumps/bails, bat, helmet, signage, stands, scoreboard, roller, umbrella, and crowd cards. Check readability and clipping. Preview: `artifacts/wp20/stadium-props.png`; field/stadium capture: `artifacts/review-field-overview.png`. | Pending |
 

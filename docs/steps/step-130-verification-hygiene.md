@@ -55,6 +55,19 @@ Review checks passed. CSVs and any requested renderer captures are in artifacts/
 
 The five Human-profile results and refreshed CSV paths are recorded in [Step 134](step-134-cpu-stroke-acceptance.md). These are automated balance results and do not supply human playtest or WP18–WP20 visual-review outcomes. No hosted CI rerun was needed because this run changed no implementation files; the existing green [Windows validation run 98](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/38812431483) remains the hosted implementation check.
 
+## Full local rerun (31 October 2026)
+
+This rerun followed the WP18 dive/stumping animation correction in [Step 144](step-144-wp18-dive-and-stumping-clips.md) and refreshed the bowler humanoid GLB and legacy parity export.
+
+| Command | Result |
+| --- | --- |
+| `dotnet test SuperCricket.sln -c Release` | Exit 0; 544 passed (308 Simulation, 203 Game, 33 Content), 0 failed, 0 skipped. |
+| `pwsh tools/review.ps1 -RunGameChecks -CaptureVisuals` | Exit 0. Release solution and Godot trial builds passed with 0 warnings/errors; animation-contract and GLB validators, content checks, gameplay/live-match checks, renderer captures, Standard 10/20-over gates, all five Human-profile batches, and the remaining automated review checks passed. |
+
+The Standard samples passed at 10 overs (6.11 RPO, 3.36 wickets/innings; LBW 14.9%, caught 58.6%, bowled 15.8%, run-out 10.7%) and 20 overs (6.58 RPO, 7.07 wickets/innings; LBW 15.1%, caught 59.8%, bowled 15.7%, run-out 9.3%). The five Human-profile results reproduced [Step 134](step-134-cpu-stroke-acceptance.md): Rookie averaged 305.6 combined runs to Legend's 255.4. Fresh CSVs are in `artifacts/review-physics-balance-*.csv`.
+
+The WP18 automated preview audit and structural/parity checks passed. Section 6 items 1–5 and WP18–WP20 person-led visual sign-offs remain open in [the pending-gates worksheet](../playtests/2026-10-16-pending-gates.md). This local run does not constitute hosted CI evidence.
+
 ## Hosted integration verification (16 October 2026)
 
 [Windows validation run 98](https://github.com/dattaprasad-r-ekavade/cricket-game/actions/runs/38812431483) succeeded on commit `b02f59a941cdffae984178856603d2f1641d90d7`. The workflow's `dotnet test SuperCricket.sln -c Release` passed all 544 tests (308 Simulation, 203 Game, 33 Content; 0 failed, 0 skipped). `pwsh -NoProfile -File tools/review.ps1 -SkipGame -SkipCaptures` passed the Release solution and Godot trial builds (0 warnings/errors), content checks, Standard 10/20-over balance gates, all five Human-profile batches, and the other headless checks.

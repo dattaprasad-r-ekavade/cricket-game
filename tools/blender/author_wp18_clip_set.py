@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-glb", type=Path, required=True)
     parser.add_argument("--contract", type=Path, required=True)
     parser.add_argument("--output-contract", type=Path, required=True)
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="replace generated clip actions and contract entries with matching names",
+    )
     return parser.parse_args(forwarded)
 
 
@@ -96,9 +101,9 @@ def clip_specs(role: str) -> list[dict]:
          "offsets": {"spine": (-0.03, 0.0, 0.10), "upper_arm.R": (0.0, 0.0, -0.05)}},
         {"name": "fielder-run", "source": "between-wickets", "events": {}, "offsets": {}},
         {"name": "fielder-dive-left", "source": "fielder-pickup", "events": {"ground-contact": 12},
-         "offsets": {"spine": (0.30, 0.0, -0.30), "upper_arm.L": (-0.18, 0.0, -0.12), "upper_arm.R": (-0.18, 0.0, 0.12)}},
+         "offsets": {}, "pose_keys": _dive_pose_keys(-1.0)},
         {"name": "fielder-dive-right", "source": "fielder-pickup", "events": {"ground-contact": 12},
-         "offsets": {"spine": (0.30, 0.0, 0.30), "upper_arm.L": (-0.18, 0.0, 0.12), "upper_arm.R": (-0.18, 0.0, -0.12)}},
+         "offsets": {}, "pose_keys": _dive_pose_keys(1.0)},
         {"name": "fielder-catch-low-stationary", "source": "fielder-catch", "events": {"catch-secured": 15},
          "offsets": {"spine": (0.18, 0.0, 0.0), "upper_arm.L": (0.14, 0.0, 0.0), "upper_arm.R": (0.14, 0.0, 0.0)}},
         {"name": "fielder-catch-chest-stationary", "source": "fielder-catch", "events": {"catch-secured": 15},
@@ -123,8 +128,7 @@ def clip_specs(role: str) -> list[dict]:
         {"name": "keeper-take", "source": "fielder-catch", "events": {"catch-secured": 13},
          "offsets": {"spine": (0.12, 0.0, 0.0), "upper_arm.L": (0.18, 0.0, -0.04), "upper_arm.R": (0.18, 0.0, 0.04)}},
         {"name": "keeper-stumping", "source": "fielder-pickup", "events": {"bails-broken": 12},
-         "offsets": {"spine": (-0.10, 0.0, 0.0), "thigh.L": (0.08, 0.0, 0.0), "thigh.R": (0.08, 0.0, 0.0),
-                     "upper_arm.L": (0.22, 0.0, -0.08), "upper_arm.R": (0.22, 0.0, 0.08)}},
+         "offsets": {}, "pose_keys": _keeper_stumping_pose_keys()},
         {"name": "umpire-out", "source": "practice-stance", "events": {"signal": 20},
          "offsets": {"upper_arm.R": (-2.3, 0.0, 0.0), "forearm.R": (-0.20, 0.0, 0.0)}},
         {"name": "umpire-four", "source": "practice-stance", "events": {"signal": 20},
@@ -138,9 +142,92 @@ def clip_specs(role: str) -> list[dict]:
     ]
 
 
-def _curve_bones(action: bpy.types.Action) -> set[str]:
+def _dive_pose_keys(direction: float) -> list[dict]:
+    leading_side = "R" if direction > 0 else "L"
+    contact_rotations = {
+        "root": (0.0, 0.0, direction * 1.20),
+        "spine": (0.28, 0.0, 0.0),
+        "head": (-0.14, 0.0, 0.0),
+    }
+    tucked_side = "R" if direction < 0 else "L"
+    contact_rotations[f"thigh.{tucked_side}"] = (1.0, 0.0, 0.0)
+    contact_rotations[f"shin.{tucked_side}"] = (-1.8, 0.0, 0.0)
+    for side in ("L", "R"):
+        leading = side == leading_side
+        side_sign = -1.0 if side == "L" else 1.0
+        contact_rotations[f"upper_arm.{side}"] = (-0.42, 0.0, side_sign * 0.12)
+        contact_rotations[f"forearm.{side}"] = (1.75 if leading else 1.62, 0.0, 0.0)
+
+    return [
+        {"frame": 1},
+        {"frame": 4, "rotation": {"root": (0.0, 0.0, direction * 0.20)}},
+        {"frame": 8, "rotation": {
+            "root": (0.0, 0.0, direction * 0.82),
+            "spine": (0.14, 0.0, 0.0),
+            "head": (-0.07, 0.0, 0.0),
+        }},
+        {"frame": 12, "rotation": contact_rotations},
+        {"frame": 14, "rotation": {
+            "root": (0.0, 0.0, direction * 0.86),
+            "spine": (0.18, 0.0, 0.0),
+            "head": (-0.08, 0.0, 0.0),
+        }},
+        {"frame": 16},
+    ]
+
+
+def _keeper_stumping_pose_keys() -> list[dict]:
+    crouch_rotations = {
+        "spine": (0.48, 0.0, 0.0),
+        "head": (-0.16, 0.0, 0.0),
+        "thigh.L": (0.71, 0.0, 0.0),
+        "thigh.R": (0.71, 0.0, 0.0),
+        "shin.L": (-1.46, 0.0, 0.0),
+        "shin.R": (-1.46, 0.0, 0.0),
+        "upper_arm.L": (-0.42, 0.0, -0.08),
+        "upper_arm.R": (-0.42, 0.0, 0.08),
+        "forearm.L": (1.65, 0.0, 0.0),
+        "forearm.R": (1.65, 0.0, 0.0),
+    }
+    return [
+        {"frame": 1},
+        {"frame": 4, "location": {"pelvis": (0.0, -0.10, 0.03)}, "rotation": {
+            "spine": (0.14, 0.0, 0.0),
+            "thigh.L": (0.12, 0.0, 0.0),
+            "thigh.R": (0.12, 0.0, 0.0),
+        }},
+        {"frame": 8, "location": {"pelvis": (0.0, -0.28, 0.10)}, "rotation": {
+            "spine": (0.32, 0.0, 0.0),
+            "head": (-0.10, 0.0, 0.0),
+            "thigh.L": (0.41, 0.0, 0.0),
+            "thigh.R": (0.41, 0.0, 0.0),
+            "shin.L": (-0.74, 0.0, 0.0),
+            "shin.R": (-0.74, 0.0, 0.0),
+            "upper_arm.L": (-0.28, 0.0, -0.04),
+            "upper_arm.R": (-0.28, 0.0, 0.04),
+            "forearm.L": (1.15, 0.0, 0.0),
+            "forearm.R": (1.15, 0.0, 0.0),
+        }},
+        {"frame": 12, "location": {"pelvis": (0.0, -0.50, 0.16)}, "rotation": crouch_rotations},
+        {"frame": 14, "location": {"pelvis": (0.0, -0.32, 0.10)}, "rotation": {
+            "spine": (0.30, 0.0, 0.0),
+            "head": (-0.10, 0.0, 0.0),
+            "thigh.L": (0.64, 0.0, 0.0),
+            "thigh.R": (0.64, 0.0, 0.0),
+            "shin.L": (-1.35, 0.0, 0.0),
+            "shin.R": (-1.35, 0.0, 0.0),
+            "upper_arm.L": (-0.22, 0.0, -0.03),
+            "upper_arm.R": (-0.22, 0.0, 0.03),
+            "forearm.L": (0.9, 0.0, 0.0),
+            "forearm.R": (0.9, 0.0, 0.0),
+        }},
+        {"frame": 16},
+    ]
+
+
+def _curve_bones(action: bpy.types.Action, channel: str = "rotation_euler") -> set[str]:
     names: set[str] = set()
-    pattern = re.compile(r'pose\.bones\["([^"]+)"\]\.rotation_euler')
+    pattern = re.compile(rf'pose\.bones\["([^"]+)"\]\.{re.escape(channel)}')
     for slot in action.slots:
         for layer in action.layers:
             for strip in layer.strips:
@@ -152,6 +239,48 @@ def _curve_bones(action: bpy.types.Action) -> set[str]:
                     if match:
                         names.add(match.group(1))
     return names
+
+
+def _pose_offsets_at(spec: dict, frame: int) -> dict[str, dict[str, tuple[float, float, float]]]:
+    anchors = sorted(spec.get("pose_keys", []), key=lambda item: int(item["frame"]))
+    if not anchors:
+        return {"rotation": {}, "location": {}}
+
+    before = anchors[0]
+    after = anchors[-1]
+    for anchor in anchors:
+        if int(anchor["frame"]) <= frame:
+            before = anchor
+        if int(anchor["frame"]) >= frame:
+            after = anchor
+            break
+
+    start = int(before["frame"])
+    end = int(after["frame"])
+    amount = 0.0 if end == start else (frame - start) / (end - start)
+    amount = amount * amount * (3.0 - 2.0 * amount)
+    result = {"rotation": {}, "location": {}}
+    for channel in result:
+        names = set(before.get(channel, {})) | set(after.get(channel, {}))
+        for name in names:
+            left = before.get(channel, {}).get(name, (0.0, 0.0, 0.0))
+            right = after.get(channel, {}).get(name, (0.0, 0.0, 0.0))
+            result[channel][name] = tuple(
+                float(a) + (float(b) - float(a)) * amount for a, b in zip(left, right)
+            )
+    return result
+
+
+def _set_linear_interpolation(action: bpy.types.Action) -> None:
+    for slot in action.slots:
+        for layer in action.layers:
+            for strip in layer.strips:
+                bag = strip.channelbag(slot)
+                if bag is None:
+                    continue
+                for curve in bag.fcurves:
+                    for key in curve.keyframe_points:
+                        key.interpolation = "LINEAR"
 
 
 def _assign_action(armature: bpy.types.Object, action: bpy.types.Action) -> None:
@@ -172,22 +301,34 @@ def _bake_variant(armature: bpy.types.Object, spec: dict) -> bpy.types.Action:
     start = int(round(base.frame_range[0]))
     end = int(round(base.frame_range[1]))
     frames = list(range(start, end + 1))
-    bones = _curve_bones(base) | set(spec.get("offsets", {}))
-    bones &= set(armature.pose.bones.keys())
-    if not bones:
+    rotation_bones = _curve_bones(base) | set(spec.get("offsets", {}))
+    location_bones: set[str] = set()
+    for pose_key in spec.get("pose_keys", []):
+        rotation_bones.update(pose_key.get("rotation", {}))
+        location_bones.update(pose_key.get("location", {}))
+    rig_bones = set(armature.pose.bones.keys())
+    rotation_bones &= rig_bones
+    location_bones &= rig_bones
+    if not rotation_bones:
         raise RuntimeError(f"Source animation '{base.name}' has no usable pose channels.")
 
-    sampled: dict[int, dict[str, tuple[float, float, float]]] = {}
+    sampled_rotation: dict[int, dict[str, tuple[float, float, float]]] = {}
+    sampled_location: dict[int, dict[str, tuple[float, float, float]]] = {}
     for frame in frames:
         for pose_bone in armature.pose.bones:
             pose_bone.rotation_mode = "XYZ"
             pose_bone.rotation_euler = (0.0, 0.0, 0.0)
+            pose_bone.location = (0.0, 0.0, 0.0)
         _assign_action(armature, base)
         bpy.context.scene.frame_set(frame)
         bpy.context.view_layer.update()
-        sampled[frame] = {
+        sampled_rotation[frame] = {
             name: tuple(float(v) for v in armature.pose.bones[name].rotation_euler)
-            for name in bones
+            for name in rotation_bones
+        }
+        sampled_location[frame] = {
+            name: tuple(float(v) for v in armature.pose.bones[name].location)
+            for name in location_bones
         }
 
     action = bpy.data.actions.new(spec["name"])
@@ -196,26 +337,36 @@ def _bake_variant(armature: bpy.types.Object, spec: dict) -> bpy.types.Action:
     for frame in frames:
         normalized = (frame - start) / max(1, end - start)
         envelope = 0.55 + 0.45 * __import__("math").sin(__import__("math").pi * normalized)
-        for name in bones:
-            values = list(sampled[frame][name])
+        pose_offsets = _pose_offsets_at(spec, frame)
+        for name in rotation_bones:
+            values = list(sampled_rotation[frame][name])
             offset = spec.get("offsets", {}).get(name, (0.0, 0.0, 0.0))
             for axis in range(3):
                 values[axis] += float(offset[axis]) * envelope
+                values[axis] += pose_offsets["rotation"].get(name, (0.0, 0.0, 0.0))[axis]
             pose_bone = armature.pose.bones[name]
             pose_bone.rotation_euler = values
             pose_bone.keyframe_insert(data_path="rotation_euler", frame=frame, group=name)
+        for name in location_bones:
+            values = list(sampled_location[frame][name])
+            offset = pose_offsets["location"].get(name, (0.0, 0.0, 0.0))
+            pose_bone = armature.pose.bones[name]
+            pose_bone.location = tuple(float(value) + float(offset[axis]) for axis, value in enumerate(values))
+            pose_bone.keyframe_insert(data_path="location", frame=frame, group=name)
 
     # The keyed neutral baseline is the same as the source stance. Keep every
     # new action independently inspectable and preserve its gameplay markers.
     action["sc_events"] = spec.get("events", {})
+    _set_linear_interpolation(action)
     return action
 
 
-def _make_contract(source_contract: dict, specs: list[dict]) -> dict:
+def _make_contract(source_contract: dict, specs: list[dict], replace_existing: bool = False) -> dict:
     contract = dict(source_contract)
-    existing = {clip["name"] for clip in contract["animations"]}
+    replacements = {}
     for spec in specs:
-        if spec["name"] in existing:
+        existing = next((clip for clip in contract["animations"] if clip["name"] == spec["name"]), None)
+        if existing is not None and not replace_existing:
             raise ValueError(f"Animation contract already contains '{spec['name']}'.")
         start = 1
         events = [
@@ -223,11 +374,15 @@ def _make_contract(source_contract: dict, specs: list[dict]) -> dict:
             for name, frame in spec.get("events", {}).items()
         ]
         events.sort(key=lambda item: item["timeSeconds"])
-        contract["animations"].append({
-            "name": spec["name"],
-            "events": events,
-            "rootMotion": {"mode": "zero", "samples": []},
-        })
+        replacement = dict(existing) if existing is not None and replace_existing else {}
+        replacement.update({"name": spec["name"], "events": events})
+        replacement.setdefault("rootMotion", {"mode": "zero", "samples": []})
+        replacements[spec["name"]] = replacement
+    contract["animations"] = [
+        replacements.pop(clip["name"], clip)
+        for clip in contract["animations"]
+    ]
+    contract["animations"].extend(replacements.values())
     return contract
 
 
@@ -241,9 +396,15 @@ def main() -> None:
         raise RuntimeError(f"Expected one player armature, found {len(armatures)}.")
     armature = armatures[0]
     specs = clip_specs(args.role)
-    contract = _make_contract(json.loads(args.contract.read_text(encoding="utf-8")), specs)
+    contract = _make_contract(
+        json.loads(args.contract.read_text(encoding="utf-8")), specs, replace_existing=args.replace_existing
+    )
 
     for spec in specs:
+        if args.replace_existing:
+            previous = bpy.data.actions.get(spec["name"])
+            if previous is not None:
+                bpy.data.actions.remove(previous, do_unlink=True)
         _bake_variant(armature, spec)
 
     # Keep the source stance selected when opening the editable Blender file.

@@ -25,6 +25,7 @@ Expanded the practice batter and bowler rigs with the WP18 animation families, k
 - `python -m unittest discover -s tests/tools -p test_player_animation_contract.py` — passed all four tests after regenerating the parity exports and rebuilding the humanoid GLBs. The tests cover contract parity, metadata round-trip, and validation for both players.
 - Updated the gameplay review assertion for the default directional `S` attack to require the new `batting-straight-front-attack` clip and explicitly set the Directional scheme. Classic Chords checks continue to cover the legacy `front-foot-drive` alias. This keeps the review independent of saved user settings while checking the WP18 stroke-table mapping.
 - `pwsh tools/review.ps1 -RunGameChecks -CaptureVisuals` — passed on 16 October 2026 with exit code 0, including gameplay checks and the capture matrix. This verifies integration; human review of the clip previews and movements in-game remains open.
+- An automated multi-frame preview audit on 31 October found that the original `fielder-dive-left/right` clips stayed upright and `keeper-stumping` did not reach a clear crouch. [Step 144](step-144-wp18-dive-and-stumping-clips.md) records the authored corrections and passing GLB, contract, and parity checks; this automated audit is supplementary and does not close the human visual review.
 
 ## Human visual review
 

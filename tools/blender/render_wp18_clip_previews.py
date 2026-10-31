@@ -15,11 +15,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--blend", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--ortho-scale", type=float, default=2.25,
+                        help="orthographic camera scale; increase this to fit wide poses")
     parser.add_argument("--take", action="append", default=[], help="Animation name and Blender frame, e.g. umpire-out:20")
     return parser.parse_args(forwarded)
 
 
-def setup_camera_and_lights(scene: bpy.types.Scene) -> list[bpy.types.Object]:
+def setup_camera_and_lights(scene: bpy.types.Scene, ortho_scale: float) -> list[bpy.types.Object]:
     target = Vector((0.0, -0.06, 0.90))
     created = []
     camera_data = bpy.data.cameras.new("WP18 Preview Camera")
@@ -28,7 +30,7 @@ def setup_camera_and_lights(scene: bpy.types.Scene) -> list[bpy.types.Object]:
     camera.location = Vector((2.5, -4.0, 2.15))
     camera.rotation_euler = (target - camera.location).to_track_quat("-Z", "Y").to_euler()
     camera_data.type = "ORTHO"
-    camera_data.ortho_scale = 2.25
+    camera_data.ortho_scale = ortho_scale
     scene.camera = camera
     created.append(camera)
 
@@ -66,7 +68,7 @@ def main() -> None:
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "Medium High Contrast"
     scene.camera = None
-    setup_camera_and_lights(scene)
+    setup_camera_and_lights(scene, args.ortho_scale)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     takes = args.take or ["practice-stance:1"]
